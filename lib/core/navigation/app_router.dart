@@ -1,0 +1,127 @@
+import 'package:go_router/go_router.dart';
+
+import '../../features/auth/presentation/view/login_screen.dart';
+import '../../features/auth/presentation/view/registration_screen.dart';
+import '../../features/auth/presentation/view/splash_screen.dart';
+import '../../features/chat/presentation/view/player_chat_screen.dart';
+import '../../features/home/presentation/view/available_players_screen.dart';
+import '../../features/home/models/available_player_model.dart';
+import '../../features/notifications/presentation/view/notification_center_screen.dart';
+import '../../features/party/presentation/view/party_details_screen.dart';
+import '../../features/party/presentation/view/party_list_screen.dart';
+import '../../features/settings/presentation/view/language_selection_screen.dart';
+import '../constants/app_options.dart';
+import '../constants/app_routes.dart';
+import '../utils/app_preferences.dart';
+import '../widgets/app_bottom_bar.dart';
+import 'main_tab_shell_screen.dart';
+
+abstract final class AppRouter {
+  static GoRouter createRouter() {
+    return GoRouter(
+      initialLocation: AppRoutes.splash,
+      redirect: (context, state) async {
+        if (state.matchedLocation == AppRoutes.splash ||
+            state.matchedLocation == '/') {
+          final isFirstLaunch = await AppPreferences.isFirstLaunch();
+          if (!isFirstLaunch) {
+            final isLoggedIn = await AppPreferences.isLoggedIn();
+            return isLoggedIn ? AppRoutes.home : AppRoutes.login;
+          }
+        }
+        return null;
+      },
+      routes: <RouteBase>[
+        GoRoute(path: '/', redirect: (_, state) => AppRoutes.splash),
+        GoRoute(
+          path: AppRoutes.splash,
+          builder: (_, state) => const SplashScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.languageSelection,
+          builder: (_, state) => const LanguageSelectionScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.registration,
+          builder: (_, state) => const RegistrationScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.login,
+          builder: (_, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.gameSelection,
+          builder: (_, state) => const MainTabShellScreen(
+            initialTab: AppBottomTab.games,
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.home,
+          builder: (_, state) => const MainTabShellScreen(
+            initialTab: AppBottomTab.home,
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.availablePlayers,
+          builder: (_, state) => const AvailablePlayersScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.notifications,
+          builder: (_, state) => const NotificationCenterScreen(),
+        ),
+        GoRoute(
+          path: '${AppRoutes.playerChat}/:playerId',
+          builder: (_, GoRouterState state) {
+            final player = state.extra as AvailablePlayerModel?;
+            final fallback = AvailablePlayerModel(
+              id: state.pathParameters['playerId'] ?? '',
+              name: 'Player',
+              gameId: AppOptions.valorantId,
+              rank: AppOptions.valorantRankOptions.first.name,
+              language: AppOptions.languageOptions.first,
+            );
+            return PlayerChatScreen(player: player ?? fallback);
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.profile,
+          builder: (_, _) => const MainTabShellScreen(
+            initialTab: AppBottomTab.profile,
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.rooms,
+          builder: (_, _) => const MainTabShellScreen(
+            initialTab: AppBottomTab.rooms,
+          ),
+        ),
+        GoRoute(
+          path: '${AppRoutes.partyList}/:gameId',
+          builder: (_, GoRouterState state) {
+            return PartyListScreen(
+              gameId: state.pathParameters['gameId'] ?? AppOptions.valorantId,
+            );
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.createParty,
+          builder: (_, GoRouterState state) {
+            return MainTabShellScreen(
+              initialTab: AppBottomTab.create,
+              initialGameId:
+                  state.uri.queryParameters['gameId'] ?? AppOptions.valorantId,
+            );
+          },
+        ),
+        GoRoute(
+          path: '${AppRoutes.partyDetails}/:partyId',
+          builder: (_, GoRouterState state) {
+            return PartyDetailsScreen(
+              partyId: state.pathParameters['partyId'] ?? '',
+            );
+          },
+        ),
+      ],
+    );
+  }
+}

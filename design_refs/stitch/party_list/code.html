@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2559f4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101422",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-button {
+            box-shadow: 0 0 20px rgba(37, 89, 244, 0.4);
+        }
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark overflow-x-hidden">
+<!-- Header -->
+<header class="sticky top-0 z-20 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md p-4 justify-between border-b border-slate-200 dark:border-primary/10">
+<div class="flex items-center gap-4">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Valorant Parties</h1>
+</div>
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">search</span>
+</button>
+</header>
+<!-- Filter Chips -->
+<div class="flex gap-3 p-4 overflow-x-auto no-scrollbar">
+<button class="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-primary/10 px-5 border border-transparent hover:border-primary/50 transition-all">
+<span class="text-sm font-semibold">Rank</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-primary/10 px-5 border border-transparent hover:border-primary/50 transition-all">
+<span class="text-sm font-semibold">Language</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-primary/10 px-5 border border-transparent hover:border-primary/50 transition-all">
+<span class="text-sm font-semibold">Region</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-primary/10 px-5 border border-transparent hover:border-primary/50 transition-all">
+<span class="text-sm font-semibold">Game Mode</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+<!-- Party List -->
+<main class="flex-1 px-4 space-y-4 pb-24">
+<!-- Card 1 -->
+<div class="glass-card rounded-xl overflow-hidden p-1 group">
+<div class="relative w-full aspect-[21/9] rounded-lg overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent z-10"></div>
+<img alt="Cyberpunk gaming setup" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Cinematic futuristic gaming desktop with neon lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAN806UKo6QewC5PH6-IDHP7krD422Z5j4UrBqS9D8a7aivJ6G4KF3umHdNJ2Zu0Ox5BDlUxMVS6CcmNAWu9HJqDf0m97VOsHPljwrUfjkURNW7yNOdzyAAfMXu7BwCv_iSvmX0YJ5uuT-wcCz9RqOWRI4haRgiPUYWHwrVYunyLFfPwvQr4E45MvTIgQ8C1hPq_0E0HuOGWAHnFj_u8au89vvSVLeWmqKFtRIBlsfJck445L-2NqRmVXXJzCxuDJlJvu9OygJIcB0"/>
+<div class="absolute top-3 left-3 z-20 flex gap-2">
+<span class="bg-primary/90 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Immortal</span>
+</div>
+<div class="absolute bottom-3 left-3 z-20">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-xs">group</span>
+<span class="text-xs font-bold text-white">3/5 Players</span>
+</div>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">Road to Radiant grind</h3>
+<div class="flex flex-wrap gap-2 mt-2">
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">English</span>
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">NA West</span>
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">Mic Required</span>
+</div>
+</div>
+<button class="glow-button bg-primary text-white h-10 px-6 rounded-full font-bold text-sm hover:scale-105 active:scale-95 transition-all">
+                            Join
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-card rounded-xl overflow-hidden p-1 group">
+<div class="relative w-full aspect-[21/9] rounded-lg overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent z-10"></div>
+<img alt="Gaming character illustration" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Abstract vibrant gaming background with purple hues" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTEbBTMivSq7BvYhOYR441TJTaO4hqFwooFgIbhwWTF9kpKjQOruz8wVaiiTqvJBf-bLmmJTiEJBNzp_5uBXLAbk3xVyA8sAA8YORxUw8ShCSK8UQTv4YQz0v_GMVg0ABf8EBT8LtQpyVejhmN8fH8AeeSdcRqlm18k8VHaZZGzHnuRk6k5JPtLmJFSPcfDFwvbk5FVH_kRx_u9JgZ5vPoBSHZRbI7yCk2ipeWTdUGdvYmTbfKY0EN_gw1Tx9aa7jn-1uYDcGBqFk"/>
+<div class="absolute top-3 left-3 z-20 flex gap-2">
+<span class="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Gold / Plat</span>
+</div>
+<div class="absolute bottom-3 left-3 z-20">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-xs">group</span>
+<span class="text-xs font-bold text-white">2/5 Players</span>
+</div>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">Chill Unrated &amp; Fun</h3>
+<div class="flex flex-wrap gap-2 mt-2">
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">German</span>
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">EU Central</span>
+</div>
+</div>
+<button class="glow-button bg-primary text-white h-10 px-6 rounded-full font-bold text-sm hover:scale-105 active:scale-95 transition-all">
+                            Join
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-card rounded-xl overflow-hidden p-1 group">
+<div class="relative w-full aspect-[21/9] rounded-lg overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent z-10"></div>
+<img alt="Controller on table" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Deep blue gaming aesthetics with neon lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTZyY2LfJtm1ZzcLiuDkWfk9bN3r0K9FsEXK_c9hXPgyH0r7gR_ipK3sYyNv7fYrU2YwFld-On93t1AtmBmSxd__K5txd-UCJ4JDU-cDVYxucENZB9kryi0ZPScPwEYmXF9VOwCb4iBL0gTKo6fKlIUjuMqO5HENmeCCo7-LyDpQasbtPzp5sCGjquvNu9Kpkyrnugi9laDal3cGYT8x8p4aRLT17kOxuSMqUpmRm2jSHeqmEpK82d8scstyHe3M6hcVO0eeXbMyE"/>
+<div class="absolute top-3 left-3 z-20 flex gap-2">
+<span class="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Bronze / Silver</span>
+</div>
+<div class="absolute bottom-3 left-3 z-20">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-xs">group</span>
+<span class="text-xs font-bold text-white">4/5 Players</span>
+</div>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">Looking for Sage main</h3>
+<div class="flex flex-wrap gap-2 mt-2">
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">English</span>
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">SEA</span>
+</div>
+</div>
+<button class="glow-button bg-primary text-white h-10 px-6 rounded-full font-bold text-sm hover:scale-105 active:scale-95 transition-all">
+                            Join
+                        </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 border-t border-slate-200 dark:border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-lg px-6 py-3 flex justify-between items-center">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-[24px]">groups</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Parties</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">person_search</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Find</span>
+</a>
+<div class="relative -mt-10">
+<button class="flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-xl glow-button border-4 border-background-light dark:border-background-dark">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">chat_bubble</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Chats</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Profile</span>
+</a>
+</nav>
+</div>
+</body></html>

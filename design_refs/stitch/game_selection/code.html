@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>QueueUp - Select Game</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2559f4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101422",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            background: rgba(37, 89, 244, 0.1);
+            border-color: rgba(37, 89, 244, 0.4);
+            box-shadow: 0 0 20px rgba(37, 89, 244, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header Navigation -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold flex-1 text-center pr-10">Select Game</h1>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-4xl mx-auto">
+<div class="mb-8">
+<h2 class="text-2xl font-bold mb-2">Popular Games</h2>
+<p class="text-slate-500 dark:text-slate-400">Choose a game to find active parties or create your own.</p>
+</div>
+<!-- Game Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+<!-- Valorant Card -->
+<div class="glass-card rounded-xl overflow-hidden cursor-pointer group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent z-10"></div>
+<img alt="Valorant" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Futuristic tactical shooter characters in red and blue" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAH7ajsRVpCIo8yUUBeD7VRzVJjG7ZrnlBPs9CoyG7gmzyCFoqfQthMZTch8O0T_wG4-hfHYAG81MA-0z5dO6_kTOdIcNrnhC21av_abd7XvwfVnSg6StSqPXDIYERoAg-_B5SCA2BX6gniOCNHh0AApGTmYm0tABv2t_9a_7qj0vb5-lQ-H8Pjw9SX9XFc2-k3s7WIjAtyG63GJzod6VkrKS5yrS9nSRURL7HZbTJLlq0f64BHo84jthEbhPDdvYrJCG6BNdA1jfw"/>
+<div class="absolute bottom-4 left-4 z-20">
+<h3 class="text-2xl font-bold text-white">Valorant</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="size-2 bg-green-500 rounded-full animate-pulse"></span>
+<span class="text-sm text-slate-300">2.4k active parties</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PUBG Card -->
+<div class="glass-card rounded-xl overflow-hidden cursor-pointer group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent z-10"></div>
+<img alt="PUBG" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Battle royale landscape with military equipment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD24oH-N-30YgprRbDmdTNO_Os7D9t_nSOq5m75S8z-fAxAiCc3jOSQEn8vUlXK4QYJ9OBmuvhE4BQczQUm-uVKjeXfZKpdzgLPwIQtj0_FCBhYMTeXmu-6-KQADLQ7zBH4f9_kTdiaoWNmqK1rmut2SbKQHQPIhIXsUriJ3ujXhqEFetM3I1FFyQkhjU5uAG__EwdPyqlRLZmEQ_35YvsKSKj_rRD2Bn_1Wev0aKzcVH9QBO17i5RauuKgFWKO5ltsUDl-LX_hMnA"/>
+<div class="absolute bottom-4 left-4 z-20">
+<h3 class="text-2xl font-bold text-white">PUBG</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="size-2 bg-green-500 rounded-full animate-pulse"></span>
+<span class="text-sm text-slate-300">1.8k active parties</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Placeholder / More Games -->
+<div class="glass-card rounded-xl p-8 flex flex-col items-center justify-center border-dashed border-2 border-slate-700 dark:border-slate-800 opacity-60 hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-4xl mb-2">search</span>
+<p class="font-medium">Browse All Games</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<div class="fixed bottom-24 right-6 sm:bottom-28">
+<button class="bg-primary hover:bg-primary/90 text-white flex items-center gap-3 px-6 py-4 rounded-full shadow-lg shadow-primary/30 transition-all hover:-translate-y-1">
+<span class="material-symbols-outlined">add</span>
+<span class="font-bold">Create Party</span>
+</button>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="bg-slate-100 dark:bg-[#1b1e27] border-t border-slate-200 dark:border-slate-800 px-4 pb-6 pt-3 flex justify-around items-center sticky bottom-0 w-full">
+<a class="flex flex-col items-center gap-1 text-slate-500 dark:text-[#9ca3ba] hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-xs font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">videogame_asset</span>
+<span class="text-xs font-medium">Games</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500 dark:text-[#9ca3ba] hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-xs font-medium">Parties</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500 dark:text-[#9ca3ba] hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-xs font-medium">Profile</span>
+</a>
+</nav>
+</body></html>

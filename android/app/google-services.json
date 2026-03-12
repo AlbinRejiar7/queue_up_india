@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "361379272562",
+    "project_id": "queueupindia-de281",
+    "storage_bucket": "queueupindia-de281.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:361379272562:android:69f75f9845dba7e53f2feb",
+        "android_client_info": {
+          "package_name": "com.queueup.india"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOlUamQBWHfhPutrepqXNmEdy2Hp0wfSY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

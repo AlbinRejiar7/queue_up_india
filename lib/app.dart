@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
+
+import 'core/di/injection_container.dart';
+import 'core/navigation/bloc/main_tab_bloc.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/bloc/auth_bloc.dart';
+import 'features/auth/bloc/registration_bloc.dart';
+import 'features/game_selection/bloc/game_bloc.dart';
+import 'features/home/bloc/available_players_bloc.dart';
+import 'features/home/bloc/home_availability_bloc.dart';
+import 'features/party/bloc/party_bloc.dart';
+import 'features/settings/bloc/language_bloc.dart';
+import 'features/settings/bloc/profile_bloc.dart';
+
+class QueueUpApp extends StatelessWidget {
+  const QueueUpApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<MainTabBloc>(create: (_) => sl<MainTabBloc>()),
+        BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
+        BlocProvider<RegistrationBloc>(
+          create: (_) => sl<RegistrationBloc>(),
+        ),
+        BlocProvider<LanguageBloc>(create: (_) => sl<LanguageBloc>()),
+        BlocProvider<ProfileBloc>(create: (_) => sl<ProfileBloc>()),
+        BlocProvider<GameBloc>(create: (_) => sl<GameBloc>()),
+        BlocProvider<PartyBloc>(create: (_) => sl<PartyBloc>()),
+        BlocProvider<HomeAvailabilityBloc>(
+          create: (_) => sl<HomeAvailabilityBloc>(),
+        ),
+        BlocProvider<AvailablePlayersBloc>(
+          create: (_) => sl<AvailablePlayersBloc>(),
+        ),
+      ],
+      child: ScreenUtilInit(
+        designSize: const Size(393, 852),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (context, child) {
+          return MaterialApp.router(
+            title: 'QueueUp',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.darkTheme,
+            routerConfig: sl<GoRouter>(),
+          );
+        },
+      ),
+    );
+  }
+}

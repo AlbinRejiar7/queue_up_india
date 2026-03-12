@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2559f4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101422",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-glow:checked + div {
+            box-shadow: 0 0 20px rgba(37, 89, 244, 0.4);
+            border-color: #2559f4;
+            background: rgba(37, 89, 244, 0.15);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Decorative Background Elements -->
+<div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full -z-10"></div>
+<div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full -z-10"></div>
+<!-- Top App Bar -->
+<nav class="flex items-center p-6 justify-between w-full max-w-2xl mx-auto">
+<button class="flex size-12 shrink-0 items-center justify-center rounded-full glass-panel hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex-1 text-center">
+<p class="text-sm font-medium tracking-widest uppercase opacity-60">Step 1 of 3</p>
+</div>
+<div class="size-12"></div> <!-- Spacer for symmetry -->
+</nav>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col px-6 py-8 w-full max-w-2xl mx-auto">
+<header class="mb-10">
+<h1 class="text-4xl font-bold leading-tight tracking-tight mb-3">
+                    Choose Your <span class="text-primary">Language</span>
+</h1>
+<p class="text-slate-400 text-lg">Select your preferred language to customize your QueueUp experience.</p>
+</header>
+<!-- Selection Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 content-start">
+<!-- English -->
+<label class="relative cursor-pointer group">
+<input checked="" class="peer sr-only neon-glow" name="language" type="radio" value="english"/>
+<div class="glass-panel p-6 rounded-xl flex items-center justify-between border-2 border-transparent transition-all duration-300 group-hover:bg-white/5 peer-checked:border-primary peer-checked:bg-primary/10">
+<div class="flex flex-col">
+<span class="text-xl font-bold">English</span>
+<span class="text-sm opacity-50">Global</span>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 peer-checked:opacity-100 transition-opacity">check_circle</span>
+</div>
+</label>
+<!-- Hindi -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only neon-glow" name="language" type="radio" value="hindi"/>
+<div class="glass-panel p-6 rounded-xl flex items-center justify-between border-2 border-transparent transition-all duration-300 group-hover:bg-white/5 peer-checked:border-primary peer-checked:bg-primary/10">
+<div class="flex flex-col">
+<span class="text-xl font-bold">हिन्दी</span>
+<span class="text-sm opacity-50">Hindi</span>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 peer-checked:opacity-100 transition-opacity">check_circle</span>
+</div>
+</label>
+<!-- Tamil -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only neon-glow" name="language" type="radio" value="tamil"/>
+<div class="glass-panel p-6 rounded-xl flex items-center justify-between border-2 border-transparent transition-all duration-300 group-hover:bg-white/5 peer-checked:border-primary peer-checked:bg-primary/10">
+<div class="flex flex-col">
+<span class="text-xl font-bold">தமிழ்</span>
+<span class="text-sm opacity-50">Tamil</span>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 peer-checked:opacity-100 transition-opacity">check_circle</span>
+</div>
+</label>
+<!-- Telugu -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only neon-glow" name="language" type="radio" value="telugu"/>
+<div class="glass-panel p-6 rounded-xl flex items-center justify-between border-2 border-transparent transition-all duration-300 group-hover:bg-white/5 peer-checked:border-primary peer-checked:bg-primary/10">
+<div class="flex flex-col">
+<span class="text-xl font-bold">తెలుగు</span>
+<span class="text-sm opacity-50">Telugu</span>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 peer-checked:opacity-100 transition-opacity">check_circle</span>
+</div>
+</label>
+<!-- Additional Placeholder to maintain grid symmetry -->
+<div class="glass-panel p-6 rounded-xl flex items-center justify-center border border-dashed border-white/10 opacity-40">
+<span class="text-sm">More coming soon...</span>
+</div>
+</div>
+<!-- Bottom Navigation -->
+<footer class="mt-auto pt-10">
+<button class="w-full bg-primary hover:bg-primary/90 text-white h-16 rounded-full text-lg font-bold shadow-[0_8px_30px_rgb(37,89,244,0.3)] transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                    Continue
+                    <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+<p class="text-center mt-6 text-sm text-slate-500">
+                    You can change this anytime in settings.
+                </p>
+</footer>
+</main>
+<!-- Bottom spacing -->
+<div class="h-8"></div>
+</div>
+</body></html>

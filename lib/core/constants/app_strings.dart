@@ -1,0 +1,198 @@
+abstract final class AppStrings {
+  static const String appName = 'QueueUp India';
+  static const String tagline = 'Find Your Squad Instantly';
+  static const String serverStatus = 'Server Status: Online';
+  static const String syncingServers = 'Syncing with global servers...';
+  static const String initializeMatchmaking = 'INITIALIZE MATCHMAKING';
+  static const String activePlayers = 'Active Players';
+  static const String averageQueue = 'Avg. Queue';
+  static const String versionLabel = 'Ver 4.0.26';
+  static const String privacy = 'Privacy';
+  static const String terms = 'Terms';
+  static const String skip = 'Skip';
+
+  static const String stepOneOfThree = 'Step 1 of 3';
+  static const String chooseYourLanguage = 'Choose Your Language';
+  static const String languageDescription =
+      'Select your preferred language to customize your QueueUp experience.';
+  static const String continueAction = 'Continue';
+  static const String languageSettingsHint =
+      'You can change this anytime in settings.';
+  static const String moreComingSoon = 'All Indian language options added.';
+
+  static const String welcomeBack = 'Welcome back';
+  static const String loginDescription =
+      'Manage your waitlist seamlessly with modern tools';
+  static const String continueWithGoogle = 'Continue with Google';
+  static const String continueAsGuest = 'Continue as Guest';
+  static const String createAccountTitle = 'Create Account';
+  static const String createAccountSubtitle =
+      'Register with your phone and jump into the queue.';
+  static const String loginTitle = 'Login';
+  static const String loginSubtitle =
+      'Enter your phone number to continue.';
+  static const String username = 'Username';
+  static const String usernameHint = 'Choose a unique username';
+  static const String usernameRequired = 'Enter a username to continue.';
+  static const String phoneNumber = 'Phone Number';
+  static const String phoneNumberHint = 'Phone number (6-15 digits)';
+  static const String indiaCountryCode = '+91';
+  static const String sendOtp = 'Send OTP';
+  static const String otpSent = 'OTP sent';
+  static const String enterOtp = 'Enter OTP';
+  static const String otpHint = '6-digit OTP';
+  static const String verifyOtp = 'Verify OTP';
+  static const String resendOtp = 'Resend OTP';
+  static const String selectCountryCode = 'Select country code';
+  static const String searchCountry = 'Search country';
+  static const String selectAvatar = 'Select Profile Avatar';
+  static const String selectAvatarHint =
+      'Choose a preset to show in parties and rooms.';
+  static const String dontHaveAccount = "Don't have an account?";
+  static const String registerAction = 'Register';
+  static const String alreadyHaveAccount = 'Already have an account?';
+  static const String loginAction = 'Login';
+  static const String orDivider = 'OR';
+  static const String otpSendFailed = 'Unable to send OTP right now.';
+  static const String otpVerifyFailed = 'Unable to verify OTP right now.';
+  static const String invalidPhoneNumber = 'Enter a valid phone number.';
+  static const String invalidOtp = 'Enter the 6-digit OTP to continue.';
+  static const String completePartyDetails =
+      'Complete all party details before creating.';
+  static const String selectLanguageFirst = 'Select a language to continue.';
+  static const String noChangesToSave = 'No changes to save yet.';
+  static const String partyCodeCopied = 'Party code copied to clipboard.';
+  static const String legalPrefix = 'By continuing, you agree to our';
+  static const String termsOfService = 'Terms of Service';
+  static const String privacyPolicy = 'Privacy Policy';
+  static const String secureAccess = 'Secure Access';
+  static const String rapidEntry = 'Rapid Entry';
+  static const String availableGlobal = 'Available Global';
+
+  static const String selectGame = 'Select Game';
+  static const String popularGames = 'Popular Games';
+  static const String gameDescription =
+      'Choose a game to find active parties or create your own.';
+  static const String browseAllGames = 'Browse All Games';
+  static const String createParty = 'Create Party';
+  static const String game = 'Game';
+  static const String home = 'Home';
+  static const String homeTitle = 'Queue Radar';
+  static const String homeSubtitle =
+      'Go available and let nearby players know you are ready to squad up.';
+  static const String availabilityPreferences = 'Availability Preferences';
+  static const String availabilityOn = 'AVAILABLE';
+  static const String availabilityOff = 'GO AVAILABLE';
+  static const String availabilityHintOn = 'Players can now discover your queue';
+  static const String availabilityHintOff = 'Tap the button to broadcast status';
+  static const String completeAvailabilitySelection =
+      'Select game, language, and rank to go available';
+  static const String seeAvailablePlayers = 'See Available Players';
+  static const String availablePlayersTitle = 'Available Players';
+  static const String availablePlayersSubtitle =
+      'Players currently looking for a squad';
+  static const String noAvailablePlayers = 'No players are available right now.';
+  static const String resetFilters = 'Reset Filters';
+  static const String notifications = 'Notifications';
+  static const String notificationsSubtitle =
+      'Recent activity and party updates';
+  static const String noNotifications = 'No notifications yet.';
+  static const String confirmLogoutTitle = 'Log out?';
+  static const String confirmLogoutMessage =
+      'You will need to verify again to access your account.';
+  static const String confirmExitTitle = 'Exit QueueUp India?';
+  static const String confirmExitMessage =
+      'Are you sure you want to close the app?';
+  static const String cancelAction = 'Cancel';
+  static const String confirmAction = 'Confirm';
+  static const String confirmKickTitle = 'Remove player?';
+  static const String confirmKickMessage =
+      'This player will be removed from the party.';
+  static const String games = 'Games';
+  static const String rooms = 'Rooms';
+  static const String parties = 'Parties';
+  static const String profile = 'Profile';
+  static const String myRooms = 'My Rooms';
+  static const String createdRooms = 'Created Rooms';
+  static const String joinedRooms = 'Joined Rooms';
+  static const String noCreatedRooms =
+      'No rooms created yet. Create one from the + tab.';
+  static const String noJoinedRooms = 'No joined rooms yet.';
+  static const String openRoom = 'Open';
+  static const String roomCreated = 'Created';
+  static const String roomJoined = 'Joined';
+  static const String profileDetails = 'Profile Details';
+  static const String queueName = 'Name';
+  static const String queueNameHint = 'Enter your queue display name';
+  static const String preferredQueueLanguage = 'Preferred Queue Language';
+  static const String queuePreferenceHint =
+      'These preferences help you find better queue matches.';
+  static const String changeAvatar = 'Change Profile Avatar';
+  static const String saveChanges = 'Save Changes';
+  static const String profileSaved = 'Profile preferences saved';
+  static const String logout = 'Log Out';
+
+  static const String valorantParties = 'Valorant Parties';
+  static const String filterRank = 'Rank';
+  static const String filterLanguage = 'Language';
+  static const String join = 'Join';
+  static const String full = 'FULL';
+  static const String players = 'Players';
+  static const String waitingForPlayer = 'Waiting for player...';
+  static const String find = 'Find';
+  static const String chats = 'Chats';
+
+  static const String partyName = 'Party Name';
+  static const String partyNameHint = 'e.g. Rank Push Masters';
+  static const String autoPartyName = 'Auto party name';
+  static const String autoPartyNameHint =
+      'Default party name is generated from required players.';
+  static const String maxPlayers = 'Needed Players';
+  static const String minTwo = 'Min 1';
+  static const String maxFive = 'Max 4';
+  static const String partyCode = 'Party Code';
+  static const String partyCodeHint = 'ABCD-1234';
+
+  static const String partyDetails = 'Party Details';
+  static const String createdBy = 'Created by';
+  static const String partyInvitationCode = 'Party Invitation Code';
+  static const String copyCode = 'Copy Code';
+  static const String inviteFriends = 'Invite Friends';
+  static const String groupChat = 'Group Chat';
+  static const String chatComingSoon = 'Group chat is coming soon.';
+  static const String kickPlayer = 'Kick player';
+  static const String chatPlaceholder = 'Type a message';
+  static const String chatWelcome = 'Welcome to the party chat!';
+  static const String chatPrompt = 'Share your roles and ready status.';
+  static const String chatYou = 'You';
+  static const String online = 'online';
+  static const String chatWith = 'Chat with';
+  static const String chatTapToOpen = 'Tap to open chat';
+  static const String chatDummyReply = 'Got it! Ready when you are.';
+  static const String chatEmptyMessage = 'Type a message to send.';
+  static const String directChatGreeting = 'Hey! Ready for a quick queue?';
+  static const String directChatResponse = 'Yes, let us squad up!';
+  static const String host = 'Host';
+  static const String ready = 'Ready';
+  static const String inLobby = 'In Lobby';
+  static const String startMatch = 'Start Match';
+  static const String leaveParty = 'Leave Party';
+
+  static const String loading = 'Loading...';
+  static const String errorTitle = 'Something went wrong';
+  static const String retry = 'Retry';
+  static const String authFailed = 'Unable to sign in. Please try again.';
+  static const String gameLoadFailed = 'Unable to load games right now.';
+  static const String partyLoadFailed = 'Unable to load parties right now.';
+  static const String saveLanguageFailed = 'Unable to save language selection.';
+  static const String profileLoadFailed = 'Unable to load profile right now.';
+  static const String profileSaveFailed = 'Unable to save profile right now.';
+
+  static String generatedPartyName({
+    required String gameName,
+    required int neededPlayers,
+  }) {
+    final suffix = neededPlayers == 1 ? 'Player' : 'Players';
+    return '$gameName - Need $neededPlayers $suffix';
+  }
+}

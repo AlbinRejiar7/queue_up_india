@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2559f4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101422",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-field {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-field:focus-within {
+            border-color: #2559f4;
+            background: rgba(37, 89, 244, 0.05);
+        }
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 1rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col items-center">
+<div class="w-full max-w-md min-h-screen flex flex-col bg-background-light dark:bg-background-dark relative overflow-hidden">
+<!-- Header -->
+<div class="flex items-center p-6 justify-between sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back</span>
+</button>
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight flex-1 text-center pr-10">Create Party</h2>
+</div>
+<!-- Form Content -->
+<div class="flex-1 px-6 pb-32 space-y-6">
+<!-- Party Name -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Party Name</label>
+<div class="glass-field rounded-xl overflow-hidden">
+<input class="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 p-4 text-base placeholder:text-slate-500" placeholder="e.g. Rank Push Masters" type="text"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Rank -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Rank</label>
+<div class="glass-field rounded-xl overflow-hidden">
+<select class="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 p-4 text-base appearance-none">
+<option value="any">Any Rank</option>
+<option value="bronze">Bronze</option>
+<option value="silver">Silver</option>
+<option value="gold">Gold</option>
+<option value="platinum">Platinum</option>
+<option value="diamond">Diamond</option>
+<option value="master">Master</option>
+</select>
+</div>
+</div>
+<!-- Language -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Language</label>
+<div class="glass-field rounded-xl overflow-hidden">
+<select class="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 p-4 text-base">
+<option value="en">English</option>
+<option value="es">Spanish</option>
+<option value="fr">French</option>
+<option value="de">German</option>
+<option value="zh">Chinese</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Region -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Region</label>
+<div class="glass-field rounded-xl overflow-hidden">
+<select class="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 p-4 text-base">
+<option value="na">North America</option>
+<option value="eu">Europe</option>
+<option value="as">Asia</option>
+<option value="oc">Oceania</option>
+<option value="sa">South America</option>
+</select>
+</div>
+</div>
+<!-- Max Players Selector -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Max Players</label>
+<div class="glass-field rounded-xl flex items-center justify-between p-2">
+<button class="size-12 flex items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<span class="text-xl font-bold text-slate-900 dark:text-slate-100">4</span>
+<button class="size-12 flex items-center justify-center rounded-lg bg-primary text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<div class="flex justify-between px-2 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+<span>Min 2</span>
+<span>Max 5</span>
+</div>
+</div>
+<!-- Party Code -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">Party Code (Optional)</label>
+<div class="glass-field rounded-xl overflow-hidden flex items-center">
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-slate-900 dark:text-slate-100 p-4 text-base placeholder:text-slate-500 uppercase tracking-widest font-mono" placeholder="ABCD-1234" type="text"/>
+<button class="p-4 text-primary">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Sticky Footer Action -->
+<div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light dark:via-background-dark to-transparent">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-5 rounded-xl transition-all transform active:scale-[0.98] shadow-xl shadow-primary/25 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">group_add</span>
+                Create Party
+            </button>
+</div>
+<!-- Abstract Background Decoration -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute top-1/2 -left-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+</div>
+</body></html>

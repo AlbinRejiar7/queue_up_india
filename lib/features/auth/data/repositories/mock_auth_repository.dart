@@ -1,0 +1,55 @@
+import 'dart:async';
+
+import '../../models/user_model.dart';
+import 'auth_repository.dart';
+
+class MockAuthRepository implements AuthRepository {
+  @override
+  Future<void> sendOtp({required String phoneNumber}) async {
+    // TODO: Implement FirebaseAuth here
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+  }
+
+  @override
+  Future<UserModel> signInAsGuest() async {
+    // TODO: Implement FirebaseAuth here
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    return const UserModel(
+      id: 'guest_001',
+      displayName: 'GuestPlayer',
+      isGuest: true,
+      avatarUrl: null,
+    );
+  }
+
+  @override
+  Future<UserModel> signInWithGoogle() async {
+    // TODO: Implement FirebaseAuth here
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    return const UserModel(
+      id: 'google_001',
+      displayName: 'ShadowPlayer',
+      isGuest: false,
+      avatarUrl: null,
+    );
+  }
+
+  @override
+  Future<UserModel> verifyOtp({
+    required String phoneNumber,
+    required String otp,
+    String? avatarUrl,
+    String? displayName,
+  }) async {
+    // TODO: Implement FirebaseAuth here
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    return UserModel(
+      id: 'phone_001',
+      displayName: displayName?.trim().isNotEmpty == true
+          ? displayName!.trim()
+          : 'QueuePlayer',
+      isGuest: false,
+      avatarUrl: avatarUrl,
+    );
+  }
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>QueueUp - Find Your Squad</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#2559f4",
+                "background-light": "#f5f6f8",
+                "background-dark": "#0F0F14", // Updated to match user request within dark mode
+              },
+              fontFamily: {
+                "display": ["Space Grotesk"]
+              },
+              borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        /* Subtle glow effects using standard CSS to complement Tailwind */
+        .glow-overlay {
+            background: radial-gradient(circle at 50% 50%, rgba(37, 89, 244, 0.15) 0%, rgba(15, 15, 20, 0) 70%);
+        }
+        .logo-glow {
+            text-shadow: 0 0 30px rgba(37, 89, 244, 0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased">
+<div class="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-light dark:bg-background-dark">
+<!-- Background Ambient Glow -->
+<div class="absolute inset-0 glow-overlay pointer-events-none"></div>
+<!-- Top App Bar Utility Area (Hidden/Subtle) -->
+<div class="absolute top-0 left-0 w-full flex items-center justify-between p-6 z-20">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="text-slate-400 text-xs font-medium tracking-widest uppercase">Server Status: Online</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-slate-400 text-xl cursor-pointer hover:text-primary transition-colors">wifi_tethering</span>
+<span class="material-symbols-outlined text-slate-400 text-xl cursor-pointer hover:text-primary transition-colors">settings</span>
+</div>
+</div>
+<!-- Main Content Container -->
+<div class="relative z-10 flex flex-col items-center px-6 max-w-md w-full">
+<!-- Hero Visual Area -->
+<div class="w-full @container mb-12">
+<div class="@[480px]:px-4">
+<div class="w-full aspect-square max-w-[280px] mx-auto bg-center bg-no-repeat bg-cover flex flex-col justify-end overflow-hidden rounded-xl relative group" data-alt="Futuristic gaming helmet with blue neon accents" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAFclrxmPqLoG2UZJa96FCu0lsbqnTay6IssmMwDBkRL1JP08o4kA67Iv7rrx_QKQRQd8RljCIS2sc3U0OgGO_XYLUdtUzfIptjeb1j1BygNy2w8qvS_J3HyTnqM5MbE-4xkgazqiOvinwIYE9AePhPFN6Pa5uQPD_CnWNWxpVktqtXqqZZeXIxdQP6ORHiOjfbTuuNs7ajwTgisb1VQGqTnvfvtggbxX1fduSrvlQXxx5Mtt2EKb2zj1cf1cl9xasWstGCndB9hwQ");'>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent opacity-60"></div>
+</div>
+</div>
+</div>
+<!-- Brand Identity -->
+<div class="text-center space-y-2">
+<h1 class="text-slate-900 dark:text-slate-100 tracking-tighter text-6xl font-bold leading-none logo-glow">
+                    Queue<span class="text-primary">Up</span>
+</h1>
+<p class="text-slate-600 dark:text-slate-400 text-lg font-light tracking-wide">
+                    Find Your Squad Instantly
+                </p>
+</div>
+<!-- Loading Interaction State -->
+<div class="w-full mt-16 space-y-6">
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-end">
+<p class="text-slate-900 dark:text-slate-100 text-sm font-medium tracking-tight">Syncing with global servers...</p>
+<p class="text-primary text-xs font-bold">74%</p>
+</div>
+<div class="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+<div class="h-full rounded-full bg-primary" style="width: 74%;"></div>
+</div>
+</div>
+<!-- Action Button (Primary) -->
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+                    INITIALIZE MATCHMAKING
+                </button>
+<!-- Secondary Info -->
+<div class="flex justify-center gap-8 py-4">
+<div class="flex flex-col items-center gap-1">
+<span class="text-slate-900 dark:text-slate-100 font-bold text-lg">14.2k</span>
+<span class="text-slate-500 text-[10px] uppercase tracking-widest">Active Players</span>
+</div>
+<div class="w-px h-8 bg-slate-800 self-center"></div>
+<div class="flex flex-col items-center gap-1">
+<span class="text-slate-900 dark:text-slate-100 font-bold text-lg">2.4s</span>
+<span class="text-slate-500 text-[10px] uppercase tracking-widest">Avg. Queue</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation/Footer Area -->
+<div class="absolute bottom-10 left-0 w-full px-6 flex justify-between items-center text-slate-500 text-[10px] font-medium tracking-[0.2em] uppercase">
+<span>Ver 4.0.26</span>
+<div class="flex gap-4">
+<span class="hover:text-primary cursor-pointer transition-colors">Privacy</span>
+<span class="hover:text-primary cursor-pointer transition-colors">Terms</span>
+</div>
+</div>
+<!-- Decorative Background Elements -->
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
+</div>
+</body></html>
