@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
@@ -15,8 +17,40 @@ import '../../bloc/available_players_state.dart';
 import 'widgets/available_player_card.dart';
 import 'widgets/available_players_filters.dart';
 
-class AvailablePlayersScreen extends StatelessWidget {
+class AvailablePlayersScreen extends StatefulWidget {
   const AvailablePlayersScreen({super.key});
+
+  @override
+  State<AvailablePlayersScreen> createState() => _AvailablePlayersScreenState();
+}
+
+class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<AvailablePlayersBloc>().add(const AvailablePlayersLoaded());
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    final position = _scrollController.position;
+    if (position.maxScrollExtent - position.pixels <= 200.h) {
+      context
+          .read<AvailablePlayersBloc>()
+          .add(const AvailablePlayersLoadMoreRequested());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +66,9 @@ class AvailablePlayersScreen extends StatelessWidget {
                 ) {
                   return BlocBuilder<AvailablePlayersBloc, AvailablePlayersState>(
                     builder: (BuildContext context, AvailablePlayersState state) {
-                      if (state.allPlayers.isEmpty) {
-                        context
-                            .read<AvailablePlayersBloc>()
-                            .add(const AvailablePlayersLoaded());
-                      }
-
-                      final players = state.filteredPlayers;
+                      final players = state.players;
+                      final currentUserId =
+                          FirebaseAuth.instance.currentUser?.uid;
 
                       return Column(
                         children: <Widget>[
@@ -104,46 +134,69 @@ class AvailablePlayersScreen extends StatelessWidget {
                             ),
                           ),
                           Expanded(
-                            child: players.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      AppStrings.noAvailablePlayers,
-                                      style: AppTextStyles.bodyMedium,
-                                    ),
+                            child: state.isLoading && players.isEmpty
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
                                   )
-                                : ListView.separated(
-                                    padding: EdgeInsets.fromLTRB(
-                                      contentPadding.left,
-                                      14.h,
-                                      contentPadding.right,
-                                      20.h,
-                                    ),
-                                    itemCount: players.length,
-                                    separatorBuilder: (context, index) =>
-                                        SizedBox(height: 10.h),
-                                    itemBuilder:
-                                        (BuildContext context, int index) {
+                                : players.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          AppStrings.noAvailablePlayers,
+                                          style: AppTextStyles.bodyMedium,
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        controller: _scrollController,
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          14.h,
+                                          contentPadding.right,
+                                          20.h,
+                                        ),
+                                        itemCount: players.length +
+                                            (state.isLoadingMore ? 1 : 0),
+                                        separatorBuilder: (context, index) =>
+                                            SizedBox(height: 10.h),
+                                        itemBuilder:
+                                            (BuildContext context, int index) {
+                                          if (index >= players.length) {
+                                            return Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: 8.h,
+                                              ),
+                                              child: const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              ),
+                                            );
+                                          }
+                                          final player = players[index];
+                                          final isSelf = currentUserId != null &&
+                                              player.id == currentUserId;
+                                          void handleChatTap() {
+                                            if (isSelf) {
+                                              AppSnackBar.showError(
+                                                context,
+                                                AppStrings.cannotChatWithSelf,
+                                              );
+                                              return;
+                                            }
+                                            context.push(
+                                              AppRoutes.playerChatPath(
+                                                player.id,
+                                              ),
+                                              extra: player,
+                                            );
+                                          }
+
                                           return AvailablePlayerCard(
-                                            player: players[index],
-                                            onTap: () {
-                                              context.push(
-                                                AppRoutes.playerChatPath(
-                                                  players[index].id,
-                                                ),
-                                                extra: players[index],
-                                              );
-                                            },
-                                            onChatTap: () {
-                                              context.push(
-                                                AppRoutes.playerChatPath(
-                                                  players[index].id,
-                                                ),
-                                                extra: players[index],
-                                              );
-                                            },
+                                            player: player,
+                                            canChat: !isSelf,
+                                            onTap: handleChatTap,
+                                            onChatTap: handleChatTap,
                                           );
                                         },
-                                  ),
+                                      ),
                           ),
                         ],
                       );

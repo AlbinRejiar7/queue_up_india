@@ -11,6 +11,18 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<bool> isPhoneRegistered({required String phoneNumber}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return true;
+  }
+
+  @override
+  Future<bool> isUsernameAvailable({required String username}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return true;
+  }
+
+  @override
   Future<UserModel> signInAsGuest() async {
     // TODO: Implement FirebaseAuth here
     await Future<void>.delayed(const Duration(milliseconds: 700));

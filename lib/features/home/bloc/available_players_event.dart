@@ -1,5 +1,8 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/paged_result.dart';
+import '../models/available_player_model.dart';
+
 abstract class AvailablePlayersEvent extends Equatable {
   const AvailablePlayersEvent();
 
@@ -9,6 +12,19 @@ abstract class AvailablePlayersEvent extends Equatable {
 
 class AvailablePlayersLoaded extends AvailablePlayersEvent {
   const AvailablePlayersLoaded();
+}
+
+class AvailablePlayersLoadMoreRequested extends AvailablePlayersEvent {
+  const AvailablePlayersLoadMoreRequested();
+}
+
+class AvailablePlayersLivePageUpdated extends AvailablePlayersEvent {
+  const AvailablePlayersLivePageUpdated({required this.page});
+
+  final PagedResult<AvailablePlayerModel> page;
+
+  @override
+  List<Object?> get props => <Object?>[page];
 }
 
 class AvailablePlayersGameChanged extends AvailablePlayersEvent {

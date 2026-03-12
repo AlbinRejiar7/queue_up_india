@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/constants/app_images.dart';
 import '../../../../../core/constants/app_options.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/widgets/glass_container.dart';
@@ -14,12 +15,14 @@ class AvailablePlayerCard extends StatelessWidget {
     required this.player,
     required this.onTap,
     required this.onChatTap,
+    this.canChat = true,
     super.key,
   });
 
   final AvailablePlayerModel player;
   final VoidCallback onTap;
   final VoidCallback onChatTap;
+  final bool canChat;
 
   @override
   Widget build(BuildContext context) {
@@ -32,16 +35,31 @@ class AvailablePlayerCard extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: <Widget>[
-          CircleAvatar(
-            radius: 22.r,
-            backgroundColor: AppColors.electricBlue.withValues(alpha: 0.2),
-            child: Text(
-              player.name.substring(0, 1).toUpperCase(),
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.electricBlue,
-                fontSize: 16.sp,
+          Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              CircleAvatar(
+                radius: 22.r,
+                backgroundColor: AppColors.electricBlue.withValues(alpha: 0.2),
+                backgroundImage: _avatarProvider(player.avatarUrl),
               ),
-            ),
+              Positioned(
+                right: -1.w,
+                bottom: -1.h,
+                child: Container(
+                  width: 10.w,
+                  height: 10.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.success,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.background,
+                      width: 2.w,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           SizedBox(width: 12.w),
           Expanded(
@@ -83,7 +101,9 @@ class AvailablePlayerCard extends StatelessWidget {
             onPressed: onChatTap,
             icon: Icon(
               Icons.chat_bubble_outline,
-              color: AppColors.textSecondary,
+              color: canChat
+                  ? AppColors.textSecondary
+                  : AppColors.textSecondary.withValues(alpha: 0.5),
               size: 20.sp,
             ),
           ),
@@ -91,4 +111,14 @@ class AvailablePlayerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+ImageProvider _avatarProvider(String url) {
+  if (url.trim().isEmpty) {
+    return const NetworkImage(AppImages.avatarHost);
+  }
+  if (url.startsWith('http')) {
+    return NetworkImage(url);
+  }
+  return AssetImage(url);
 }

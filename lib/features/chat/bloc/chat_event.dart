@@ -1,12 +1,17 @@
 import 'package:equatable/equatable.dart';
 
 import '../models/chat_message.dart';
+import '../../../core/utils/paged_result.dart';
 
 sealed class ChatEvent extends Equatable {
   const ChatEvent();
 
   @override
   List<Object?> get props => <Object?>[];
+}
+
+class ChatStarted extends ChatEvent {
+  const ChatStarted();
 }
 
 class ChatMessageSent extends ChatEvent {
@@ -18,11 +23,15 @@ class ChatMessageSent extends ChatEvent {
   List<Object?> get props => <Object?>[message];
 }
 
-class ChatMessageReceived extends ChatEvent {
-  const ChatMessageReceived({required this.message});
+class ChatLatestPageUpdated extends ChatEvent {
+  const ChatLatestPageUpdated({required this.page});
 
-  final ChatMessage message;
+  final PagedResult<ChatMessage> page;
 
   @override
-  List<Object?> get props => <Object?>[message];
+  List<Object?> get props => <Object?>[page];
+}
+
+class ChatLoadOlderRequested extends ChatEvent {
+  const ChatLoadOlderRequested();
 }

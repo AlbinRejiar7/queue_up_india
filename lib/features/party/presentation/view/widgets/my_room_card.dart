@@ -15,12 +15,14 @@ class MyRoomCard extends StatelessWidget {
     required this.party,
     required this.isCreatedRoom,
     required this.onOpen,
+    this.onDelete,
     super.key,
   });
 
   final PartyModel party;
   final bool isCreatedRoom;
   final VoidCallback onOpen;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +100,32 @@ class MyRoomCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 10.w),
+              if (isCreatedRoom && onDelete != null) ...<Widget>[
+                SizedBox(
+                  height: 36.h,
+                  child: OutlinedButton(
+                    onPressed: onDelete,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: BorderSide(
+                        color: AppColors.danger.withValues(alpha: 0.6),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18.r),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                    ),
+                    child: Text(
+                      AppStrings.deleteParty,
+                      style: AppTextStyles.buttonText.copyWith(
+                        fontSize: 12.sp,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+              ],
               SizedBox(
                 height: 36.h,
                 child: ElevatedButton(

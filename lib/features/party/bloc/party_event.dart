@@ -1,5 +1,9 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/paged_result.dart';
+import '../models/party_model.dart';
+import '../models/party_player_model.dart';
+
 abstract class PartyEvent extends Equatable {
   const PartyEvent();
 
@@ -20,6 +24,19 @@ class PartyListRequested extends PartyEvent {
   List<Object?> get props => <Object?>[gameId];
 }
 
+class PartyListLoadMoreRequested extends PartyEvent {
+  const PartyListLoadMoreRequested();
+}
+
+class PartyListLivePageUpdated extends PartyEvent {
+  const PartyListLivePageUpdated({required this.page});
+
+  final PagedResult<PartyModel> page;
+
+  @override
+  List<Object?> get props => <Object?>[page];
+}
+
 class PartyRoomsRequested extends PartyEvent {
   const PartyRoomsRequested();
 }
@@ -31,6 +48,19 @@ class PartyDetailsRequested extends PartyEvent {
 
   @override
   List<Object?> get props => <Object?>[partyId];
+}
+
+class PartyMembersLiveUpdated extends PartyEvent {
+  const PartyMembersLiveUpdated({
+    required this.partyId,
+    required this.players,
+  });
+
+  final String partyId;
+  final List<PartyPlayerModel> players;
+
+  @override
+  List<Object?> get props => <Object?>[partyId, players];
 }
 
 class PartyJoinRequested extends PartyEvent {
@@ -113,8 +143,22 @@ class PartyFormCodeChanged extends PartyEvent {
   List<Object?> get props => <Object?>[value];
 }
 
-class PartyFormCodeGenerated extends PartyEvent {
-  const PartyFormCodeGenerated();
+class PartyFilterRankChanged extends PartyEvent {
+  const PartyFilterRankChanged({required this.value});
+
+  final String? value;
+
+  @override
+  List<Object?> get props => <Object?>[value];
+}
+
+class PartyFilterLanguageChanged extends PartyEvent {
+  const PartyFilterLanguageChanged({required this.value});
+
+  final String? value;
+
+  @override
+  List<Object?> get props => <Object?>[value];
 }
 
 class PartyCreateSubmitted extends PartyEvent {

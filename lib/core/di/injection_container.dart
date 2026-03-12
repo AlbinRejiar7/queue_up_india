@@ -4,22 +4,34 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/bloc/registration_bloc.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
-import '../../features/auth/data/repositories/mock_auth_repository.dart';
+import '../../features/auth/data/repositories/firebase_auth_repository.dart';
+import '../../features/chat/data/repositories/chat_repository.dart';
+import '../../features/chat/data/repositories/firestore_chat_repository.dart';
+import '../../features/chat/bloc/chat_badge_bloc.dart';
+import '../../features/chat/viewmodel/chat_view_model.dart';
 import '../../features/auth/viewmodel/auth_view_model.dart';
 import '../../features/auth/viewmodel/registration_view_model.dart';
 import '../../features/game_selection/bloc/game_bloc.dart';
 import '../../features/game_selection/data/repositories/game_repository.dart';
-import '../../features/game_selection/data/repositories/mock_game_repository.dart';
+import '../../features/game_selection/data/repositories/firestore_game_repository.dart';
 import '../../features/game_selection/viewmodel/game_view_model.dart';
 import '../../features/home/bloc/available_players_bloc.dart';
 import '../../features/home/bloc/home_availability_bloc.dart';
+import '../../features/home/data/repositories/availability_repository.dart';
+import '../../features/home/data/repositories/firestore_availability_repository.dart';
+import '../../features/home/viewmodel/availability_view_model.dart';
+import '../../features/home/viewmodel/available_players_view_model.dart';
+import '../../features/notifications/bloc/notifications_bloc.dart';
+import '../../features/notifications/data/repositories/firestore_notifications_repository.dart';
+import '../../features/notifications/data/repositories/notifications_repository.dart';
+import '../../features/notifications/viewmodel/notifications_view_model.dart';
 import '../../features/party/bloc/party_bloc.dart';
-import '../../features/party/data/repositories/mock_party_repository.dart';
+import '../../features/party/data/repositories/firestore_party_repository.dart';
 import '../../features/party/data/repositories/party_repository.dart';
 import '../../features/party/viewmodel/party_view_model.dart';
 import '../../features/settings/bloc/language_bloc.dart';
 import '../../features/settings/bloc/profile_bloc.dart';
-import '../../features/settings/data/repositories/mock_settings_repository.dart';
+import '../../features/settings/data/repositories/firestore_settings_repository.dart';
 import '../../features/settings/data/repositories/settings_repository.dart';
 import '../../features/settings/viewmodel/language_view_model.dart';
 import '../../features/settings/viewmodel/profile_view_model.dart';
@@ -37,10 +49,17 @@ void setupDependencies() {
 }
 
 void _registerRepositories() {
-  sl.registerLazySingleton<AuthRepository>(MockAuthRepository.new);
-  sl.registerLazySingleton<GameRepository>(MockGameRepository.new);
-  sl.registerLazySingleton<PartyRepository>(MockPartyRepository.new);
-  sl.registerLazySingleton<SettingsRepository>(MockSettingsRepository.new);
+  sl.registerLazySingleton<AuthRepository>(FirebaseAuthRepository.new);
+  sl.registerLazySingleton<GameRepository>(FirestoreGameRepository.new);
+  sl.registerLazySingleton<PartyRepository>(FirestorePartyRepository.new);
+  sl.registerLazySingleton<SettingsRepository>(FirestoreSettingsRepository.new);
+  sl.registerLazySingleton<AvailabilityRepository>(
+    FirestoreAvailabilityRepository.new,
+  );
+  sl.registerLazySingleton<ChatRepository>(FirestoreChatRepository.new);
+  sl.registerLazySingleton<NotificationsRepository>(
+    FirestoreNotificationsRepository.new,
+  );
 }
 
 void _registerViewModels() {
@@ -62,12 +81,34 @@ void _registerViewModels() {
   sl.registerFactory<ProfileViewModel>(
     () => ProfileViewModel(settingsRepository: sl<SettingsRepository>()),
   );
+  sl.registerFactory<AvailabilityViewModel>(
+    () => AvailabilityViewModel(repository: sl<AvailabilityRepository>()),
+  );
+  sl.registerFactory<AvailablePlayersViewModel>(
+    () => AvailablePlayersViewModel(repository: sl<AvailabilityRepository>()),
+  );
+  sl.registerFactory<ChatViewModel>(
+    () => ChatViewModel(repository: sl<ChatRepository>()),
+  );
+  sl.registerFactory<NotificationsViewModel>(
+    () =>
+        NotificationsViewModel(repository: sl<NotificationsRepository>()),
+  );
 }
 
 void _registerBlocs() {
   sl.registerFactory<MainTabBloc>(MainTabBloc.new);
-  sl.registerFactory<HomeAvailabilityBloc>(HomeAvailabilityBloc.new);
-  sl.registerFactory<AvailablePlayersBloc>(AvailablePlayersBloc.new);
+  sl.registerFactory<HomeAvailabilityBloc>(
+    () => HomeAvailabilityBloc(
+      availabilityViewModel: sl<AvailabilityViewModel>(),
+      profileViewModel: sl<ProfileViewModel>(),
+    ),
+  );
+  sl.registerFactory<AvailablePlayersBloc>(
+    () => AvailablePlayersBloc(
+      availablePlayersViewModel: sl<AvailablePlayersViewModel>(),
+    ),
+  );
   sl.registerFactory<AuthBloc>(
     () => AuthBloc(authViewModel: sl<AuthViewModel>()),
   );
@@ -87,5 +128,13 @@ void _registerBlocs() {
   );
   sl.registerFactory<ProfileBloc>(
     () => ProfileBloc(profileViewModel: sl<ProfileViewModel>()),
+  );
+  sl.registerFactory<NotificationsBloc>(
+    () => NotificationsBloc(
+      notificationsViewModel: sl<NotificationsViewModel>(),
+    ),
+  );
+  sl.registerFactory<ChatBadgeBloc>(
+    () => ChatBadgeBloc(chatViewModel: sl<ChatViewModel>()),
   );
 }

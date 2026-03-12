@@ -61,8 +61,21 @@ class RegistrationNavigationConsumed extends RegistrationEvent {
   const RegistrationNavigationConsumed();
 }
 
+class RegistrationResetRequested extends RegistrationEvent {
+  const RegistrationResetRequested();
+}
+
 class RegistrationUsernameChanged extends RegistrationEvent {
   const RegistrationUsernameChanged({required this.username});
+
+  final String username;
+
+  @override
+  List<Object?> get props => <Object?>[username];
+}
+
+class RegistrationUsernameCheckRequested extends RegistrationEvent {
+  const RegistrationUsernameCheckRequested({required this.username});
 
   final String username;
 

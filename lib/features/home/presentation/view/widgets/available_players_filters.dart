@@ -96,7 +96,18 @@ class AvailablePlayersFilters extends StatelessWidget {
                           .map(
                             (GameOption option) => DropdownMenuItem<String>(
                               value: option.id,
-                              child: Text(option.name),
+                              child: _ImageLabelRow(
+                                imageUrl: option.imageUrl,
+                                text: option.name.toUpperCase(),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      selectedWidgets: AppOptions.gameOptions
+                          .map(
+                            (GameOption option) => _ImageLabelRow(
+                              imageUrl: option.imageUrl,
+                              text: option.name.toUpperCase(),
                             ),
                           )
                           .toList(),
@@ -114,7 +125,7 @@ class AvailablePlayersFilters extends StatelessWidget {
                               value: option.name,
                               child: _ImageLabelRow(
                                 imageUrl: option.imageUrl,
-                                text: option.name,
+                                text: option.name.toUpperCase(),
                               ),
                             ),
                           )
@@ -123,7 +134,7 @@ class AvailablePlayersFilters extends StatelessWidget {
                           .map(
                             (RankOption option) => _ImageLabelRow(
                               imageUrl: option.imageUrl,
-                              text: option.name,
+                              text: option.name.toUpperCase(),
                             ),
                           )
                           .toList(),
@@ -186,14 +197,14 @@ class _FilterDropdown extends StatelessWidget {
         SizedBox(height: 4.h),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final selectedRowMaxWidth = (constraints.maxWidth - 58.w)
-                .clamp(96.0, 320.0)
-                .toDouble();
+            final selectedRowMaxWidth =
+                (constraints.maxWidth - 56.w).clamp(0.0, constraints.maxWidth);
 
             return DropdownButtonFormField<String>(
               key: ValueKey<String>(
                 '$label-${initialValue ?? 'none'}-${options.length}',
               ),
+              isExpanded: true,
               initialValue: initialValue,
               items: options,
               selectedItemBuilder: (BuildContext context) {
@@ -247,10 +258,6 @@ class _ImageLabelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxTextWidth = (MediaQuery.sizeOf(context).width * 0.34)
-        .clamp(110.0, 220.0)
-        .toDouble();
-
     return Row(
       mainAxisSize: MainAxisSize.max,
       children: <Widget>[
@@ -278,15 +285,12 @@ class _ImageLabelRow extends StatelessWidget {
         ),
         SizedBox(width: 6.w),
         Flexible(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxTextWidth),
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
           ),
         ),

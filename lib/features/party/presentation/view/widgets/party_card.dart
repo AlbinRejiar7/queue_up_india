@@ -83,28 +83,35 @@ class PartyCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ),
+      SizedBox(height: 12.h),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  party.name,
+                  style: AppTextStyles.pageTitle.copyWith(
+                    fontSize: 24.sp / 1.4,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  _createdLabel(party.createdAt),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Wrap(
+                  spacing: 8.w,
+                  runSpacing: 8.h,
                   children: <Widget>[
-                    Text(
-                      party.name,
-                      style: AppTextStyles.pageTitle.copyWith(
-                        fontSize: 24.sp / 1.4,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Wrap(
-                      spacing: 8.w,
-                      runSpacing: 8.h,
-                      children: <Widget>[
-                        TagChip(label: party.language, compact: true),
+                    TagChip(label: party.language, compact: true),
                         ...party.tags.map(
                           (tag) => TagChip(label: tag, compact: true),
                         ),
@@ -137,4 +144,18 @@ class PartyCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _createdLabel(DateTime createdAt) {
+  final diff = DateTime.now().difference(createdAt);
+  if (diff.inMinutes < 1) {
+    return AppStrings.createdTimeLabel(AppStrings.justNow);
+  }
+  if (diff.inHours < 1) {
+    return AppStrings.createdTimeLabel(AppStrings.minutesAgo(diff.inMinutes));
+  }
+  if (diff.inDays < 1) {
+    return AppStrings.createdTimeLabel(AppStrings.hoursAgo(diff.inHours));
+  }
+  return AppStrings.createdTimeLabel(AppStrings.daysAgo(diff.inDays));
 }

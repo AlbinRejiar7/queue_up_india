@@ -65,54 +65,52 @@ class PartyChatSheet extends StatelessWidget {
                           if (!scrollController.hasClients) {
                             return;
                           }
-                          scrollController.animateTo(
-                            scrollController.position.maxScrollExtent,
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                          );
+                          final distanceToBottom =
+                              scrollController.position.maxScrollExtent -
+                                  scrollController.position.pixels;
+                          if (distanceToBottom <= 120.h &&
+                              !state.isLoadingMore) {
+                            scrollController.animateTo(
+                              scrollController.position.maxScrollExtent,
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                            );
+                          }
                         });
                       },
-                      child: ListView(
-                        controller: scrollController,
-                        physics: const ClampingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                        padding: contentPadding.copyWith(
-                          bottom: isCompact ? contentPadding.bottom : 86.h,
-                        ),
-                        children: <Widget>[
-                          GestureDetector(
-                            onTap: onExpandTap,
-                            behavior: HitTestBehavior.opaque,
-                            child: Column(
-                              children: <Widget>[
-                                Container(
-                                  width: 44.w,
-                                  height: 4.h,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(999.r),
-                                  ),
-                                ),
-                                SizedBox(height: 6.h),
-                              if (isCompact) ...<Widget>[
-                                Padding(
-                                  padding:
-                                      EdgeInsets.symmetric(horizontal: 6.w),
-                                  child: BlocBuilder<ChatBloc, ChatState>(
-                                    builder: (context, state) {
-                                      final lastMessage = state.messages.isEmpty
-                                          ? null
-                                          : state.messages.last;
-                                      final bool showUnreadDot =
-                                          isCompact &&
-                                          lastMessage != null &&
-                                          !lastMessage.isMe;
-                                      final previewText = lastMessage == null
-                                          ? AppStrings.chatTapToOpen
-                                          : '${lastMessage.senderName}: ${lastMessage.message}';
+                      child: BlocBuilder<ChatBloc, ChatState>(
+                        builder: (context, state) {
+                          final lastMessage = state.messages.isEmpty
+                              ? null
+                              : state.messages.last;
+                          final bool showUnreadDot = isCompact &&
+                              lastMessage != null &&
+                              !lastMessage.isMe;
+                          final previewText = lastMessage == null
+                              ? AppStrings.chatTapToOpen
+                              : '${lastMessage.senderName}: ${lastMessage.message}';
 
-                                      return Row(
+                          final items = <Widget>[
+                            GestureDetector(
+                              onTap: onExpandTap,
+                              behavior: HitTestBehavior.opaque,
+                              child: Column(
+                                children: <Widget>[
+                                  Container(
+                                    width: 44.w,
+                                    height: 4.h,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius:
+                                          BorderRadius.circular(999.r),
+                                    ),
+                                  ),
+                                  SizedBox(height: 6.h),
+                                  if (isCompact) ...<Widget>[
+                                    Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 6.w),
+                                      child: Row(
                                         children: <Widget>[
                                           Expanded(
                                             child: Column(
@@ -172,47 +170,75 @@ class PartyChatSheet extends StatelessWidget {
                                             ),
                                           ),
                                         ],
-                                      );
-                                    },
+                                      ),
+                                    ),
+                                  ] else ...<Widget>[
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: <Widget>[
+                                        Text(
+                                          AppStrings.groupChat,
+                                          style: AppTextStyles.sectionTitle
+                                              .copyWith(fontSize: 18.sp),
+                                        ),
+                                        Text(
+                                          '${party.playerCount} ${AppStrings.online}',
+                                          style: AppTextStyles.caption,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ];
+
+                          if (!isCompact) {
+                            items.add(SizedBox(height: 12.h));
+                            if (state.isLoadingMore) {
+                              items.add(
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: 8.h),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
                                   ),
                                 ),
-                              ] else ...<Widget>[
-                                Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: <Widget>[
-                                      Text(
-                                        AppStrings.groupChat,
-                                        style: AppTextStyles.sectionTitle
-                                            .copyWith(fontSize: 18.sp),
-                                      ),
-                                      Text(
-                                        '${party.playerCount} ${AppStrings.online}',
-                                        style: AppTextStyles.caption,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
+                              );
+                            }
+                            items.addAll(
+                              state.messages.map(
+                                (message) => ChatBubble(message: message),
+                              ),
+                            );
+                          }
+
+                          return NotificationListener<ScrollNotification>(
+                            onNotification: (notification) {
+                              if (isCompact) {
+                                return false;
+                              }
+                              final metrics = notification.metrics;
+                              if (metrics.pixels <= 120.h) {
+                                context.read<ChatBloc>().add(
+                                      const ChatLoadOlderRequested(),
+                                    );
+                              }
+                              return false;
+                            },
+                            child: ListView(
+                              controller: scrollController,
+                              physics: const ClampingScrollPhysics(
+                                parent: AlwaysScrollableScrollPhysics(),
+                              ),
+                              padding: contentPadding.copyWith(
+                                bottom:
+                                    isCompact ? contentPadding.bottom : 86.h,
+                              ),
+                              children: items,
                             ),
-                          ),
-                          if (!isCompact) ...<Widget>[
-                            SizedBox(height: 12.h),
-                          BlocBuilder<ChatBloc, ChatState>(
-                            builder: (context, state) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: state.messages
-                                    .map(
-                                      (message) =>
-                                          ChatBubble(message: message),
-                                    )
-                                      .toList(),
-                                );
-                              },
-                            ),
-                          ],
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -245,6 +271,19 @@ class PartyChatSheet extends StatelessWidget {
                                 context.read<ChatBloc>().add(
                                       ChatMessageSent(message: text),
                                     );
+                                WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) {
+                                    if (!scrollController.hasClients) {
+                                      return;
+                                    }
+                                    scrollController.animateTo(
+                                      scrollController.position.maxScrollExtent,
+                                      duration:
+                                          const Duration(milliseconds: 220),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  },
+                                );
                               },
                             ),
                           ),

@@ -34,6 +34,13 @@ abstract final class AppStrings {
   static const String username = 'Username';
   static const String usernameHint = 'Choose a unique username';
   static const String usernameRequired = 'Enter a username to continue.';
+  static const String usernameAvailable = 'Username available';
+  static const String usernameTaken = 'Username already taken';
+  static const String usernameChecking = 'Checking availability...';
+  static const String usernameInvalid =
+      'Use at least 3 letters or numbers.';
+  static const String usernameCheckFailed =
+      'Unable to check username right now.';
   static const String phoneNumber = 'Phone Number';
   static const String phoneNumberHint = 'Phone number (6-15 digits)';
   static const String indiaCountryCode = '+91';
@@ -43,6 +50,7 @@ abstract final class AppStrings {
   static const String otpHint = '6-digit OTP';
   static const String verifyOtp = 'Verify OTP';
   static const String resendOtp = 'Resend OTP';
+  static const String sendOtpFirst = 'Send OTP first to continue.';
   static const String selectCountryCode = 'Select country code';
   static const String searchCountry = 'Search country';
   static const String selectAvatar = 'Select Profile Avatar';
@@ -56,7 +64,28 @@ abstract final class AppStrings {
   static const String otpSendFailed = 'Unable to send OTP right now.';
   static const String otpVerifyFailed = 'Unable to verify OTP right now.';
   static const String invalidPhoneNumber = 'Enter a valid phone number.';
+  static const String phoneNotRegistered =
+      'This number is not registered. Please create an account.';
   static const String invalidOtp = 'Enter the 6-digit OTP to continue.';
+  static const String otpExpired = 'OTP expired. Request a new one.';
+  static const String authTooManyRequests =
+      'Too many attempts. Please wait and try again.';
+  static const String networkError = 'Check your internet connection.';
+  static const String networkTimeout = 'Network is slow. Try again.';
+  static const String authProviderDisabled =
+      'Phone sign-in is unavailable right now.';
+  static const String deviceNotAuthorized =
+      'This device is not authorized for sign-in.';
+  static const String credentialInUse =
+      'This phone number is already linked to another account.';
+  static const String googleAccountExists =
+      'This email is already linked to another sign-in method.';
+  static const String invalidCredential =
+      'Unable to sign in with these credentials.';
+  static const String userDisabled =
+      'Your account has been disabled. Contact support.';
+  static const String userNotFound = 'Account not found. Try again.';
+  static const String googleSignInCancelled = 'Google sign-in canceled.';
   static const String completePartyDetails =
       'Complete all party details before creating.';
   static const String selectLanguageFirst = 'Select a language to continue.';
@@ -108,9 +137,15 @@ abstract final class AppStrings {
   static const String confirmKickTitle = 'Remove player?';
   static const String confirmKickMessage =
       'This player will be removed from the party.';
+  static const String deleteParty = 'Delete Party';
+  static const String confirmDeletePartyTitle = 'Delete this party?';
+  static const String confirmDeletePartyMessage =
+      'This party will be removed for everyone.';
   static const String games = 'Games';
   static const String rooms = 'Rooms';
   static const String parties = 'Parties';
+  static const String noPartiesAvailable =
+      'No parties yet. Be the first to create one.';
   static const String profile = 'Profile';
   static const String myRooms = 'My Rooms';
   static const String createdRooms = 'Created Rooms';
@@ -135,6 +170,8 @@ abstract final class AppStrings {
   static const String valorantParties = 'Valorant Parties';
   static const String filterRank = 'Rank';
   static const String filterLanguage = 'Language';
+  static const String filterAllRanks = 'All Ranks';
+  static const String filterAllLanguages = 'All Languages';
   static const String join = 'Join';
   static const String full = 'FULL';
   static const String players = 'Players';
@@ -152,6 +189,13 @@ abstract final class AppStrings {
   static const String maxFive = 'Max 4';
   static const String partyCode = 'Party Code';
   static const String partyCodeHint = 'ABCD-1234';
+  static const String cannotJoinOwnParty =
+      'You cannot join a party you created.';
+  static const String justNow = 'Just now';
+  static const String minutesAgoSuffix = 'min ago';
+  static const String hoursAgoSuffix = 'hr ago';
+  static const String daysAgoSuffix = 'd ago';
+  static const String createdLabel = 'Created';
 
   static const String partyDetails = 'Party Details';
   static const String createdBy = 'Created by';
@@ -172,6 +216,9 @@ abstract final class AppStrings {
   static const String chatEmptyMessage = 'Type a message to send.';
   static const String directChatGreeting = 'Hey! Ready for a quick queue?';
   static const String directChatResponse = 'Yes, let us squad up!';
+  static const String cannotChatWithSelf = 'You cannot chat with yourself.';
+  static const String chatHistorySubtitle = 'Recent conversations';
+  static const String noChatsYet = 'No chats yet. Start one from players list.';
   static const String host = 'Host';
   static const String ready = 'Ready';
   static const String inLobby = 'In Lobby';
@@ -195,4 +242,12 @@ abstract final class AppStrings {
     final suffix = neededPlayers == 1 ? 'Player' : 'Players';
     return '$gameName - Need $neededPlayers $suffix';
   }
+
+  static String minutesAgo(int minutes) => '$minutes $minutesAgoSuffix';
+
+  static String hoursAgo(int hours) => '$hours $hoursAgoSuffix';
+
+  static String daysAgo(int days) => '$days $daysAgoSuffix';
+
+  static String createdTimeLabel(String timeAgo) => '$createdLabel $timeAgo';
 }

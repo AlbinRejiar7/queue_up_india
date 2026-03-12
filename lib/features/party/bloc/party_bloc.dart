@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:queue_up_india/features/party/models/party_model.dart';
 
 import '../../../core/constants/app_options.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/utils/paged_result.dart';
 import '../../auth/models/user_model.dart';
 import '../models/create_party_form_model.dart';
 import '../viewmodel/party_view_model.dart';
+import '../models/party_player_model.dart';
 import 'party_event.dart';
 import 'party_state.dart';
 
@@ -17,8 +22,11 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       super(const PartyInitial()) {
     on<PartySessionChecked>(_onSessionChecked);
     on<PartyListRequested>(_onPartyListRequested);
+    on<PartyListLoadMoreRequested>(_onPartyListLoadMoreRequested);
+    on<PartyListLivePageUpdated>(_onPartyListLivePageUpdated);
     on<PartyRoomsRequested>(_onPartyRoomsRequested);
     on<PartyDetailsRequested>(_onPartyDetailsRequested);
+    on<PartyMembersLiveUpdated>(_onPartyMembersLiveUpdated);
     on<PartyJoinRequested>(_onPartyJoinRequested);
     on<PartyCreateStarted>(_onPartyCreateStarted);
     on<PartyFormNameChanged>(_onPartyFormNameChanged);
@@ -29,7 +37,8 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     on<PartyFormMaxPlayersIncremented>(_onPartyFormMaxPlayersIncremented);
     on<PartyFormMaxPlayersDecremented>(_onPartyFormMaxPlayersDecremented);
     on<PartyFormCodeChanged>(_onPartyFormCodeChanged);
-    on<PartyFormCodeGenerated>(_onPartyFormCodeGenerated);
+    on<PartyFilterRankChanged>(_onPartyFilterRankChanged);
+    on<PartyFilterLanguageChanged>(_onPartyFilterLanguageChanged);
     on<PartyCreateSubmitted>(_onPartyCreateSubmitted);
     on<PartyLeaveRequested>(_onPartyLeaveRequested);
     on<PartyKickRequested>(_onPartyKickRequested);
@@ -37,8 +46,17 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
   }
 
   static const String _noPartyNavigationToken = 'none';
+  static const int _partyPageSize = 10;
 
   final PartyViewModel _partyViewModel;
+  StreamSubscription<PagedResult<PartyModel>>? _liveSubscription;
+  StreamSubscription<List<PartyPlayerModel>>? _partyMembersSubscription;
+  List<PartyModel> _liveParties = const <PartyModel>[];
+  List<PartyModel> _olderParties = const <PartyModel>[];
+  Object? _liveCursor;
+  Object? _olderCursor;
+  bool _liveHasMore = true;
+  bool _olderHasMore = true;
 
   Future<void> _onSessionChecked(
     PartySessionChecked event,
@@ -58,7 +76,9 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in session check: $e');
+      debugPrintStack(stackTrace: s);
       emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
     }
   }
@@ -67,24 +87,113 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     PartyListRequested event,
     Emitter<PartyState> emit,
   ) async {
-    emit(PartyLoading(data: state.data.copyWith(activeGameId: event.gameId)));
+    final nextData = state.data.copyWith(
+      activeGameId: event.gameId,
+      parties: const <PartyModel>[],
+      clearPartiesCursor: true,
+      hasMoreParties: true,
+      isLoadingMoreParties: false,
+      clearSelectedRankFilter: true,
+      clearSelectedLanguageFilter: true,
+    );
+    emit(PartyLoading(data: nextData));
+    await _reloadPartiesWithFilters(nextData, emit);
+  }
 
-    try {
-      final parties = await _partyViewModel.loadParties(event.gameId);
+  Future<void> _onPartyListLoadMoreRequested(
+    PartyListLoadMoreRequested event,
+    Emitter<PartyState> emit,
+  ) async {
+    if (state.data.isLoadingMoreParties ||
+        !state.data.hasMoreParties ||
+        state.data.parties.isEmpty) {
+      return;
+    }
+
+    final cursor = _olderParties.isEmpty ? _liveCursor : _olderCursor;
+    if (cursor == null) {
       emit(
         PartySuccess(
           data: state.data.copyWith(
-            activeGameId: event.gameId,
-            parties: parties,
-            clearNavigationPartyId: true,
-            didLeaveParty: false,
-            isCreateCompleted: false,
+            hasMoreParties: false,
+            isLoadingMoreParties: false,
           ),
         ),
       );
-    } catch (_) {
-      emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
+      return;
     }
+
+    emit(
+      PartySuccess(
+        data: state.data.copyWith(isLoadingMoreParties: true),
+      ),
+    );
+
+    try {
+      final page = await _partyViewModel.loadPartiesPage(
+        gameId: state.data.activeGameId,
+        rankFilter: state.data.selectedRankFilter,
+        languageFilter: state.data.selectedLanguageFilter,
+        cursor: cursor,
+        limit: _partyPageSize,
+      );
+      emit(
+        PartySuccess(
+          data: state.data.copyWith(
+            parties: _mergeParties(
+              _liveParties,
+              <PartyModel>[..._olderParties, ...page.items],
+            ),
+            partiesCursor: page.nextCursor,
+            hasMoreParties: page.hasMore,
+            isLoadingMoreParties: false,
+          ),
+        ),
+      );
+      _olderParties = <PartyModel>[..._olderParties, ...page.items];
+      _olderCursor = page.nextCursor;
+      _olderHasMore = page.hasMore;
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in list load more: $e');
+      debugPrintStack(stackTrace: s);
+      emit(
+        PartyError(
+          message: AppStrings.partyLoadFailed,
+          data: state.data.copyWith(isLoadingMoreParties: false),
+        ),
+      );
+    }
+  }
+
+  void _onPartyListLivePageUpdated(
+    PartyListLivePageUpdated event,
+    Emitter<PartyState> emit,
+  ) {
+    _liveParties = event.page.items;
+    _liveCursor = event.page.nextCursor;
+    _liveHasMore = event.page.hasMore;
+
+    if (_liveParties.isNotEmpty && _olderParties.isNotEmpty) {
+      final liveIds = _liveParties.map((party) => party.id).toSet();
+      _olderParties =
+          _olderParties.where((party) => !liveIds.contains(party.id)).toList();
+    }
+
+    final combined = _mergeParties(_liveParties, _olderParties);
+    final effectiveCursor = _olderParties.isEmpty ? _liveCursor : _olderCursor;
+    final effectiveHasMore =
+        _olderParties.isEmpty ? _liveHasMore : _olderHasMore;
+
+    emit(
+      PartySuccess(
+        data: state.data.copyWith(
+          parties: combined,
+          partiesCursor: effectiveCursor,
+          hasMoreParties: effectiveHasMore,
+          isLoadingMoreParties: false,
+        ),
+      ),
+    );
   }
 
   Future<void> _onPartyRoomsRequested(
@@ -108,7 +217,9 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in rooms request: $e');
+      debugPrintStack(stackTrace: s);
       emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
     }
   }
@@ -118,6 +229,17 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     Emitter<PartyState> emit,
   ) async {
     emit(PartyLoading(data: state.data));
+    await _partyMembersSubscription?.cancel();
+    _partyMembersSubscription = _partyViewModel
+        .watchPartyMembers(event.partyId)
+        .listen((players) {
+          add(
+            PartyMembersLiveUpdated(
+              partyId: event.partyId,
+              players: players,
+            ),
+          );
+        });
 
     try {
       final party = await _partyViewModel.loadPartyDetails(event.partyId);
@@ -131,28 +253,117 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in details request: $e');
+      debugPrintStack(stackTrace: s);
+      await _partyMembersSubscription?.cancel();
+      _partyMembersSubscription = null;
       emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
     }
+  }
+
+  void _onPartyMembersLiveUpdated(
+    PartyMembersLiveUpdated event,
+    Emitter<PartyState> emit,
+  ) {
+    final selected = state.data.selectedParty;
+    if (selected == null || selected.id != event.partyId) {
+      return;
+    }
+    final updatedParty = selected.copyWith(players: event.players);
+    emit(
+      PartySuccess(
+        data: state.data.copyWith(
+          selectedParty: updatedParty,
+          parties: _replacePartyInList(state.data.parties, updatedParty),
+          createdParties: _replacePartyInList(
+            state.data.createdParties,
+            updatedParty,
+          ),
+          joinedParties: _replacePartyInList(
+            state.data.joinedParties,
+            updatedParty,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _onPartyJoinRequested(
     PartyJoinRequested event,
     Emitter<PartyState> emit,
   ) async {
-    emit(PartyLoading(data: state.data));
+    final rollbackData = state.data;
+    final optimisticParty = _findPartyById(
+      state.data.parties,
+      event.partyId,
+    );
+    if (optimisticParty != null) {
+      emit(
+        PartySuccess(
+          data: state.data.copyWith(
+            selectedParty: optimisticParty,
+            currentPartyId: optimisticParty.id,
+            navigationPartyId: optimisticParty.id,
+          ),
+        ),
+      );
+    } else {
+      emit(PartyLoading(data: state.data));
+    }
 
     try {
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        debugPrint('[PartyBloc] joinParty auth: no currentUser');
+      } else {
+        final providers = authUser.providerData
+            .map((provider) => provider.providerId)
+            .join(',');
+        debugPrint(
+          '[PartyBloc] joinParty auth: uid=${authUser.uid} '
+          'isAnonymous=${authUser.isAnonymous} providers=[$providers]',
+        );
+        try {
+          final token = await authUser.getIdToken(true);
+          debugPrint(
+            '[PartyBloc] joinParty auth: idToken=${token == null || token.isEmpty ? 'missing' : 'ok'}',
+          );
+        } catch (e, s) {
+          debugPrint('[PartyBloc] joinParty auth: getIdToken failed: $e');
+          debugPrintStack(stackTrace: s);
+        }
+      }
       final joinedParty = await _partyViewModel.joinParty(
         partyId: event.partyId,
         user: const UserModel(
           id: 'u_guest_join',
           displayName: 'GuestPlayer',
           isGuest: true,
+        ).copyWith(
+          id: authUser?.uid,
+          displayName: authUser?.displayName ?? 'GuestPlayer',
+          avatarUrl: authUser?.photoURL,
+          isGuest: authUser == null,
         ),
       );
-      final createdParties = await _partyViewModel.loadCreatedParties();
-      final joinedParties = await _partyViewModel.loadJoinedParties();
+      final updatedParties = _replacePartyInList(
+        state.data.parties,
+        joinedParty,
+      );
+      final updatedJoined = _upsertParty(
+        state.data.joinedParties,
+        joinedParty,
+      );
+      final updatedCreated = _replacePartyInList(
+        state.data.createdParties,
+        joinedParty,
+      );
+
+      debugPrint(
+        '[PartyBloc] User joined party '
+        'partyId=${joinedParty.id} userId=${authUser?.uid ?? 'guest'}',
+      );
 
       emit(
         PartySuccess(
@@ -160,14 +371,22 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
             selectedParty: joinedParty,
             currentPartyId: joinedParty.id,
             navigationPartyId: joinedParty.id,
-            createdParties: createdParties,
-            joinedParties: joinedParties,
+            parties: updatedParties,
+            createdParties: updatedCreated,
+            joinedParties: updatedJoined,
             didLeaveParty: false,
           ),
         ),
       );
-    } catch (_) {
-      emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in join request: $e');
+      debugPrintStack(stackTrace: s);
+      emit(
+        PartyError(
+          message: AppStrings.partyLoadFailed,
+          data: rollbackData,
+        ),
+      );
     }
   }
 
@@ -190,7 +409,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
             partyName: _buildAutoPartyName(gameId: gameId, maxPlayers: 4),
             useAutoName: true,
             rank: defaultRank,
-            partyCode: _generatePartyCode(),
           ),
           clearNavigationPartyId: true,
           isCreateCompleted: false,
@@ -362,18 +580,36 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     );
   }
 
-  void _onPartyFormCodeGenerated(
-    PartyFormCodeGenerated event,
+  Future<void> _onPartyFilterRankChanged(
+    PartyFilterRankChanged event,
     Emitter<PartyState> emit,
-  ) {
-    emit(
-      PartySuccess(
-        data: state.data.copyWith(
-          form: state.data.form.copyWith(partyCode: _generatePartyCode()),
-          isCreateCompleted: false,
-        ),
-      ),
+  ) async {
+    final nextData = state.data.copyWith(
+      selectedRankFilter: event.value,
+      clearSelectedRankFilter: event.value == null,
+      parties: const <PartyModel>[],
+      clearPartiesCursor: true,
+      hasMoreParties: true,
+      isLoadingMoreParties: false,
     );
+    emit(PartyLoading(data: nextData));
+    await _reloadPartiesWithFilters(nextData, emit);
+  }
+
+  Future<void> _onPartyFilterLanguageChanged(
+    PartyFilterLanguageChanged event,
+    Emitter<PartyState> emit,
+  ) async {
+    final nextData = state.data.copyWith(
+      selectedLanguageFilter: event.value,
+      clearSelectedLanguageFilter: event.value == null,
+      parties: const <PartyModel>[],
+      clearPartiesCursor: true,
+      hasMoreParties: true,
+      isLoadingMoreParties: false,
+    );
+    emit(PartyLoading(data: nextData));
+    await _reloadPartiesWithFilters(nextData, emit);
   }
 
   Future<void> _onPartyCreateSubmitted(
@@ -409,7 +645,9 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in create request: $e');
+      debugPrintStack(stackTrace: s);
       emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
     }
   }
@@ -418,25 +656,48 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     PartyLeaveRequested event,
     Emitter<PartyState> emit,
   ) async {
-    emit(PartyLoading(data: state.data));
+    final previousData = state.data;
+    final isHostLeaving = state.data.createdParties.any(
+      (party) => party.id == event.partyId,
+    );
+    final filteredCreated = state.data.createdParties
+        .where((party) => !isHostLeaving || party.id != event.partyId)
+        .toList();
+    final filteredJoined = state.data.joinedParties
+        .where((party) => party.id != event.partyId)
+        .toList();
+    final filteredParties = state.data.parties
+        .where((party) => !isHostLeaving || party.id != event.partyId)
+        .toList();
+
+    final optimisticData = state.data.copyWith(
+      parties: filteredParties,
+      createdParties: filteredCreated,
+      joinedParties: filteredJoined,
+      clearCurrentPartyId: true,
+      clearSelectedParty: true,
+      navigationPartyId: _noPartyNavigationToken,
+      didLeaveParty: false,
+    );
+    emit(PartySuccess(data: optimisticData));
     try {
       await _partyViewModel.leaveParty(event.partyId);
-      final createdParties = await _partyViewModel.loadCreatedParties();
-      final joinedParties = await _partyViewModel.loadJoinedParties();
+      await _partyMembersSubscription?.cancel();
+      _partyMembersSubscription = null;
       emit(
         PartySuccess(
-          data: state.data.copyWith(
-            clearCurrentPartyId: true,
-            clearSelectedParty: true,
-            navigationPartyId: _noPartyNavigationToken,
-            createdParties: createdParties,
-            joinedParties: joinedParties,
-            didLeaveParty: true,
-          ),
+          data: optimisticData.copyWith(didLeaveParty: true),
         ),
       );
-    } catch (_) {
-      emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in leave request: $e');
+      debugPrintStack(stackTrace: s);
+      emit(
+        PartyError(
+          message: AppStrings.partyLoadFailed,
+          data: previousData,
+        ),
+      );
     }
   }
 
@@ -469,7 +730,9 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in kick request: $e');
+      debugPrintStack(stackTrace: s);
       emit(PartyError(message: AppStrings.partyLoadFailed, data: state.data));
     }
   }
@@ -489,17 +752,40 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     );
   }
 
-  String _generatePartyCode() {
-    final random = Random();
-    final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    final prefix = String.fromCharCodes(
-      List<int>.generate(
-        4,
-        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+  Future<void> _reloadPartiesWithFilters(
+    PartyViewData data,
+    Emitter<PartyState> emit,
+  ) async {
+    await _liveSubscription?.cancel();
+    _liveSubscription = null;
+    _liveParties = const <PartyModel>[];
+    _olderParties = const <PartyModel>[];
+    _liveCursor = null;
+    _olderCursor = null;
+    _liveHasMore = true;
+    _olderHasMore = true;
+
+    emit(
+      PartyLoading(
+        data: data.copyWith(
+          parties: const <PartyModel>[],
+          clearPartiesCursor: true,
+          hasMoreParties: true,
+          isLoadingMoreParties: false,
+        ),
       ),
     );
-    final suffix = 1000 + random.nextInt(9000);
-    return '$prefix-$suffix';
+
+    _liveSubscription = _partyViewModel
+        .watchPartiesPage(
+          gameId: data.activeGameId,
+          rankFilter: data.selectedRankFilter,
+          languageFilter: data.selectedLanguageFilter,
+          limit: _partyPageSize,
+        )
+        .listen((page) {
+          add(PartyListLivePageUpdated(page: page));
+        });
   }
 
   String _normalizeGameId(String gameId) {
@@ -531,5 +817,54 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     return list
         .map((party) => party.id == updated.id ? updated : party)
         .toList();
+  }
+
+  List<PartyModel> _upsertParty(
+    List<PartyModel> list,
+    PartyModel party,
+  ) {
+    if (list.isEmpty) {
+      return <PartyModel>[party];
+    }
+    final exists = list.any((item) => item.id == party.id);
+    if (!exists) {
+      return <PartyModel>[party, ...list];
+    }
+    return _replacePartyInList(list, party);
+  }
+
+  PartyModel? _findPartyById(List<PartyModel> list, String partyId) {
+    if (list.isEmpty) {
+      return null;
+    }
+    for (final party in list) {
+      if (party.id == partyId) {
+        return party;
+      }
+    }
+    return null;
+  }
+
+  List<PartyModel> _mergeParties(
+    List<PartyModel> live,
+    List<PartyModel> older,
+  ) {
+    final byId = <String, PartyModel>{};
+    for (final party in live) {
+      byId[party.id] = party;
+    }
+    for (final party in older) {
+      byId.putIfAbsent(party.id, () => party);
+    }
+    final combined = byId.values.toList();
+    combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return combined;
+  }
+
+  @override
+  Future<void> close() async {
+    await _liveSubscription?.cancel();
+    await _partyMembersSubscription?.cancel();
+    return super.close();
   }
 }

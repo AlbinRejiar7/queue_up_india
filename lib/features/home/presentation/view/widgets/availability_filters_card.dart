@@ -177,14 +177,14 @@ class _DropdownField extends StatelessWidget {
         SizedBox(height: 4.h),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final selectedRowMaxWidth = (constraints.maxWidth - 58.w)
-                .clamp(96.0, 340.0)
-                .toDouble();
+            final selectedRowMaxWidth =
+                (constraints.maxWidth - 56.w).clamp(0.0, constraints.maxWidth);
 
             return DropdownButtonFormField<String>(
               key: ValueKey<String>(
                 '$label-${initialValue ?? 'none'}-${selectedTextOptions.join(',')}',
               ),
+              isExpanded: true,
               initialValue: initialValue,
               items: options,
               selectedItemBuilder: (BuildContext context) {
@@ -240,10 +240,6 @@ class _ImageLabelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedMaxTextWidth = (MediaQuery.sizeOf(context).width * 0.36)
-        .clamp(110.0, 240.0)
-        .toDouble();
-
     return Row(
       mainAxisSize: MainAxisSize.max,
       children: <Widget>[
@@ -271,15 +267,12 @@ class _ImageLabelRow extends StatelessWidget {
         ),
         SizedBox(width: 8.w),
         Flexible(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: resolvedMaxTextWidth),
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
           ),
         ),

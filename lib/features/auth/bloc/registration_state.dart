@@ -4,12 +4,16 @@ import '../../../core/constants/country_codes.dart';
 
 enum RegistrationMode { login, register }
 
+enum UsernameCheckStatus { unknown, available, taken, invalid }
+
 class RegistrationViewData extends Equatable {
   const RegistrationViewData({
     required this.phoneNumber,
     required this.otp,
     required this.isOtpSent,
     required this.username,
+    required this.usernameStatus,
+    required this.isUsernameChecking,
     required this.selectedAvatarUrl,
     required this.selectedCountryCodeId,
     required this.didCompleteRegistration,
@@ -21,6 +25,8 @@ class RegistrationViewData extends Equatable {
       otp = '',
       isOtpSent = false,
       username = '',
+      usernameStatus = UsernameCheckStatus.unknown,
+      isUsernameChecking = false,
       selectedAvatarUrl = null,
       selectedCountryCodeId = defaultCountryCodeId,
       didCompleteRegistration = false,
@@ -30,6 +36,8 @@ class RegistrationViewData extends Equatable {
   final String otp;
   final bool isOtpSent;
   final String username;
+  final UsernameCheckStatus usernameStatus;
+  final bool isUsernameChecking;
   final String? selectedAvatarUrl;
   final String selectedCountryCodeId;
   final bool didCompleteRegistration;
@@ -39,8 +47,14 @@ class RegistrationViewData extends Equatable {
 
   bool get hasUsername => username.trim().isNotEmpty;
 
+  bool get isUsernameAvailable =>
+      usernameStatus == UsernameCheckStatus.available;
+
   bool get canSendOtp {
     if (isRegistration && !hasUsername) {
+      return false;
+    }
+    if (isRegistration && !isUsernameAvailable) {
       return false;
     }
     final option = countryCodeOptionById(selectedCountryCodeId);
@@ -60,6 +74,9 @@ class RegistrationViewData extends Equatable {
     if (isRegistration && !hasUsername) {
       return false;
     }
+    if (isRegistration && !isUsernameAvailable) {
+      return false;
+    }
     return true;
   }
 
@@ -69,6 +86,8 @@ class RegistrationViewData extends Equatable {
     bool? isOtpSent,
     String? username,
     bool clearUsername = false,
+    UsernameCheckStatus? usernameStatus,
+    bool? isUsernameChecking,
     String? selectedAvatarUrl,
     bool clearAvatar = false,
     String? selectedCountryCodeId,
@@ -80,6 +99,8 @@ class RegistrationViewData extends Equatable {
       otp: otp ?? this.otp,
       isOtpSent: isOtpSent ?? this.isOtpSent,
       username: clearUsername ? '' : username ?? this.username,
+      usernameStatus: usernameStatus ?? this.usernameStatus,
+      isUsernameChecking: isUsernameChecking ?? this.isUsernameChecking,
       selectedAvatarUrl: clearAvatar
           ? null
           : selectedAvatarUrl ?? this.selectedAvatarUrl,
@@ -97,6 +118,8 @@ class RegistrationViewData extends Equatable {
     otp,
     isOtpSent,
     username,
+    usernameStatus,
+    isUsernameChecking,
     selectedAvatarUrl,
     selectedCountryCodeId,
     didCompleteRegistration,

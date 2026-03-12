@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/view/login_screen.dart';
 import '../../features/auth/presentation/view/registration_screen.dart';
 import '../../features/auth/presentation/view/splash_screen.dart';
+import '../../features/chat/presentation/view/chat_history_screen.dart';
 import '../../features/chat/presentation/view/player_chat_screen.dart';
 import '../../features/home/presentation/view/available_players_screen.dart';
 import '../../features/home/models/available_player_model.dart';
@@ -11,6 +12,7 @@ import '../../features/party/presentation/view/party_details_screen.dart';
 import '../../features/party/presentation/view/party_list_screen.dart';
 import '../../features/settings/presentation/view/language_selection_screen.dart';
 import '../constants/app_options.dart';
+import '../constants/app_images.dart';
 import '../constants/app_routes.dart';
 import '../utils/app_preferences.dart';
 import '../widgets/app_bottom_bar.dart';
@@ -66,6 +68,10 @@ abstract final class AppRouter {
           builder: (_, state) => const AvailablePlayersScreen(),
         ),
         GoRoute(
+          path: AppRoutes.chatHistory,
+          builder: (_, state) => const ChatHistoryScreen(),
+        ),
+        GoRoute(
           path: AppRoutes.notifications,
           builder: (_, state) => const NotificationCenterScreen(),
         ),
@@ -76,6 +82,7 @@ abstract final class AppRouter {
             final fallback = AvailablePlayerModel(
               id: state.pathParameters['playerId'] ?? '',
               name: 'Player',
+              avatarUrl: AppImages.avatarHost,
               gameId: AppOptions.valorantId,
               rank: AppOptions.valorantRankOptions.first.name,
               language: AppOptions.languageOptions.first,

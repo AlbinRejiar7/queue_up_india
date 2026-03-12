@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/app_preferences.dart';
+import '../../../core/utils/auth_error_mapper.dart';
 import '../viewmodel/auth_view_model.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -26,8 +27,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = await _authViewModel.continueWithGoogle();
       await AppPreferences.setLoggedIn(true);
       emit(AuthSuccess(user: user));
-    } catch (_) {
-      emit(const AuthError(message: AppStrings.authFailed));
+    } catch (error) {
+      emit(
+        AuthError(
+          message: AuthErrorMapper.message(
+            error,
+            fallback: AppStrings.authFailed,
+          ),
+        ),
+      );
     }
   }
 
@@ -40,8 +48,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = await _authViewModel.continueAsGuest();
       await AppPreferences.setLoggedIn(true);
       emit(AuthSuccess(user: user));
-    } catch (_) {
-      emit(const AuthError(message: AppStrings.authFailed));
+    } catch (error) {
+      emit(
+        AuthError(
+          message: AuthErrorMapper.message(
+            error,
+            fallback: AppStrings.authFailed,
+          ),
+        ),
+      );
     }
   }
 

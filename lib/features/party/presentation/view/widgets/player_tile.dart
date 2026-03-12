@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:queue_up_india/core/constants/app_colors.dart';
 
+import '../../../../../core/constants/app_images.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/widgets/app_dialog.dart';
@@ -30,7 +31,7 @@ class PlayerTile extends StatelessWidget {
         children: <Widget>[
           CircleAvatar(
             radius: 23.r,
-            backgroundImage: NetworkImage(player.avatarUrl),
+            backgroundImage: _avatarProvider(player.avatarUrl),
           ),
           SizedBox(width: 12.w),
           Expanded(
@@ -89,4 +90,14 @@ class PlayerTile extends StatelessWidget {
       ),
     );
   }
+}
+
+ImageProvider _avatarProvider(String url) {
+  if (url.trim().isEmpty) {
+    return const NetworkImage(AppImages.avatarHost);
+  }
+  if (url.startsWith('http')) {
+    return NetworkImage(url);
+  }
+  return AssetImage(url);
 }

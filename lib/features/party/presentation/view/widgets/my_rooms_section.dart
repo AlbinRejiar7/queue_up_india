@@ -12,12 +12,14 @@ class MyRoomsSection extends StatelessWidget {
     required this.title,
     required this.parties,
     required this.isCreatedSection,
+    this.onDelete,
     super.key,
   });
 
   final String title;
   final List<PartyModel> parties;
   final bool isCreatedSection;
+  final void Function(PartyModel party)? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +37,9 @@ class MyRoomsSection extends StatelessWidget {
               onOpen: () {
                 context.push(AppRoutes.partyDetailsPath(party.id));
               },
+              onDelete: isCreatedSection
+                  ? () => onDelete?.call(party)
+                  : null,
             ),
           ),
         ),

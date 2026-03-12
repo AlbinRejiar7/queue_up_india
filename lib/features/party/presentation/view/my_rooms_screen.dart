@@ -6,6 +6,7 @@ import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
@@ -118,6 +119,29 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                           title: AppStrings.createdRooms,
                                           parties: created,
                                           isCreatedSection: true,
+                                          onDelete: (party) async {
+                                            final shouldDelete =
+                                                await AppDialog.showConfirm(
+                                              context,
+                                              title: AppStrings
+                                                  .confirmDeletePartyTitle,
+                                              message: AppStrings
+                                                  .confirmDeletePartyMessage,
+                                              confirmLabel:
+                                                  AppStrings.deleteParty,
+                                              cancelLabel:
+                                                  AppStrings.cancelAction,
+                                              confirmIsDestructive: true,
+                                            );
+                                            if (!shouldDelete) {
+                                              return;
+                                            }
+                                            context.read<PartyBloc>().add(
+                                              PartyLeaveRequested(
+                                                partyId: party.id,
+                                              ),
+                                            );
+                                          },
                                         ),
                                     ],
                                   ),

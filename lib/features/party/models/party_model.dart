@@ -14,6 +14,7 @@ class PartyModel extends Equatable {
     required this.partyCode,
     required this.createdAt,
     required this.coverImageUrl,
+    required this.hostId,
     this.tags = const <String>[],
     this.logoImageUrl,
   });
@@ -28,6 +29,7 @@ class PartyModel extends Equatable {
   final String partyCode;
   final DateTime createdAt;
   final String coverImageUrl;
+  final String hostId;
   final List<String> tags;
   final String? logoImageUrl;
 
@@ -45,6 +47,7 @@ class PartyModel extends Equatable {
     String? partyCode,
     DateTime? createdAt,
     String? coverImageUrl,
+    String? hostId,
     List<String>? tags,
     String? logoImageUrl,
   }) {
@@ -59,6 +62,7 @@ class PartyModel extends Equatable {
       partyCode: partyCode ?? this.partyCode,
       createdAt: createdAt ?? this.createdAt,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      hostId: hostId ?? this.hostId,
       tags: tags ?? this.tags,
       logoImageUrl: logoImageUrl ?? this.logoImageUrl,
     );
@@ -76,6 +80,7 @@ class PartyModel extends Equatable {
     partyCode,
     createdAt,
     coverImageUrl,
+    hostId,
     tags,
     logoImageUrl,
   ];

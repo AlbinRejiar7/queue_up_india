@@ -11,6 +11,14 @@ class RegistrationViewModel {
     return _authRepository.sendOtp(phoneNumber: phoneNumber);
   }
 
+  Future<bool> isPhoneRegistered(String phoneNumber) {
+    return _authRepository.isPhoneRegistered(phoneNumber: phoneNumber);
+  }
+
+  Future<bool> isUsernameAvailable(String username) {
+    return _authRepository.isUsernameAvailable(username: username);
+  }
+
   Future<UserModel> verifyOtp({
     required String phoneNumber,
     required String otp,

@@ -34,7 +34,7 @@ class LoginScreen extends StatelessWidget {
                 state.data.didCompleteRegistration) {
               context.go(AppRoutes.home);
               context.read<RegistrationBloc>().add(
-                const RegistrationNavigationConsumed(),
+                const RegistrationResetRequested(),
               );
             }
           },

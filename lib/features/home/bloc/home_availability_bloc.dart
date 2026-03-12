@@ -1,12 +1,20 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_options.dart';
+import '../../settings/viewmodel/profile_view_model.dart';
+import '../models/available_player_model.dart';
+import '../viewmodel/availability_view_model.dart';
 import 'home_availability_event.dart';
 import 'home_availability_state.dart';
 
 class HomeAvailabilityBloc
     extends Bloc<HomeAvailabilityEvent, HomeAvailabilityState> {
-  HomeAvailabilityBloc() : super(const HomeAvailabilityState.initial()) {
+  HomeAvailabilityBloc({
+    required AvailabilityViewModel availabilityViewModel,
+    required ProfileViewModel profileViewModel,
+  })  : _availabilityViewModel = availabilityViewModel,
+        _profileViewModel = profileViewModel,
+      super(const HomeAvailabilityState.initial()) {
     on<HomeAvailabilityInitialized>(_onInitialized);
     on<HomeAvailabilityGameChanged>(_onGameChanged);
     on<HomeAvailabilityLanguageChanged>(_onLanguageChanged);
@@ -14,40 +22,60 @@ class HomeAvailabilityBloc
     on<HomeAvailabilityToggled>(_onToggled);
   }
 
-  void _onInitialized(
+  final AvailabilityViewModel _availabilityViewModel;
+  final ProfileViewModel _profileViewModel;
+
+  Future<void> _onInitialized(
     HomeAvailabilityInitialized event,
     Emitter<HomeAvailabilityState> emit,
-  ) {
+  ) async {
     final nextGameId = event.gameId?.trim();
-    if (nextGameId == null || nextGameId.isEmpty) {
-      if (state.selectedGameId == null) {
-        emit(state.copyWith(selectedGameId: AppOptions.valorantId));
-      }
-      return;
+    final resolvedGameId =
+        (nextGameId == null || nextGameId.isEmpty)
+            ? (state.selectedGameId ?? AppOptions.valorantId)
+            : nextGameId;
+
+    String? resolvedLanguage = state.selectedLanguage;
+    if (resolvedLanguage == null) {
+      resolvedLanguage = await _resolvePreferredLanguage();
     }
 
-    if (nextGameId == state.selectedGameId) {
-      return;
+    final availability = await _safeFetchAvailability();
+    String? selectedGameId = resolvedGameId;
+    String? selectedRank = state.selectedRank;
+    String? selectedLanguage = resolvedLanguage ?? state.selectedLanguage;
+
+    if (availability != null) {
+      if (availability.gameId.isNotEmpty) {
+        selectedGameId = availability.gameId;
+      }
+      if (availability.rank.isNotEmpty) {
+        selectedRank = availability.rank;
+      }
+      if (availability.language.isNotEmpty) {
+        selectedLanguage = availability.language;
+      }
     }
 
     final isRankValid = AppOptions.isRankValidForGame(
-      gameId: nextGameId,
-      rankName: state.selectedRank,
+      gameId: selectedGameId ?? AppOptions.valorantId,
+      rankName: selectedRank,
     );
 
-    emit(
-      state.copyWith(
-        selectedGameId: nextGameId,
-        clearRank: !isRankValid,
-        isAvailable: _ensureAvailability(state, isRankValid),
-      ),
+    final nextState = state.copyWith(
+      selectedGameId: selectedGameId,
+      selectedLanguage: selectedLanguage,
+      selectedRank: selectedRank,
+      clearRank: !isRankValid,
+      isAvailable: availability != null && isRankValid && selectedLanguage != null,
     );
+    emit(nextState);
   }
 
-  void _onGameChanged(
+  Future<void> _onGameChanged(
     HomeAvailabilityGameChanged event,
     Emitter<HomeAvailabilityState> emit,
-  ) {
+  ) async {
     final gameId = event.gameId.trim();
     if (gameId.isEmpty) {
       return;
@@ -58,53 +86,80 @@ class HomeAvailabilityBloc
       rankName: state.selectedRank,
     );
 
-    emit(
-      state.copyWith(
-        selectedGameId: gameId,
-        clearRank: !isRankValid,
-        isAvailable: _ensureAvailability(state, isRankValid),
-      ),
+    final nextState = state.copyWith(
+      selectedGameId: gameId,
+      clearRank: !isRankValid,
+      isAvailable: _ensureAvailability(state, isRankValid),
     );
+    emit(nextState);
+
+    if (nextState.isAvailable && nextState.canToggleAvailability) {
+      final ok = await _updateAvailability(nextState);
+      if (!ok) {
+        emit(nextState.copyWith(isAvailable: false));
+      }
+    } else if (state.isAvailable && !nextState.isAvailable) {
+      await _updateAvailability(nextState);
+    }
   }
 
-  void _onLanguageChanged(
+  Future<void> _onLanguageChanged(
     HomeAvailabilityLanguageChanged event,
     Emitter<HomeAvailabilityState> emit,
-  ) {
-    emit(
-      _syncAvailability(
-        state.copyWith(
-          selectedLanguage: event.language,
-          clearLanguage: event.language == null,
-        ),
+  ) async {
+    final nextState = _syncAvailability(
+      state.copyWith(
+        selectedLanguage: event.language,
+        clearLanguage: event.language == null,
       ),
     );
+    emit(nextState);
+    if (nextState.isAvailable && nextState.canToggleAvailability) {
+      final ok = await _updateAvailability(nextState);
+      if (!ok) {
+        emit(nextState.copyWith(isAvailable: false));
+      }
+    } else if (state.isAvailable && !nextState.isAvailable) {
+      await _updateAvailability(nextState);
+    }
   }
 
-  void _onRankChanged(
+  Future<void> _onRankChanged(
     HomeAvailabilityRankChanged event,
     Emitter<HomeAvailabilityState> emit,
-  ) {
-    emit(
-      _syncAvailability(
-        state.copyWith(
-          selectedRank: event.rank,
-          clearRank: event.rank == null,
-        ),
+  ) async {
+    final nextState = _syncAvailability(
+      state.copyWith(
+        selectedRank: event.rank,
+        clearRank: event.rank == null,
       ),
     );
+    emit(nextState);
+    if (nextState.isAvailable && nextState.canToggleAvailability) {
+      final ok = await _updateAvailability(nextState);
+      if (!ok) {
+        emit(nextState.copyWith(isAvailable: false));
+      }
+    } else if (state.isAvailable && !nextState.isAvailable) {
+      await _updateAvailability(nextState);
+    }
   }
 
-  void _onToggled(
+  Future<void> _onToggled(
     HomeAvailabilityToggled event,
     Emitter<HomeAvailabilityState> emit,
-  ) {
+  ) async {
     if (!state.canToggleAvailability) {
       emit(state.copyWith(isAvailable: false));
       return;
     }
 
-    emit(state.copyWith(isAvailable: !state.isAvailable));
+    final nextState = state.copyWith(isAvailable: !state.isAvailable);
+    emit(nextState);
+    final ok = await _updateAvailability(nextState);
+    if (!ok) {
+      emit(nextState.copyWith(isAvailable: false));
+    }
   }
 
   HomeAvailabilityState _syncAvailability(HomeAvailabilityState nextState) {
@@ -119,5 +174,48 @@ class HomeAvailabilityBloc
       return currentState.selectedLanguage != null && rankValid;
     }
     return currentState.isAvailable;
+  }
+
+  Future<bool> _updateAvailability(HomeAvailabilityState current) async {
+    if (current.isAvailable && !current.canToggleAvailability) {
+      return false;
+    }
+    try {
+      await _availabilityViewModel.updateAvailability(
+        isAvailable: current.isAvailable,
+        gameId: current.selectedGameId ?? AppOptions.valorantId,
+        rank: current.selectedRank ?? '',
+        language: current.selectedLanguage ?? '',
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<AvailablePlayerModel?> _safeFetchAvailability() async {
+    try {
+      return await _availabilityViewModel.fetchCurrentAvailability();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _resolvePreferredLanguage() async {
+    try {
+      final preferences = await _profileViewModel.loadPreferences();
+      final languages = await _profileViewModel.loadLanguages();
+      final preferred = preferences.preferredLanguageCode;
+      for (final language in languages) {
+        if (language.code == preferred) {
+          final label = language.englishLabel;
+          if (AppOptions.languageOptions.contains(label)) {
+            return label;
+          }
+          break;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 }

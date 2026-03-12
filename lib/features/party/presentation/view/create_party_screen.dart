@@ -320,18 +320,6 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                   },
                                   decoration: InputDecoration(
                                     hintText: AppStrings.partyCodeHint,
-                                    suffixIcon: IconButton(
-                                      onPressed: () {
-                                        context.read<PartyBloc>().add(
-                                          const PartyFormCodeGenerated(),
-                                        );
-                                      },
-                                      icon: Icon(
-                                        Icons.refresh,
-                                        color: AppColors.electricBlue,
-                                        size: 20.sp,
-                                      ),
-                                    ),
                                   ),
                                 ),
                                 SizedBox(height: 16.h),

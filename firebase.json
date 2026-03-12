@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"queueupindia-de281","appId":"1:361379272562:android:69f75f9845dba7e53f2feb","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"queueupindia-de281","configurations":{"android":"1:361379272562:android:69f75f9845dba7e53f2feb","ios":"1:361379272562:ios:0137583e3d971e6a3f2feb"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "queueupindia-de281",
+          "appId": "1:361379272562:android:69f75f9845dba7e53f2feb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "queueupindia-de281",
+          "configurations": {
+            "android": "1:361379272562:android:69f75f9845dba7e53f2feb",
+            "ios": "1:361379272562:ios:0137583e3d971e6a3f2feb"
+          }
+        }
+      }
+    }
+  }
+}

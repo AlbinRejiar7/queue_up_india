@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
@@ -14,7 +15,7 @@ import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../chat/bloc/chat_bloc.dart';
-import '../../../chat/models/chat_message.dart';
+import '../../../chat/viewmodel/chat_view_model.dart';
 import '../../bloc/party_bloc.dart';
 import '../../bloc/party_event.dart';
 import '../../bloc/party_state.dart';
@@ -104,29 +105,10 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                       if (party == null || party.id != widget.partyId) {
                         return const Center(child: CircularProgressIndicator());
                       }
-                      final hostName = party.players.isNotEmpty
-                          ? party.players.first.name
-                          : AppStrings.chatYou;
                       _groupChatBloc ??= ChatBloc(
-                        currentUserName: AppStrings.chatYou,
-                        replyName: hostName,
-                        dummyReply: AppStrings.chatDummyReply,
-                        initialMessages: <ChatMessage>[
-                          ChatMessage(
-                            id: 'group-1',
-                            senderName: hostName,
-                            message: AppStrings.chatWelcome,
-                            isMe: false,
-                            timestamp: DateTime.now(),
-                          ),
-                          ChatMessage(
-                            id: 'group-2',
-                            senderName: AppStrings.chatYou,
-                            message: AppStrings.chatPrompt,
-                            isMe: true,
-                            timestamp: DateTime.now(),
-                          ),
-                        ],
+                        chatViewModel: sl<ChatViewModel>(),
+                        scope: ChatScope.party,
+                        targetId: party.id,
                       );
 
                       return Column(

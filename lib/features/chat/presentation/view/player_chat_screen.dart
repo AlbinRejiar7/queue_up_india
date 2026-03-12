@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_images.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
@@ -14,7 +16,7 @@ import '../../../home/models/available_player_model.dart';
 import '../../bloc/chat_bloc.dart';
 import '../../bloc/chat_event.dart';
 import '../../bloc/chat_state.dart';
-import '../../models/chat_message.dart';
+import '../../viewmodel/chat_view_model.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/chat_input_bar.dart';
 
@@ -29,6 +31,7 @@ class PlayerChatScreen extends StatefulWidget {
 
 class _PlayerChatScreenState extends State<PlayerChatScreen> {
   final ScrollController _scrollController = ScrollController();
+  bool _stickToBottom = true;
 
   @override
   void dispose() {
@@ -55,25 +58,9 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
     return BlocProvider<ChatBloc>(
       create: (_) => ChatBloc(
-        currentUserName: AppStrings.chatYou,
-        replyName: player.name,
-        dummyReply: AppStrings.chatDummyReply,
-        initialMessages: <ChatMessage>[
-          ChatMessage(
-            id: 'direct-1',
-            senderName: player.name,
-            message: AppStrings.directChatGreeting,
-            isMe: false,
-            timestamp: DateTime.now(),
-          ),
-          ChatMessage(
-            id: 'direct-2',
-            senderName: AppStrings.chatYou,
-            message: AppStrings.directChatResponse,
-            isMe: true,
-            timestamp: DateTime.now(),
-          ),
-        ],
+        chatViewModel: sl<ChatViewModel>(),
+        scope: ChatScope.direct,
+        targetId: player.id,
       ),
       child: Scaffold(
         body: GlowBackground(
@@ -119,13 +106,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                       radius: 22.r,
                                       backgroundColor:
                                           Colors.white.withValues(alpha: 0.08),
-                                      child: Text(
-                                        player.name
-                                            .substring(0, 1)
-                                            .toUpperCase(),
-                                        style: AppTextStyles.bodyMedium
-                                            .copyWith(fontSize: 16.sp),
-                                      ),
+                                      backgroundImage:
+                                          _avatarProvider(player.avatarUrl),
                                     ),
                                     SizedBox(width: 12.w),
                                     Expanded(
@@ -165,35 +147,81 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                             ),
                             child: Column(
                               children: <Widget>[
-                                Expanded(
-                                  child: BlocListener<ChatBloc, ChatState>(
-                                    listenWhen: (previous, current) =>
-                                        previous.messages.length !=
-                                        current.messages.length,
-                                    listener: (context, state) {
-                                      _scrollToBottom();
-                                    },
-                                    child: BlocBuilder<ChatBloc, ChatState>(
-                                      builder: (context, state) {
-                                        return ListView(
-                                          controller: _scrollController,
-                                          children: state.messages
-                                              .map(
-                                                (message) => ChatBubble(
-                                                  message: message,
-                                                ),
-                                              )
-                                              .toList(),
-                                        );
+                                  Expanded(
+                                    child: BlocListener<ChatBloc, ChatState>(
+                                      listenWhen: (previous, current) =>
+                                          previous.messages.length !=
+                                          current.messages.length,
+                                      listener: (context, state) {
+                                        if (_stickToBottom &&
+                                            !state.isLoadingMore) {
+                                          _scrollToBottom();
+                                        }
                                       },
+                                      child: BlocBuilder<ChatBloc, ChatState>(
+                                        builder: (context, state) {
+                                          final messages = state.messages;
+                                          final itemCount = messages.length +
+                                              (state.isLoadingMore ? 1 : 0);
+
+                                          return NotificationListener<
+                                              ScrollNotification>(
+                                            onNotification: (notification) {
+                                              final metrics =
+                                                  notification.metrics;
+                                              final distanceToBottom =
+                                                  metrics.maxScrollExtent -
+                                                      metrics.pixels;
+                                              _stickToBottom =
+                                                  distanceToBottom <= 120.h;
+
+                                              if (metrics.pixels <= 120.h) {
+                                                context
+                                                    .read<ChatBloc>()
+                                                    .add(
+                                                      const ChatLoadOlderRequested(),
+                                                    );
+                                              }
+                                              return false;
+                                            },
+                                            child: ListView.builder(
+                                              controller: _scrollController,
+                                              itemCount: itemCount,
+                                              itemBuilder:
+                                                  (BuildContext context, int index) {
+                                                if (state.isLoadingMore &&
+                                                    index == 0) {
+                                                  return Padding(
+                                                    padding: EdgeInsets.only(
+                                                      bottom: 8.h,
+                                                    ),
+                                                    child: const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
+                                                    ),
+                                                  );
+                                                }
+                                                final messageIndex =
+                                                    state.isLoadingMore
+                                                        ? index - 1
+                                                        : index;
+                                                return ChatBubble(
+                                                  message:
+                                                      messages[messageIndex],
+                                                );
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
-                                ),
                                 SizedBox(height: 10.h),
                                 ChatInputBar(
                                   hintText: AppStrings.chatPlaceholder,
                                   emptyMessage: AppStrings.chatEmptyMessage,
                                   onSend: (text) {
+                                    _stickToBottom = true;
                                     context.read<ChatBloc>().add(
                                           ChatMessageSent(message: text),
                                         );
@@ -212,4 +240,14 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
       ),
     );
   }
+}
+
+ImageProvider _avatarProvider(String url) {
+  if (url.trim().isEmpty) {
+    return const NetworkImage(AppImages.avatarHost);
+  }
+  if (url.startsWith('http')) {
+    return NetworkImage(url);
+  }
+  return AssetImage(url);
 }

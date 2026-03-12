@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const String login = '/login';
   static const String home = '/home';
   static const String availablePlayers = '/available-players';
+  static const String chatHistory = '/chat-history';
   static const String playerChat = '/player-chat';
   static const String notifications = '/notifications';
   static const String gameSelection = '/game-selection';

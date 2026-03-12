@@ -16,6 +16,9 @@ import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../game_selection/bloc/game_bloc.dart';
 import '../../../game_selection/bloc/game_event.dart';
+import '../../../chat/bloc/chat_badge_bloc.dart';
+import '../../../chat/bloc/chat_badge_event.dart';
+import '../../../chat/bloc/chat_badge_state.dart';
 import '../../bloc/home_availability_bloc.dart';
 import '../../bloc/home_availability_event.dart';
 import '../../bloc/home_availability_state.dart';
@@ -48,6 +51,9 @@ class HomeScreen extends StatelessWidget {
             ) {
                   return BlocBuilder<HomeAvailabilityBloc, HomeAvailabilityState>(
                     builder: (BuildContext context, HomeAvailabilityState state) {
+                      context.read<ChatBadgeBloc>().add(
+                            const ChatBadgeStarted(),
+                          );
                       if (state.selectedGameId == null) {
                         context.read<HomeAvailabilityBloc>().add(
                               HomeAvailabilityInitialized(
@@ -78,15 +84,37 @@ class HomeScreen extends StatelessWidget {
                                         style: AppTextStyles.pageTitle,
                                       ),
                                     ),
-                                    IconButton(
-                                      onPressed: () {
-                                        context.push(AppRoutes.notifications);
+                                    BlocBuilder<ChatBadgeBloc, ChatBadgeState>(
+                                      builder: (context, chatState) {
+                                        return IconButton(
+                                          onPressed: () {
+                                            context.push(AppRoutes.chatHistory);
+                                          },
+                                          icon: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: <Widget>[
+                                              Icon(
+                                                Icons.chat_bubble_outline,
+                                                size: 22.sp,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                              if (chatState.hasUnread)
+                                                Positioned(
+                                                  right: -1,
+                                                  top: -1,
+                                                  child: Container(
+                                                    width: 8.r,
+                                                    height: 8.r,
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.success,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
                                       },
-                                      icon: Icon(
-                                        Icons.notifications_none_rounded,
-                                        size: 22.sp,
-                                        color: AppColors.textPrimary,
-                                      ),
                                     ),
                                   ],
                                 ),

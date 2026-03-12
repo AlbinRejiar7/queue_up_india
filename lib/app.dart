@@ -8,6 +8,7 @@ import 'core/navigation/bloc/main_tab_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/bloc/registration_bloc.dart';
+import 'features/chat/bloc/chat_badge_bloc.dart';
 import 'features/game_selection/bloc/game_bloc.dart';
 import 'features/home/bloc/available_players_bloc.dart';
 import 'features/home/bloc/home_availability_bloc.dart';
@@ -36,6 +37,9 @@ class QueueUpApp extends StatelessWidget {
         ),
         BlocProvider<AvailablePlayersBloc>(
           create: (_) => sl<AvailablePlayersBloc>(),
+        ),
+        BlocProvider<ChatBadgeBloc>(
+          create: (_) => sl<ChatBadgeBloc>(),
         ),
       ],
       child: ScreenUtilInit(

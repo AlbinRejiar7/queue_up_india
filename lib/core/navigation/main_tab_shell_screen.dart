@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,11 +11,13 @@ import '../../features/game_selection/bloc/game_bloc.dart';
 import '../../features/game_selection/bloc/game_event.dart';
 import '../../features/game_selection/bloc/game_state.dart';
 import '../../features/game_selection/presentation/view/game_selection_screen.dart';
+import '../../features/home/bloc/home_availability_bloc.dart';
 import '../../features/party/presentation/view/create_party_screen.dart';
 import '../../features/party/presentation/view/my_rooms_screen.dart';
 import '../../features/settings/presentation/view/profile_screen.dart';
 import '../constants/app_options.dart';
 import '../constants/app_strings.dart';
+import '../services/in_app_alert_service.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/bloc/main_tab_event.dart';
 import '../navigation/bloc/main_tab_state.dart';
@@ -32,14 +38,21 @@ class MainTabShellScreen extends StatefulWidget {
   State<MainTabShellScreen> createState() => _MainTabShellScreenState();
 }
 
-class _MainTabShellScreenState extends State<MainTabShellScreen> {
+class _MainTabShellScreenState extends State<MainTabShellScreen>
+    with WidgetsBindingObserver {
   static const Duration _slideDuration = Duration(milliseconds: 260);
 
   late final PageController _pageController;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _directChatSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _hostPartySub;
+  final Map<String, DateTime> _lastChatSeenAt = <String, DateTime>{};
+  final Map<String, int> _lastPartyCount = <String, int>{};
+  bool _isAppActive = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final initialIndex = _indexForTab(widget.initialTab);
     _pageController = PageController(initialPage: initialIndex);
     context.read<MainTabBloc>().add(MainTabInitialized(index: initialIndex));
@@ -47,6 +60,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen> {
     if (initialGameId != null && initialGameId.trim().isNotEmpty) {
       context.read<GameBloc>().add(GameSelected(gameId: initialGameId));
     }
+    _startInAppAlerts();
   }
 
   @override
@@ -61,8 +75,16 @@ class _MainTabShellScreenState extends State<MainTabShellScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _directChatSub?.cancel();
+    _hostPartySub?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppActive = state == AppLifecycleState.resumed;
   }
 
   Future<void> _animateToIndex(int index) async {
@@ -75,6 +97,76 @@ class _MainTabShellScreenState extends State<MainTabShellScreen> {
       duration: _slideDuration,
       curve: Curves.easeOutCubic,
     );
+  }
+
+  void _startInAppAlerts() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return;
+    }
+
+    _directChatSub = FirebaseFirestore.instance
+        .collection('direct_chats')
+        .where('participants', arrayContains: uid)
+        .orderBy('lastMessageAt', descending: true)
+        .snapshots()
+        .listen(_handleDirectChatSnapshot);
+
+    _hostPartySub = FirebaseFirestore.instance
+        .collection('parties')
+        .where('hostId', isEqualTo: uid)
+        .where('status', whereIn: <String>['open', 'full'])
+        .snapshots()
+        .listen(_handleHostPartySnapshot);
+  }
+
+  void _handleDirectChatSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    if (!_shouldNotify()) {
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final senderId = data['lastMessageSenderId'] as String?;
+      if (senderId == null || senderId == uid) {
+        continue;
+      }
+      final rawTime = data['lastMessageAt'];
+      final lastMessageAt =
+          rawTime is Timestamp ? rawTime.toDate() : DateTime.now();
+      final previous = _lastChatSeenAt[doc.id];
+      if (previous == null || lastMessageAt.isAfter(previous)) {
+        _lastChatSeenAt[doc.id] = lastMessageAt;
+        InAppAlertService.notify();
+      }
+    }
+  }
+
+  void _handleHostPartySnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    if (!_shouldNotify()) {
+      return;
+    }
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final currentPlayers = (data['currentPlayers'] as int?) ?? 0;
+      final previous = _lastPartyCount[doc.id];
+      _lastPartyCount[doc.id] = currentPlayers;
+      if (previous != null && currentPlayers > previous) {
+        InAppAlertService.notify();
+      }
+    }
+  }
+
+  bool _shouldNotify() {
+    if (!_isAppActive) {
+      return false;
+    }
+    final availability = context.read<HomeAvailabilityBloc>().state;
+    return availability.isAvailable;
   }
 
   @override

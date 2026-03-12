@@ -12,7 +12,20 @@
           "package_name": "com.queueup.india"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "361379272562-6313h9d893dnr5630dmlrf7l4aor9jj9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.queueup.india",
+            "certificate_hash": "a6fe505ca18d49bce1d5ce04721762844c13c52d"
+          }
+        },
+        {
+          "client_id": "361379272562-0pikr094vaot66t1jqla3jgb2o2lltct.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDOlUamQBWHfhPutrepqXNmEdy2Hp0wfSY"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "361379272562-0pikr094vaot66t1jqla3jgb2o2lltct.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "361379272562-9gegunu0corpu0qe2m37m60ano0ralcn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.queueUpIndia"
+              }
+            }
+          ]
         }
       }
     }

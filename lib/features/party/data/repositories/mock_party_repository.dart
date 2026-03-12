@@ -1,5 +1,6 @@
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/constants/app_options.dart';
+import '../../../../core/utils/paged_result.dart';
 import '../../../auth/models/user_model.dart';
 import '../../models/create_party_form_model.dart';
 import '../../models/party_model.dart';
@@ -44,6 +45,7 @@ class MockPartyRepository implements PartyRepository {
         partyCode: 'AX7-92B',
         createdAt: DateTime(2026, 03, 01),
         coverImageUrl: AppImages.valorant,
+        hostId: _hostUserId,
         logoImageUrl: AppImages.valorant,
         tags: <String>['Mic On', 'India Server'],
       ),
@@ -72,6 +74,7 @@ class MockPartyRepository implements PartyRepository {
         partyCode: 'GOLD-527',
         createdAt: DateTime(2026, 03, 01),
         coverImageUrl: AppImages.valorant,
+        hostId: 'u_011',
         logoImageUrl: AppImages.valorant,
         tags: <String>[],
       ),
@@ -112,6 +115,7 @@ class MockPartyRepository implements PartyRepository {
         partyCode: 'SEA-404',
         createdAt: DateTime(2026, 03, 02),
         coverImageUrl: AppImages.valorant,
+        hostId: 'u_021',
         logoImageUrl: AppImages.valorant,
         tags: <String>[],
       ),
@@ -146,6 +150,7 @@ class MockPartyRepository implements PartyRepository {
         partyCode: 'BGMI-919',
         createdAt: DateTime(2026, 03, 02),
         coverImageUrl: AppImages.pubg,
+        hostId: 'u_031',
         logoImageUrl: AppImages.pubg,
         tags: <String>['Classic', 'India'],
       ),
@@ -188,6 +193,7 @@ class MockPartyRepository implements PartyRepository {
       partyCode: code,
       createdAt: DateTime.now(),
       coverImageUrl: _logoForGame(gameId),
+      hostId: _hostUserId,
       logoImageUrl: _logoForGame(gameId),
       tags: const <String>['New'],
     );
@@ -211,12 +217,75 @@ class MockPartyRepository implements PartyRepository {
   }
 
   @override
+  Stream<List<PartyPlayerModel>> watchPartyMembers({
+    required String partyId,
+  }) {
+    final party = _parties.firstWhere((party) => party.id == partyId);
+    return Stream<List<PartyPlayerModel>>.value(party.players);
+  }
+
+  @override
   Future<List<PartyModel>> fetchParties({required String gameId}) async {
     // TODO: Implement Firestore query here
     await Future<void>.delayed(const Duration(milliseconds: 420));
-    return _parties
+    final page = await fetchPartiesPage(gameId: gameId, limit: 50);
+    return page.items;
+  }
+
+  @override
+  Future<PagedResult<PartyModel>> fetchPartiesPage({
+    required String gameId,
+    String? rankFilter,
+    String? languageFilter,
+    Object? cursor,
+    int limit = 10,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 420));
+    final normalizedRank = rankFilter?.toLowerCase();
+    final normalizedLanguage = languageFilter?.toLowerCase();
+    final filtered = _parties
         .where((PartyModel party) => party.gameId == gameId)
+        .where(
+          (PartyModel party) =>
+              normalizedRank == null ||
+              normalizedRank.isEmpty ||
+              party.rank.toLowerCase() == normalizedRank,
+        )
+        .where(
+          (PartyModel party) =>
+              normalizedLanguage == null ||
+              normalizedLanguage.isEmpty ||
+              party.language.toLowerCase() == normalizedLanguage,
+        )
         .toList();
+
+    final int startIndex = cursor is int ? cursor : 0;
+    final slice = filtered.skip(startIndex).take(limit).toList();
+    final nextIndex = startIndex + slice.length;
+    final hasMore = nextIndex < filtered.length;
+
+    return PagedResult<PartyModel>(
+      items: slice,
+      hasMore: hasMore,
+      nextCursor: hasMore ? nextIndex : null,
+    );
+  }
+
+  @override
+  Stream<PagedResult<PartyModel>> watchPartiesPage({
+    required String gameId,
+    String? rankFilter,
+    String? languageFilter,
+    int limit = 10,
+  }) {
+    return Stream.fromFuture(
+      fetchPartiesPage(
+        gameId: gameId,
+        rankFilter: rankFilter,
+        languageFilter: languageFilter,
+        limit: limit,
+      ),
+    );
   }
 
   @override
