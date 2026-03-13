@@ -180,5 +180,6 @@ AvailablePlayerModel _toPlayer(ChatThread thread) {
     gameId: AppOptions.valorantId,
     rank: AppOptions.valorantRankOptions.first.name,
     language: AppOptions.languageOptions.first,
+    availableSince: DateTime.now(),
   );
 }

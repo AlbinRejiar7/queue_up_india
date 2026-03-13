@@ -29,16 +29,14 @@ abstract final class AppStrings {
   static const String createAccountSubtitle =
       'Register with your phone and jump into the queue.';
   static const String loginTitle = 'Login';
-  static const String loginSubtitle =
-      'Enter your phone number to continue.';
+  static const String loginSubtitle = 'Enter your phone number to continue.';
   static const String username = 'Username';
   static const String usernameHint = 'Choose a unique username';
   static const String usernameRequired = 'Enter a username to continue.';
   static const String usernameAvailable = 'Username available';
   static const String usernameTaken = 'Username already taken';
   static const String usernameChecking = 'Checking availability...';
-  static const String usernameInvalid =
-      'Use at least 3 letters or numbers.';
+  static const String usernameInvalid = 'Use at least 3 letters or numbers.';
   static const String usernameCheckFailed =
       'Unable to check username right now.';
   static const String phoneNumber = 'Phone Number';
@@ -112,15 +110,20 @@ abstract final class AppStrings {
   static const String availabilityPreferences = 'Availability Preferences';
   static const String availabilityOn = 'AVAILABLE';
   static const String availabilityOff = 'GO AVAILABLE';
-  static const String availabilityHintOn = 'Players can now discover your queue';
-  static const String availabilityHintOff = 'Tap the button to broadcast status';
+  static const String availabilityHintOn =
+      'Players can now discover your queue';
+  static const String availabilityHintOff =
+      'Tap the button to broadcast status';
+  static const String availableForLabel = 'Available started for';
+  static const String newMessagesHint = 'You have new messages';
   static const String completeAvailabilitySelection =
       'Select game, language, and rank to go available';
   static const String seeAvailablePlayers = 'See Available Players';
   static const String availablePlayersTitle = 'Available Players';
   static const String availablePlayersSubtitle =
       'Players currently looking for a squad';
-  static const String noAvailablePlayers = 'No players are available right now.';
+  static const String noAvailablePlayers =
+      'No players are available right now.';
   static const String resetFilters = 'Reset Filters';
   static const String notifications = 'Notifications';
   static const String notificationsSubtitle =
@@ -250,4 +253,7 @@ abstract final class AppStrings {
   static String daysAgo(int days) => '$days $daysAgoSuffix';
 
   static String createdTimeLabel(String timeAgo) => '$createdLabel $timeAgo';
+
+  static String availableForTimeLabel(String timeAgo) =>
+      '$availableForLabel $timeAgo';
 }

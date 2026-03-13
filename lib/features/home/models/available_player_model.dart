@@ -8,6 +8,7 @@ class AvailablePlayerModel extends Equatable {
     required this.gameId,
     required this.rank,
     required this.language,
+    required this.availableSince,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class AvailablePlayerModel extends Equatable {
   final String gameId;
   final String rank;
   final String language;
+  final DateTime availableSince;
 
   AvailablePlayerModel copyWith({
     String? id,
@@ -24,6 +26,7 @@ class AvailablePlayerModel extends Equatable {
     String? gameId,
     String? rank,
     String? language,
+    DateTime? availableSince,
   }) {
     return AvailablePlayerModel(
       id: id ?? this.id,
@@ -32,6 +35,7 @@ class AvailablePlayerModel extends Equatable {
       gameId: gameId ?? this.gameId,
       rank: rank ?? this.rank,
       language: language ?? this.language,
+      availableSince: availableSince ?? this.availableSince,
     );
   }
 
@@ -43,5 +47,6 @@ class AvailablePlayerModel extends Equatable {
     gameId,
     rank,
     language,
+    availableSince,
   ];
 }

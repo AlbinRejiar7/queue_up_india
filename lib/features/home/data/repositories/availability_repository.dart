@@ -7,6 +7,7 @@ abstract class AvailabilityRepository {
     required String gameId,
     required String rank,
     required String language,
+    bool startedNow = false,
   });
 
   Stream<List<AvailablePlayerModel>> watchAvailablePlayers();

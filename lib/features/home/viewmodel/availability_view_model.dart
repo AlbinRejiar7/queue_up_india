@@ -12,12 +12,14 @@ class AvailabilityViewModel {
     required String gameId,
     required String rank,
     required String language,
+    bool startedNow = false,
   }) {
     return _repository.setAvailability(
       isAvailable: isAvailable,
       gameId: gameId,
       rank: rank,
       language: language,
+      startedNow: startedNow,
     );
   }
 

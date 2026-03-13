@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_images.dart';
 import '../../../../../core/constants/app_options.dart';
+import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../../core/widgets/rank_tag_chip.dart';
@@ -75,6 +76,14 @@ class AvailablePlayerCard extends StatelessWidget {
                     fontSize: 15.sp,
                   ),
                 ),
+                SizedBox(height: 4.h),
+                Text(
+                  _availableDurationLabel(player.availableSince),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 SizedBox(height: 8.h),
                 Wrap(
                   spacing: 6.w,
@@ -111,6 +120,24 @@ class AvailablePlayerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _availableDurationLabel(DateTime availableSince) {
+  final diff = DateTime.now().difference(availableSince);
+  if (diff.inMinutes < 1) {
+    return AppStrings.availableForTimeLabel(AppStrings.justNow);
+  }
+  if (diff.inHours < 1) {
+    return AppStrings.availableForTimeLabel(
+      AppStrings.minutesAgo(diff.inMinutes),
+    );
+  }
+  if (diff.inDays < 1) {
+    return AppStrings.availableForTimeLabel(
+      AppStrings.hoursAgo(diff.inHours),
+    );
+  }
+  return AppStrings.availableForTimeLabel(AppStrings.daysAgo(diff.inDays));
 }
 
 ImageProvider _avatarProvider(String url) {

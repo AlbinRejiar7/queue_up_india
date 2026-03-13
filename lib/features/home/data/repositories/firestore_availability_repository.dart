@@ -22,6 +22,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     required String gameId,
     required String rank,
     required String language,
+    bool startedNow = false,
   }) async {
     final uid = _requireUserId();
     final docRef = _db.collection('availability').doc(uid);
@@ -34,7 +35,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     final displayName = await _resolveDisplayName(uid);
     final avatarUrl = await _resolveAvatarUrl(uid);
 
-    await docRef.set(<String, dynamic>{
+    final payload = <String, dynamic>{
       'uid': uid,
       'displayName': displayName,
       'avatarUrl': avatarUrl,
@@ -43,7 +44,12 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       'languageId': language,
       'isAvailable': true,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (startedNow) {
+      payload['availableSince'] = FieldValue.serverTimestamp();
+    }
+
+    await docRef.set(payload, SetOptions(merge: true));
   }
 
   @override
@@ -64,6 +70,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
               gameId: (data['gameId'] as String?) ?? '',
               rank: (data['rankId'] as String?) ?? '',
               language: (data['languageId'] as String?) ?? '',
+              availableSince: _resolveAvailableSince(data),
             );
           }).toList(),
         );
@@ -103,6 +110,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
           gameId: (data['gameId'] as String?) ?? '',
           rank: (data['rankId'] as String?) ?? '',
           language: (data['languageId'] as String?) ?? '',
+          availableSince: _resolveAvailableSince(data),
         );
       }).toList();
 
@@ -141,6 +149,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       gameId: (data['gameId'] as String?) ?? '',
       rank: (data['rankId'] as String?) ?? '',
       language: (data['languageId'] as String?) ?? '',
+      availableSince: _resolveAvailableSince(data),
     );
   }
 
@@ -182,6 +191,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
         gameId: (data['gameId'] as String?) ?? '',
         rank: (data['rankId'] as String?) ?? '',
         language: (data['languageId'] as String?) ?? '',
+        availableSince: _resolveAvailableSince(data),
       );
     }).toList();
 
@@ -229,5 +239,23 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       return user.photoURL!;
     }
     return AppImages.avatarHost;
+  }
+
+  DateTime _resolveAvailableSince(Map<String, dynamic> data) {
+    final availableSince = data['availableSince'];
+    if (availableSince is Timestamp) {
+      return availableSince.toDate();
+    }
+    if (availableSince is DateTime) {
+      return availableSince;
+    }
+    final updatedAt = data['updatedAt'];
+    if (updatedAt is Timestamp) {
+      return updatedAt.toDate();
+    }
+    if (updatedAt is DateTime) {
+      return updatedAt;
+    }
+    return DateTime.now();
   }
 }

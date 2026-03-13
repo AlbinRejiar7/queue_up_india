@@ -86,6 +86,7 @@ abstract final class AppRouter {
               gameId: AppOptions.valorantId,
               rank: AppOptions.valorantRankOptions.first.name,
               language: AppOptions.languageOptions.first,
+              availableSince: DateTime.now(),
             );
             return PlayerChatScreen(player: player ?? fallback);
           },

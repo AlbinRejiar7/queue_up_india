@@ -12,6 +12,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../game_selection/bloc/game_bloc.dart';
@@ -134,6 +135,24 @@ class HomeScreen extends StatelessWidget {
                                     fontSize: 12.sp,
                                   ),
                                 ),
+                                BlocBuilder<ChatBadgeBloc, ChatBadgeState>(
+                                  builder: (context, chatState) {
+                                    if (!chatState.hasUnread) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: EdgeInsets.only(top: 6.h),
+                                      child: Text(
+                                        AppStrings.newMessagesHint,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.success,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ],
                             ),
                           ),
@@ -198,6 +217,21 @@ class HomeScreen extends StatelessWidget {
                               contentPadding.right,
                               8.h,
                             ),
+                            child: PrimaryButton(
+                              label: AppStrings.seeAvailablePlayers,
+                              icon: Icons.groups_rounded,
+                              onPressed: () {
+                                context.push(AppRoutes.availablePlayers);
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              contentPadding.left,
+                              0,
+                              contentPadding.right,
+                              8.h,
+                            ),
                             child: AvailabilityFiltersCard(
                               selectedGameId: state.selectedGameId,
                               selectedLanguage: state.selectedLanguage,
@@ -243,31 +277,6 @@ class HomeScreen extends StatelessWidget {
                                   : AppStrings.availabilityHintOff,
                               textAlign: TextAlign.center,
                               style: AppTextStyles.bodyMedium,
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              contentPadding.left,
-                              0,
-                              contentPadding.right,
-                              10.h,
-                            ),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 42.h,
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  context.push(AppRoutes.availablePlayers);
-                                },
-                                icon: Icon(Icons.groups_rounded, size: 18.sp),
-                                label: Text(
-                                  AppStrings.seeAvailablePlayers,
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
                             ),
                           ),
                         ],

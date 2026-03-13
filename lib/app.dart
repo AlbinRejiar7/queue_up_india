@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'core/di/injection_container.dart';
 import 'core/navigation/bloc/main_tab_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/availability_lifecycle_handler.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/bloc/registration_bloc.dart';
 import 'features/chat/bloc/chat_badge_bloc.dart';
@@ -47,11 +48,13 @@ class QueueUpApp extends StatelessWidget {
         minTextAdapt: true,
         splitScreenMode: true,
         builder: (context, child) {
-          return MaterialApp.router(
-            title: 'QueueUp',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.darkTheme,
-            routerConfig: sl<GoRouter>(),
+          return AvailabilityLifecycleHandler(
+            child: MaterialApp.router(
+              title: 'QueueUp',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.darkTheme,
+              routerConfig: sl<GoRouter>(),
+            ),
           );
         },
       ),

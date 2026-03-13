@@ -94,12 +94,12 @@ class HomeAvailabilityBloc
     emit(nextState);
 
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState);
+      final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
-      await _updateAvailability(nextState);
+      await _updateAvailability(nextState, startedNow: false);
     }
   }
 
@@ -115,12 +115,12 @@ class HomeAvailabilityBloc
     );
     emit(nextState);
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState);
+      final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
-      await _updateAvailability(nextState);
+      await _updateAvailability(nextState, startedNow: false);
     }
   }
 
@@ -136,12 +136,12 @@ class HomeAvailabilityBloc
     );
     emit(nextState);
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState);
+      final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
-      await _updateAvailability(nextState);
+      await _updateAvailability(nextState, startedNow: false);
     }
   }
 
@@ -156,7 +156,10 @@ class HomeAvailabilityBloc
 
     final nextState = state.copyWith(isAvailable: !state.isAvailable);
     emit(nextState);
-    final ok = await _updateAvailability(nextState);
+    final ok = await _updateAvailability(
+      nextState,
+      startedNow: nextState.isAvailable && !state.isAvailable,
+    );
     if (!ok) {
       emit(nextState.copyWith(isAvailable: false));
     }
@@ -176,7 +179,10 @@ class HomeAvailabilityBloc
     return currentState.isAvailable;
   }
 
-  Future<bool> _updateAvailability(HomeAvailabilityState current) async {
+  Future<bool> _updateAvailability(
+    HomeAvailabilityState current, {
+    required bool startedNow,
+  }) async {
     if (current.isAvailable && !current.canToggleAvailability) {
       return false;
     }
@@ -186,6 +192,7 @@ class HomeAvailabilityBloc
         gameId: current.selectedGameId ?? AppOptions.valorantId,
         rank: current.selectedRank ?? '',
         language: current.selectedLanguage ?? '',
+        startedNow: startedNow,
       );
       return true;
     } catch (_) {
