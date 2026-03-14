@@ -133,7 +133,20 @@ abstract final class AppStrings {
   static const String notificationsSubtitle =
       'Recent activity and party updates';
   static const String noNotifications = 'No notifications yet.';
+  static const String clearNotifications = 'Clear all';
+  static const String notificationsCleared = 'Notifications cleared.';
+  static const String confirmClearNotificationsTitle = 'Clear notifications?';
+  static const String confirmClearNotificationsMessage =
+      'This will remove all notifications.';
   static const String quickMessagesTitle = 'Quick Messages';
+  static const String addQuickMessage = 'Add quick message';
+  static const String addQuickMessageHint = 'Type a quick message';
+  static const String addAction = 'Add';
+  static const String quickMessageAdded = 'Quick message added.';
+  static const String quickMessageExists =
+      'That quick message already exists.';
+  static const String quickMessageLimit =
+      'You can add up to 5 custom quick messages.';
   static const String seeMore = 'See more';
   static const String seeLess = 'See less';
   static const String sharePlayerId = 'Share Player ID';
@@ -142,16 +155,21 @@ abstract final class AppStrings {
   static const String enterPartyCodeHint = 'Enter party code';
   static const String sendAction = 'Send';
   static const String emptyQuickValue = 'Please enter a value.';
-  static const String chatRequestTitle = 'Chat request';
-  static const String chatRequestBody = 'Tap to respond to this request.';
-  static const String sendChatRequestTitle = 'Send chat request?';
-  static const String sendChatRequestAction = 'Send Request';
-  static const String chatRequestSent = 'Chat request sent.';
-  static const String chatRequestFailed = 'Unable to send request right now.';
-  static const String chatRequestAcceptedTitle = 'Request accepted';
-  static const String chatRequestAcceptedBody = 'Accepted your chat request.';
-  static const String chatRequestDeclinedTitle = 'Request declined';
-  static const String chatRequestDeclinedBody = 'Declined your chat request.';
+  static const String chatRequestTitle = 'Solo Invite';
+  static String chatRequestBody(String playerName) =>
+      '$playerName is ready to play - join in?';
+  static const String sendChatRequestTitle = 'Send solo invite?';
+  static const String sendChatRequestAction = 'Send Invite';
+  static const String chatRequestSent = 'Solo invite sent.';
+  static const String chatRequestFailed = 'Unable to send invite right now.';
+  static const String chatRequestAlreadySent =
+      'Solo invite already sent. Check notifications.';
+  static String chatRequestIncomingExists(String playerName) =>
+      '$playerName already sent you an invite. Check notifications on Home.';
+  static const String chatRequestAcceptedTitle = 'Solo Invite Accepted';
+  static const String chatRequestAcceptedBody = 'Accepted your solo invite.';
+  static const String chatRequestDeclinedTitle = 'Solo Invite Declined';
+  static const String chatRequestDeclinedBody = 'Declined your solo invite.';
   static const String requestAcceptedToast =
       'Request accepted. Opening chat.';
   static const String requestDeclinedToast = 'Request declined.';
@@ -225,6 +243,8 @@ abstract final class AppStrings {
   static const String maxFive = 'Max 4';
   static const String partyCode = 'Party Code';
   static const String partyCodeHint = 'ABCD-1234';
+  static const String oneRoomPerGameMessage =
+      'You already have a room for this game. Delete it and try again.';
   static const String cannotJoinOwnParty =
       'You cannot join a party you created.';
   static const String justNow = 'Just now';

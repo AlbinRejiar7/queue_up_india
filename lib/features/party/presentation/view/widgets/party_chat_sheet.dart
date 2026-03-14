@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_strings.dart';
+import '../../../../../core/services/push_notification_service.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../chat/bloc/chat_bloc.dart';
@@ -13,7 +14,7 @@ import '../../../../chat/presentation/widgets/chat_bubble.dart';
 import '../../../../chat/presentation/widgets/chat_input_bar.dart';
 import '../../../models/party_model.dart';
 
-class PartyChatSheet extends StatelessWidget {
+class PartyChatSheet extends StatefulWidget {
   const PartyChatSheet({
     required this.party,
     super.key,
@@ -32,14 +33,28 @@ class PartyChatSheet extends StatelessWidget {
   final VoidCallback? onExpandTap;
 
   @override
+  State<PartyChatSheet> createState() => _PartyChatSheetState();
+}
+
+class _PartyChatSheetState extends State<PartyChatSheet> {
+  @override
+  void dispose() {
+    PushNotificationService.instance.setPartyChatState(
+      partyId: widget.party.id,
+      isExpanded: false,
+    );
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      controller: controller,
-      initialChildSize: initialChildSize,
-      minChildSize: minChildSize,
-      maxChildSize: maxChildSize,
+      controller: widget.controller,
+      initialChildSize: widget.initialChildSize,
+      minChildSize: widget.minChildSize,
+      maxChildSize: widget.maxChildSize,
       snap: true,
-      snapSizes: <double>[minChildSize, maxChildSize],
+      snapSizes: <double>[widget.minChildSize, widget.maxChildSize],
       builder: (BuildContext context, ScrollController scrollController) {
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
@@ -47,6 +62,10 @@ class PartyChatSheet extends StatelessWidget {
             final EdgeInsets contentPadding = isCompact
                 ? EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 10.h)
                 : EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 16.h);
+            PushNotificationService.instance.setPartyChatState(
+              partyId: widget.party.id,
+              isExpanded: !isCompact,
+            );
 
             return GlassContainer(
               borderRadius: 32.r,
@@ -92,7 +111,7 @@ class PartyChatSheet extends StatelessWidget {
 
                           final items = <Widget>[
                             GestureDetector(
-                              onTap: onExpandTap,
+                              onTap: widget.onExpandTap,
                               behavior: HitTestBehavior.opaque,
                               child: Column(
                                 children: <Widget>[
@@ -183,7 +202,7 @@ class PartyChatSheet extends StatelessWidget {
                                               .copyWith(fontSize: 18.sp),
                                         ),
                                         Text(
-                                          '${party.playerCount} ${AppStrings.online}',
+                                          '${widget.party.playerCount} ${AppStrings.online}',
                                           style: AppTextStyles.caption,
                                         ),
                                       ],

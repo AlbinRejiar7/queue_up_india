@@ -10,13 +10,16 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/utils/app_preferences.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../home/models/available_player_model.dart';
+import '../../../home/viewmodel/available_players_view_model.dart';
 import '../../bloc/chat_bloc.dart';
 import '../../bloc/chat_event.dart';
 import '../../bloc/chat_state.dart';
@@ -36,6 +39,10 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _stickToBottom = true;
   bool _showAllQuickMessages = false;
+  late AvailablePlayerModel _player;
+  List<String> _customQuickMessages = <String>[];
+
+  static const int _maxCustomQuickMessages = 5;
 
   static const List<String> _quickMessages = <String>[
     'Do you want to play a game with me?',
@@ -51,7 +58,17 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _player = widget.player;
+    PushNotificationService.instance.setActiveDirectChatId(_player.id);
+    _syncAvailability();
+    _loadCustomQuickMessages();
+  }
+
+  @override
   void dispose() {
+    PushNotificationService.instance.setActiveDirectChatId(null);
     _scrollController.dispose();
     super.dispose();
   }
@@ -71,6 +88,169 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
   void _sendQuickMessage(BuildContext context, String message) {
     context.read<ChatBloc>().add(ChatMessageSent(message: message));
+  }
+
+  Future<void> _loadCustomQuickMessages() async {
+    final messages = await AppPreferences.loadCustomQuickMessages();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _customQuickMessages = messages;
+    });
+  }
+
+  Future<void> _addCustomQuickMessage(String message) async {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty) {
+      AppSnackBar.showError(context, AppStrings.emptyQuickValue);
+      return;
+    }
+    final existsInCustom = _customQuickMessages.any(
+      (item) => item.toLowerCase() == trimmed.toLowerCase(),
+    );
+    final existsInDefaults = _quickMessages.any(
+      (item) => item.toLowerCase() == trimmed.toLowerCase(),
+    );
+    if (existsInCustom || existsInDefaults) {
+      AppSnackBar.showInfo(context, AppStrings.quickMessageExists);
+      return;
+    }
+    if (_customQuickMessages.length >= _maxCustomQuickMessages) {
+      AppSnackBar.showInfo(context, AppStrings.quickMessageLimit);
+      return;
+    }
+    final updated = <String>[trimmed, ..._customQuickMessages];
+    await AppPreferences.saveCustomQuickMessages(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _customQuickMessages = updated;
+    });
+    AppSnackBar.showSuccess(context, AppStrings.quickMessageAdded);
+  }
+
+  Future<void> _promptAddQuickMessage() async {
+    final controller = TextEditingController();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16.w,
+              16.h,
+              16.w,
+              bottomInset + 16.h,
+            ),
+            child: GlassContainer(
+              borderRadius: 24.r,
+              padding: EdgeInsets.all(16.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    AppStrings.addQuickMessage,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  TextField(
+                    controller: controller,
+                    style: AppTextStyles.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: AppStrings.addQuickMessageHint,
+                      hintStyle: AppTextStyles.caption,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: Text(AppStrings.cancelAction),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.emptyQuickValue,
+                              );
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(text);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlueBright,
+                            foregroundColor: AppColors.textPrimary,
+                          ),
+                          child: Text(AppStrings.addAction),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == null || result.trim().isEmpty) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    await _addCustomQuickMessage(result);
+  }
+
+  Future<void> _syncAvailability() async {
+    try {
+      final updated = await sl<AvailablePlayersViewModel>()
+          .fetchAvailablePlayer(_player.id);
+      if (!mounted || updated == null) {
+        return;
+      }
+      setState(() {
+        _player = _player.copyWith(
+          name: updated.name.isNotEmpty ? updated.name : _player.name,
+          avatarUrl: updated.avatarUrl.isNotEmpty
+              ? updated.avatarUrl
+              : _player.avatarUrl,
+          gameId: updated.gameId.isNotEmpty ? updated.gameId : _player.gameId,
+          rank: updated.rank.isNotEmpty ? updated.rank : _player.rank,
+          language:
+              updated.language.isNotEmpty ? updated.language : _player.language,
+          availableSince: updated.availableSince,
+        );
+      });
+    } catch (_) {
+      // Ignore availability refresh failures; keep the initial details.
+    }
   }
 
   Future<void> _promptAndSend({
@@ -177,7 +357,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final player = widget.player;
+    final player = _player;
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final availableHeight =
         MediaQuery.of(context).size.height - viewInsets;
@@ -189,9 +369,15 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
         availableHeight * quickHeightFactor,
       ),
     );
+    final maxBottomSectionHeight =
+        min(availableHeight * 0.45, 340.h);
+    final allQuickMessages = <String>[
+      ..._customQuickMessages,
+      ..._quickMessages,
+    ];
     final visibleQuickMessages = _showAllQuickMessages
-        ? _quickMessages
-        : _quickMessages.take(5).toList();
+        ? allQuickMessages
+        : allQuickMessages.take(5).toList();
 
     return BlocProvider<ChatBloc>(
       create: (_) => ChatBloc(
@@ -354,129 +540,159 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                     ),
                                   ),
                                 SizedBox(height: 10.h),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  verticalDirection: VerticalDirection.up,
-                                  children: <Widget>[
-                                    Row(
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxHeight: maxBottomSectionHeight,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: () {
-                                              _promptAndSend(
-                                                context: context,
-                                                title: AppStrings.sharePlayerId,
-                                                hint:
-                                                    AppStrings.enterPlayerIdHint,
-                                                formatter: (value) =>
-                                                    AppStrings.playerIdMessage(
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () {
+                                                  _promptAndSend(
+                                                    context: context,
+                                                    title: AppStrings.sharePlayerId,
+                                                    hint: AppStrings
+                                                        .enterPlayerIdHint,
+                                                    formatter: (value) =>
+                                                        AppStrings
+                                                            .playerIdMessage(
                                                       value,
                                                     ),
-                                              );
-                                            },
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor:
-                                                  AppColors.textPrimary,
-                                              side: BorderSide(
-                                                color: AppColors
-                                                    .electricBlueBright,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(14.r),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              AppStrings.sharePlayerId,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 10.w),
-                                        Expanded(
-                                          child: ElevatedButton(
-                                            onPressed: () {
-                                              _promptAndSend(
-                                                context: context,
-                                                title: AppStrings.sharePartyCode,
-                                                hint:
-                                                    AppStrings.enterPartyCodeHint,
-                                                formatter: (value) =>
-                                                    AppStrings.partyCodeMessage(
-                                                      value,
+                                                  );
+                                                },
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor:
+                                                      AppColors.textPrimary,
+                                                  side: BorderSide(
+                                                    color: AppColors
+                                                        .electricBlueBright,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      14.r,
                                                     ),
-                                              );
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.electricBlueBright,
-                                              foregroundColor:
-                                                  AppColors.textPrimary,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(14.r),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              AppStrings.sharePartyCode,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 10.h),
-                                    GlassContainer(
-                                      borderRadius: 22.r,
-                                      padding: EdgeInsets.all(14.r),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Row(
-                                            children: <Widget>[
-                                              Text(
-                                                AppStrings.quickMessagesTitle,
-                                                style: AppTextStyles.bodyMedium
-                                                    .copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              if (_quickMessages.length > 5)
-                                                TextButton(
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _showAllQuickMessages =
-                                                          !_showAllQuickMessages;
-                                                    });
-                                                  },
-                                                  child: Text(
-                                                    _showAllQuickMessages
-                                                        ? AppStrings.seeLess
-                                                        : AppStrings.seeMore,
                                                   ),
                                                 ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 8.h),
-                                          AnimatedSize(
-                                            duration: const Duration(
-                                              milliseconds: 220,
-                                            ),
-                                            curve: Curves.easeInOut,
-                                            alignment: Alignment.bottomCenter,
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxHeight: maxQuickHeight,
+                                                child: Text(
+                                                  AppStrings.sharePlayerId,
+                                                  textAlign: TextAlign.center,
+                                                ),
                                               ),
-                                              child: SingleChildScrollView(
-                                                child: Wrap(
-                                                  spacing: 8.w,
-                                                  runSpacing: 8.h,
-                                                  children: visibleQuickMessages
-                                                      .map(
-                                                        (message) => ActionChip(
+                                            ),
+                                            SizedBox(width: 10.w),
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  _promptAndSend(
+                                                    context: context,
+                                                    title: AppStrings
+                                                        .sharePartyCode,
+                                                    hint: AppStrings
+                                                        .enterPartyCodeHint,
+                                                    formatter: (value) =>
+                                                        AppStrings
+                                                            .partyCodeMessage(
+                                                      value,
+                                                    ),
+                                                  );
+                                                },
+                                                style:
+                                                    ElevatedButton.styleFrom(
+                                                  backgroundColor: AppColors
+                                                      .electricBlueBright,
+                                                  foregroundColor:
+                                                      AppColors.textPrimary,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      14.r,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  AppStrings.sharePartyCode,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 10.h),
+                                        GlassContainer(
+                                          borderRadius: 22.r,
+                                          padding: EdgeInsets.all(14.r),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Row(
+                                                children: <Widget>[
+                                                  Text(
+                                                    AppStrings
+                                                        .quickMessagesTitle,
+                                                    style: AppTextStyles
+                                                        .bodyMedium
+                                                        .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const Spacer(),
+                                                  TextButton(
+                                                    onPressed:
+                                                        _customQuickMessages
+                                                                    .length >=
+                                                                _maxCustomQuickMessages
+                                                            ? null
+                                                            : _promptAddQuickMessage,
+                                                    child: Text(
+                                                      AppStrings.addAction,
+                                                    ),
+                                                  ),
+                                                  if (allQuickMessages.length >
+                                                      5)
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _showAllQuickMessages =
+                                                              !_showAllQuickMessages;
+                                                        });
+                                                      },
+                                                      child: Text(
+                                                        _showAllQuickMessages
+                                                            ? AppStrings.seeLess
+                                                            : AppStrings.seeMore,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              SizedBox(height: 8.h),
+                                              AnimatedSize(
+                                                duration: const Duration(
+                                                  milliseconds: 220,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                                alignment:
+                                                    Alignment.bottomCenter,
+                                                child: ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                    maxHeight: maxQuickHeight,
+                                                  ),
+                                                  child: SingleChildScrollView(
+                                                    child: Wrap(
+                                                      spacing: 8.w,
+                                                      runSpacing: 8.h,
+                                                      children:
+                                                          visibleQuickMessages
+                                                              .map(
+                                                        (message) =>
+                                                            ActionChip(
                                                           label: Text(
                                                             message,
                                                             style: AppTextStyles
@@ -518,16 +734,17 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                             );
                                                           },
                                                         ),
-                                                      )
-                                                      .toList(),
+                                                      ).toList(),
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),

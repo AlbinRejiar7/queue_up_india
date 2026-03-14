@@ -22,6 +22,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     on<NotificationsStarted>(_onStarted);
     on<NotificationsUpdated>(_onUpdated);
     on<NotificationReadRequested>(_onReadRequested);
+    on<NotificationsMarkAllReadRequested>(_onMarkAllReadRequested);
+    on<NotificationDismissed>(_onNotificationDismissed);
+    on<NotificationsClearedRequested>(_onNotificationsCleared);
     on<NotificationRequestAccepted>(_onRequestAccepted);
     on<NotificationRequestDeclined>(_onRequestDeclined);
     on<NotificationsActionCleared>(_onActionCleared);
@@ -59,6 +62,33 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     Emitter<NotificationsState> emit,
   ) async {
     await _notificationsViewModel.markAsRead(event.notificationId);
+  }
+
+  Future<void> _onMarkAllReadRequested(
+    NotificationsMarkAllReadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    await _notificationsViewModel.markAllAsRead();
+  }
+
+  Future<void> _onNotificationDismissed(
+    NotificationDismissed event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    await _notificationsViewModel.deleteNotification(event.notificationId);
+  }
+
+  Future<void> _onNotificationsCleared(
+    NotificationsClearedRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    await _notificationsViewModel.clearNotifications();
+    emit(
+      state.copyWith(
+        actionMessage: AppStrings.notificationsCleared,
+        actionSuccess: true,
+      ),
+    );
   }
 
   Future<void> _onRequestAccepted(

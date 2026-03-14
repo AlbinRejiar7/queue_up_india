@@ -41,4 +41,8 @@ class AvailablePlayersViewModel {
       limit: limit,
     );
   }
+
+  Future<AvailablePlayerModel?> fetchAvailablePlayer(String userId) {
+    return _repository.fetchAvailabilityById(userId);
+  }
 }

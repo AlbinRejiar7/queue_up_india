@@ -21,7 +21,9 @@ class NotificationsState extends Equatable {
   bool get hasUnread => notifications.any((item) => !item.isRead);
 
   bool get hasPendingRequests =>
-      notifications.any((item) => item.isChatRequest && item.isPending);
+      notifications.any(
+        (item) => item.isChatRequest && item.isPending && !item.isRead,
+      );
 
   NotificationsState copyWith({
     List<NotificationItem>? notifications,

@@ -75,7 +75,7 @@ class PartyOverviewHeader extends StatelessWidget {
           ),
           SizedBox(height: 4.h),
           Text(
-            '${AppStrings.createdBy} ${party.players.first.name}',
+            '${AppStrings.createdBy} ${_resolveHostName(party)}',
             style: AppTextStyles.bodyMedium,
           ),
           SizedBox(height: 10.h),
@@ -101,4 +101,11 @@ class PartyOverviewHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+String _resolveHostName(PartyModel party) {
+  if (party.players.isNotEmpty) {
+    return party.players.first.name;
+  }
+  return 'Host';
 }

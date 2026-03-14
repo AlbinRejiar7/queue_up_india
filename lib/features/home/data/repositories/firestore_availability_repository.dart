@@ -154,6 +154,34 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
   }
 
   @override
+  Future<AvailablePlayerModel?> fetchAvailabilityById(String userId) async {
+    final trimmed = userId.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    final doc = await _db.collection('availability').doc(trimmed).get();
+    if (!doc.exists) {
+      return null;
+    }
+    final data = doc.data() ?? <String, dynamic>{};
+    final isAvailable = data['isAvailable'] == true;
+    if (!isAvailable) {
+      return null;
+    }
+
+    return AvailablePlayerModel(
+      id: doc.id,
+      name: (data['displayName'] as String?) ?? 'QueuePlayer',
+      avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
+      gameId: (data['gameId'] as String?) ?? '',
+      rank: (data['rankId'] as String?) ?? '',
+      language: (data['languageId'] as String?) ?? '',
+      availableSince: _resolveAvailableSince(data),
+    );
+  }
+
+  @override
   Future<PagedResult<AvailablePlayerModel>> fetchAvailablePlayersPage({
     String? gameId,
     String? rank,

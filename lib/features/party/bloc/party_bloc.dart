@@ -624,13 +624,29 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     emit(PartyLoading(data: state.data));
 
     try {
-      final party = await _partyViewModel.createParty(
-        gameId: _normalizeGameId(
-          form.gameId.isEmpty ? state.data.activeGameId : form.gameId,
-        ),
-        form: form,
+      final resolvedGameId = _normalizeGameId(
+        form.gameId.isEmpty ? state.data.activeGameId : form.gameId,
       );
       final createdParties = await _partyViewModel.loadCreatedParties();
+      final alreadyHasRoom = createdParties.any(
+        (party) => party.gameId == resolvedGameId,
+      );
+      if (alreadyHasRoom) {
+        emit(
+          PartyError(
+            message: AppStrings.oneRoomPerGameMessage,
+            data: state.data,
+          ),
+        );
+        return;
+      }
+
+      final party = await _partyViewModel.createParty(
+        gameId: resolvedGameId,
+        form: form,
+      );
+      final updatedCreatedParties =
+          await _partyViewModel.loadCreatedParties();
       final joinedParties = await _partyViewModel.loadJoinedParties();
 
       emit(
@@ -639,7 +655,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
             selectedParty: party,
             currentPartyId: party.id,
             navigationPartyId: party.id,
-            createdParties: createdParties,
+            createdParties: updatedCreatedParties,
             joinedParties: joinedParties,
             isCreateCompleted: true,
           ),

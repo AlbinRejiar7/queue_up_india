@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/constants/app_options.dart';
 import '../../../core/constants/app_strings.dart';
@@ -161,6 +162,17 @@ class AvailablePlayersBloc
     if (state.isRequesting) {
       return;
     }
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      emit(
+        state.copyWith(
+          requestMessage: AppStrings.chatRequestFailed,
+          requestSuccess: false,
+        ),
+      );
+      return;
+    }
+
     emit(
       state.copyWith(
         isRequesting: true,
@@ -169,13 +181,46 @@ class AvailablePlayersBloc
       ),
     );
     try {
+      final alreadySent = await _notificationsViewModel.hasPendingChatRequest(
+        targetUserId: event.player.id,
+        fromUserId: currentUserId,
+      );
+      if (alreadySent) {
+        emit(
+          state.copyWith(
+            isRequesting: false,
+            requestMessage: AppStrings.chatRequestAlreadySent,
+            requestSuccess: false,
+          ),
+        );
+        return;
+      }
+
+      final incomingRequest = await _notificationsViewModel
+          .hasIncomingChatRequest(
+            targetUserId: event.player.id,
+            fromUserId: currentUserId,
+          );
+      if (incomingRequest) {
+        emit(
+          state.copyWith(
+            isRequesting: false,
+            requestMessage: AppStrings.chatRequestIncomingExists(
+              event.player.name,
+            ),
+            requestSuccess: false,
+          ),
+        );
+        return;
+      }
+
       await _notificationsViewModel.sendChatRequest(
         targetUserId: event.player.id,
         gameId: event.player.gameId,
         rank: event.player.rank,
         language: event.player.language,
         title: AppStrings.chatRequestTitle,
-        body: AppStrings.chatRequestBody,
+        body: AppStrings.chatRequestBody(event.player.name),
       );
       emit(
         state.copyWith(

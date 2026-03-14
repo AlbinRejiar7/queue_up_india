@@ -31,6 +31,23 @@ class NotificationReadRequested extends NotificationsEvent {
   List<Object?> get props => <Object?>[notificationId];
 }
 
+class NotificationsMarkAllReadRequested extends NotificationsEvent {
+  const NotificationsMarkAllReadRequested();
+}
+
+class NotificationDismissed extends NotificationsEvent {
+  const NotificationDismissed({required this.notificationId});
+
+  final String notificationId;
+
+  @override
+  List<Object?> get props => <Object?>[notificationId];
+}
+
+class NotificationsClearedRequested extends NotificationsEvent {
+  const NotificationsClearedRequested();
+}
+
 class NotificationRequestAccepted extends NotificationsEvent {
   const NotificationRequestAccepted({required this.notification});
 

@@ -5,6 +5,12 @@ abstract class NotificationsRepository {
 
   Future<void> markAsRead(String notificationId);
 
+  Future<void> markAllAsRead();
+
+  Future<void> deleteNotification(String notificationId);
+
+  Future<void> clearNotifications();
+
   Future<void> sendChatRequest({
     required String targetUserId,
     required String gameId,
@@ -12,6 +18,16 @@ abstract class NotificationsRepository {
     required String language,
     required String title,
     required String body,
+  });
+
+  Future<bool> hasPendingChatRequest({
+    required String targetUserId,
+    required String fromUserId,
+  });
+
+  Future<bool> hasIncomingChatRequest({
+    required String targetUserId,
+    required String fromUserId,
   });
 
   Future<void> sendChatRequestResponse({

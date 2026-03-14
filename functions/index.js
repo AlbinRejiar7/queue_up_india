@@ -3,13 +3,112 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
+const { getMessaging } = require("firebase-admin/messaging");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 initializeApp();
 
 const db = getFirestore();
+const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
+const NOTIFICATION_CHANNEL_ID = "queueup_alerts";
+
+function normalizeData(data) {
+  const payload = {};
+  if (!data) {
+    return payload;
+  }
+  Object.entries(data).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    payload[key] = String(value);
+  });
+  return payload;
+}
+
+function buildPushPayload({ title, body, data }) {
+  return {
+    notification: {
+      title,
+      body
+    },
+    data: normalizeData(data),
+    android: {
+      priority: "high",
+      notification: {
+        channelId: NOTIFICATION_CHANNEL_ID
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default"
+        }
+      }
+    }
+  };
+}
+
+async function fetchUserTokens(uid) {
+  const snapshot = await db
+    .collection("users")
+    .doc(uid)
+    .collection("fcmTokens")
+    .get();
+  return snapshot.docs.map((doc) => doc.id);
+}
+
+async function pruneInvalidTokens(uid, tokens, response) {
+  if (!response || !response.responses) {
+    return;
+  }
+  const batch = db.batch();
+  response.responses.forEach((result, index) => {
+    if (result.success) {
+      return;
+    }
+    const code = result.error && result.error.code;
+    if (
+      code === "messaging/registration-token-not-registered" ||
+      code === "messaging/invalid-registration-token"
+    ) {
+      batch.delete(
+        db
+          .collection("users")
+          .doc(uid)
+          .collection("fcmTokens")
+          .doc(tokens[index])
+      );
+    }
+  });
+  await batch.commit();
+}
+
+async function sendPushToUser(uid, payload) {
+  const tokens = await fetchUserTokens(uid);
+  if (!tokens.length) {
+    console.log("[push] skip: no tokens for", uid);
+    return;
+  }
+  console.log("[push] sending", {
+    uid,
+    tokens: tokens.length,
+    title: payload?.notification?.title || "",
+    body: payload?.notification?.body || ""
+  });
+  const response = await messaging.sendEachForMulticast({
+    tokens,
+    ...payload
+  });
+  console.log("[push] result", {
+    uid,
+    successCount: response.successCount,
+    failureCount: response.failureCount
+  });
+  await pruneInvalidTokens(uid, tokens, response);
+}
 
 exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
   console.log("[joinParty] auth:", request.auth ? "present" : "missing");
@@ -27,6 +126,7 @@ exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
     throw new HttpsError("invalid-argument", "Party ID is required.");
   }
 
+  let partyData = null;
   await db.runTransaction(async (tx) => {
     const partyRef = db.collection("parties").doc(partyId);
     const partySnap = await tx.get(partyRef);
@@ -35,6 +135,7 @@ exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
     }
 
     const party = partySnap.data();
+    partyData = party;
     if (party.status === "closed") {
       throw new HttpsError("failed-precondition", "Party is closed.");
     }
@@ -85,6 +186,27 @@ exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
       { merge: true }
     );
   });
+
+  if (partyData && partyData.hostId && partyData.hostId !== uid) {
+    const senderName = displayName || "QueuePlayer";
+    console.log("[push] party join -> host", {
+      partyId,
+      hostId: partyData.hostId,
+      senderId: uid
+    });
+    await sendPushToUser(
+      partyData.hostId,
+      buildPushPayload({
+        title: "Party update",
+        body: `${senderName} joined your party.`,
+        data: {
+          type: "party_joined",
+          partyId,
+          senderId: uid
+        }
+      })
+    );
+  }
 
   return { ok: true };
 });
@@ -182,61 +304,82 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
     }
 
     const party = partySnap.data();
-    const isHost = party.hostId === uid || memberSnap.data().role === "host";
-    const currentPlayers = party.currentPlayers || 0;
+    const membersSnap = await tx.get(
+      partyRef.collection("members").where("status", "==", "active")
+    );
+    const activeMembers = membersSnap.docs.map((doc) => ({
+      id: doc.id,
+      data: doc.data()
+    }));
+    const remainingMembers = activeMembers.filter((m) => m.id !== uid);
     const maxPlayers = party.maxPlayers || party.neededPlayers || 0;
-    const nextCount = Math.max(currentPlayers - 1, 0);
+    const nextCount = remainingMembers.length;
 
+    const userRef = db.collection("users").doc(uid);
+    const roomRef = userRef.collection("rooms").doc(partyId);
+
+    if (nextCount === 0) {
+      tx.delete(memberRef);
+      tx.delete(partyRef);
+      tx.set(roomRef, { status: "left" }, { merge: true });
+      tx.set(
+        userRef,
+        { currentPartyId: null, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+      return;
+    }
+
+    const isHost = party.hostId === uid || memberSnap.data().role === "host";
     if (isHost) {
+      const randomIndex = Math.floor(Math.random() * remainingMembers.length);
+      const newHostId = remainingMembers[randomIndex].id;
+      const newHostRoomRef = db
+        .collection("users")
+        .doc(newHostId)
+        .collection("rooms")
+        .doc(partyId);
+
       tx.update(partyRef, {
-        status: "closed",
+        hostId: newHostId,
+        currentPlayers: nextCount,
+        status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open",
         updatedAt: FieldValue.serverTimestamp()
       });
-      tx.delete(memberRef);
-    } else {
+      tx.update(partyRef.collection("members").doc(newHostId), {
+        role: "host"
+      });
+      tx.set(newHostRoomRef, { role: "host", status: "active" }, { merge: true });
+
       tx.update(memberRef, {
         status: "left",
         leftAt: FieldValue.serverTimestamp()
       });
-      tx.update(partyRef, {
-        currentPlayers: nextCount,
-        status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open"
-      });
-      const roomRef = db
-        .collection("users")
-        .doc(uid)
-        .collection("rooms")
-        .doc(partyId);
       tx.set(roomRef, { status: "left" }, { merge: true });
-    }
-  });
-
-  const partyRef = db.collection("parties").doc(partyId);
-  const partySnap = await partyRef.get();
-  if (partySnap.exists && partySnap.data().status === "closed") {
-    const membersSnap = await partyRef
-      .collection("members")
-      .where("status", "==", "active")
-      .get();
-
-    const batch = db.batch();
-    membersSnap.docs.forEach((doc) => {
-      const memberId = doc.id;
-      batch.set(
-        db.collection("users").doc(memberId).collection("rooms").doc(partyId),
-        { status: "closed" },
-        { merge: true }
-      );
-      batch.set(
-        db.collection("users").doc(memberId),
+      tx.set(
+        userRef,
         { currentPartyId: null, updatedAt: FieldValue.serverTimestamp() },
         { merge: true }
       );
-      batch.delete(doc.ref);
+      return;
+    }
+
+    tx.update(memberRef, {
+      status: "left",
+      leftAt: FieldValue.serverTimestamp()
     });
-    await batch.commit();
-    await partyRef.delete();
-  }
+    tx.update(partyRef, {
+      currentPlayers: nextCount,
+      status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open",
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    tx.set(roomRef, { status: "left" }, { merge: true });
+    tx.set(
+      userRef,
+      { currentPartyId: null, updatedAt: FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+  });
 
   return { ok: true };
 });
@@ -305,6 +448,7 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
     throw new HttpsError("invalid-argument", "Party ID and member ID required.");
   }
 
+  let partyData = null;
   await db.runTransaction(async (tx) => {
     const partyRef = db.collection("parties").doc(partyId);
     const partySnap = await tx.get(partyRef);
@@ -313,6 +457,7 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
     }
 
     const party = partySnap.data();
+    partyData = party;
     if (party.hostId !== uid) {
       throw new HttpsError("permission-denied", "Only the host can kick players.");
     }
@@ -340,6 +485,26 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
     const roomRef = db.collection("users").doc(memberId).collection("rooms").doc(partyId);
     tx.set(roomRef, { status: "kicked" }, { merge: true });
   });
+
+  if (memberId) {
+    const partyName = (partyData && partyData.name) || "party";
+    console.log("[push] kicked member", {
+      partyId,
+      memberId
+    });
+    await sendPushToUser(
+      memberId,
+      buildPushPayload({
+        title: "Party update",
+        body: `You were removed from ${partyName}.`,
+        data: {
+          type: "party_kicked",
+          partyId,
+          senderId: uid
+        }
+      })
+    );
+  }
 
   return { ok: true };
 });
@@ -392,6 +557,42 @@ exports.onPartyMessageCreate = onDocumentCreated(
       lastMessage: data.text || "",
       lastMessageAt: FieldValue.serverTimestamp()
     });
+
+    const partySnap = await partyRef.get();
+    const partyName = partySnap.exists ? partySnap.data().name || "Party" : "Party";
+    const senderId = data.senderId || null;
+    const senderName = data.senderName || "Player";
+    const messageText = data.text || "";
+    const membersSnap = await partyRef
+      .collection("members")
+      .where("status", "==", "active")
+      .get();
+
+    const recipientIds = membersSnap.docs
+      .map((doc) => doc.id)
+      .filter((uid) => uid && uid !== senderId);
+
+    console.log("[push] party message", {
+      partyId,
+      senderId,
+      recipients: recipientIds.length
+    });
+    await Promise.all(
+      recipientIds.map((uid) =>
+        sendPushToUser(
+          uid,
+          buildPushPayload({
+            title: `${senderName} • ${partyName}`,
+            body: messageText,
+            data: {
+              type: "party_message",
+              partyId,
+              senderId: senderId || ""
+            }
+          })
+        )
+      )
+    );
   }
 );
 
@@ -432,5 +633,69 @@ exports.onDirectMessageCreate = onDocumentCreated(
     });
 
     await chatRef.set(updates, { merge: true });
+
+    const senderName = data.senderName || "Player";
+    const messageText = data.text || "";
+    const recipientIds = participants.filter(
+      (uid) => uid && uid !== senderId
+    );
+
+    console.log("[push] direct message", {
+      chatId,
+      senderId,
+      recipients: recipientIds.length
+    });
+    await Promise.all(
+      recipientIds.map((uid) =>
+        sendPushToUser(
+          uid,
+          buildPushPayload({
+            title: senderName,
+            body: messageText,
+            data: {
+              type: "direct_message",
+              chatId,
+              senderId: senderId || ""
+            }
+          })
+        )
+      )
+    );
+  }
+);
+
+exports.onUserNotificationCreate = onDocumentCreated(
+  { document: "users/{uid}/notifications/{notificationId}", region },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      return;
+    }
+    const data = snapshot.data();
+    const type = data.type || "";
+    if (type !== "chat_request" && type !== "chat_request_response") {
+      return;
+    }
+    const uid = event.params.uid;
+    console.log("[push] notification doc", {
+      uid,
+      type,
+      status: data.status || ""
+    });
+    await sendPushToUser(
+      uid,
+      buildPushPayload({
+        title: data.title || "Notification",
+        body: data.body || "",
+        data: {
+          type,
+          status: data.status || "",
+          fromUserId: data.fromUserId || "",
+          gameId: data.gameId || "",
+          rankId: data.rankId || "",
+          languageId: data.languageId || ""
+        }
+      })
+    );
   }
 );

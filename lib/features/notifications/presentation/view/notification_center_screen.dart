@@ -9,6 +9,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
@@ -19,15 +20,36 @@ import '../../bloc/notifications_event.dart';
 import '../../bloc/notifications_state.dart';
 import '../../models/notification_item.dart';
 
-class NotificationCenterScreen extends StatelessWidget {
+class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
+
+  @override
+  State<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
+}
+
+class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
+  late final NotificationsBloc _bloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _bloc = sl<NotificationsBloc>();
+    _bloc.add(const NotificationsStarted());
+    _bloc.add(const NotificationsMarkAllReadRequested());
+  }
+
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BlocProvider<NotificationsBloc>(
-        create: (_) =>
-            sl<NotificationsBloc>()..add(const NotificationsStarted()),
+      body: BlocProvider<NotificationsBloc>.value(
+        value: _bloc,
         child: GlowBackground(
           child: SafeArea(
             child: ResponsiveLayoutBuilder(
@@ -88,7 +110,50 @@ class NotificationCenterScreen extends StatelessWidget {
                                             style: AppTextStyles.pageTitle,
                                           ),
                                         ),
-                                        SizedBox(width: 48.w),
+                                        SizedBox(
+                                          width: 48.w,
+                                          child: IconButton(
+                                            onPressed: items.isEmpty
+                                                ? null
+                                                : () async {
+                                                    final confirmed =
+                                                        await AppDialog
+                                                            .showConfirm(
+                                                      context,
+                                                      title: AppStrings
+                                                          .confirmClearNotificationsTitle,
+                                                      message: AppStrings
+                                                          .confirmClearNotificationsMessage,
+                                                      confirmLabel: AppStrings
+                                                          .clearNotifications,
+                                                      cancelLabel:
+                                                          AppStrings
+                                                              .cancelAction,
+                                                    );
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    if (!confirmed) {
+                                                      return;
+                                                    }
+                                                    context
+                                                        .read<
+                                                            NotificationsBloc>()
+                                                        .add(
+                                                          const NotificationsClearedRequested(),
+                                                        );
+                                                  },
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              size: 22.sp,
+                                              color: items.isEmpty
+                                                  ? AppColors.textSecondary
+                                                  : AppColors.textPrimary,
+                                            ),
+                                            tooltip:
+                                                AppStrings.clearNotifications,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     SizedBox(height: 8.h),
@@ -118,155 +183,205 @@ class NotificationCenterScreen extends StatelessWidget {
                                         itemCount: items.length,
                                         separatorBuilder: (context, index) =>
                                             SizedBox(height: 10.h),
-                                        itemBuilder: (context, index) {
+                                          itemBuilder: (context, index) {
                                           final item = items[index];
                                           final isRequest = item.isChatRequest;
                                           final isPending =
                                               item.isPending ||
                                               item.status == null;
+                                          final canDismiss =
+                                              !(isRequest && isPending);
                                           final title = item.fromUserName ??
                                               item.title;
                                           final avatar = item.fromUserAvatar ??
                                               AppImages.avatarHost;
 
-                                          return GlassContainer(
-                                            borderRadius: 24.r,
-                                            padding: EdgeInsets.all(16.r),
-                                            onTap: !isRequest
-                                                ? () {
-                                                    if (!item.isRead) {
-                                                      context
-                                                          .read<
-                                                              NotificationsBloc>()
-                                                          .add(
-                                                            NotificationReadRequested(
-                                                              notificationId:
-                                                                  item.id,
-                                                            ),
-                                                          );
-                                                    }
-                                                  }
-                                                : null,
-                                            child: Column(
-                                              children: <Widget>[
-                                                Row(
-                                                  children: <Widget>[
-                                                    CircleAvatar(
-                                                      radius: 18.r,
-                                                      backgroundColor: AppColors
-                                                          .electricBlue
+                                          return Dismissible(
+                                            key: ValueKey<String>(item.id),
+                                            direction: canDismiss
+                                                ? DismissDirection.endToStart
+                                                : DismissDirection.none,
+                                            background: canDismiss
+                                                ? Container(
+                                                    margin: EdgeInsets.symmetric(
+                                                      vertical: 4.h,
+                                                    ),
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    padding: EdgeInsets.only(
+                                                      right: 20.w,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.danger
                                                           .withValues(
                                                             alpha: 0.2,
                                                           ),
-                                                      backgroundImage:
-                                                          _avatarProvider(
-                                                            avatar,
-                                                          ),
-                                                    ),
-                                                    SizedBox(width: 12.w),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: <Widget>[
-                                                          Text(
-                                                            title,
-                                                            style: AppTextStyles
-                                                                .bodyMedium
-                                                                .copyWith(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                ),
-                                                          ),
-                                                          if (item
-                                                              .body.isNotEmpty)
-                                                            Padding(
-                                                              padding:
-                                                                  EdgeInsets.only(
-                                                                top: 4.h,
-                                                              ),
-                                                              child: Text(
-                                                                item.body,
-                                                                style:
-                                                                    AppTextStyles
-                                                                        .caption,
-                                                              ),
-                                                            ),
-                                                        ],
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        24.r,
                                                       ),
                                                     ),
-                                                    if (!isRequest)
-                                                      Icon(
-                                                        item.isRead
-                                                            ? Icons
-                                                                .notifications_none
-                                                            : Icons
-                                                                .notifications_active_outlined,
-                                                        size: 22.sp,
-                                                        color: Colors.white,
-                                                      ),
-                                                  ],
-                                                ),
-                                                if (isRequest) ...<Widget>[
-                                                  SizedBox(height: 12.h),
+                                                    child: Icon(
+                                                      Icons.delete_outline,
+                                                      color: AppColors.danger,
+                                                      size: 24.sp,
+                                                    ),
+                                                  )
+                                                : const SizedBox.shrink(),
+                                            onDismissed: (_) {
+                                              context
+                                                  .read<NotificationsBloc>()
+                                                  .add(
+                                                    NotificationDismissed(
+                                                      notificationId: item.id,
+                                                    ),
+                                                  );
+                                            },
+                                            child: GlassContainer(
+                                              borderRadius: 24.r,
+                                              padding: EdgeInsets.all(16.r),
+                                              onTap: !isRequest
+                                                  ? () {
+                                                      if (!item.isRead) {
+                                                        context
+                                                            .read<
+                                                                NotificationsBloc>()
+                                                            .add(
+                                                              NotificationReadRequested(
+                                                                notificationId:
+                                                                    item.id,
+                                                              ),
+                                                            );
+                                                      }
+                                                    }
+                                                  : null,
+                                              child: Column(
+                                                children: <Widget>[
                                                   Row(
                                                     children: <Widget>[
-                                                      _StatusChip(
-                                                        label: _statusLabel(
-                                                          item.status,
-                                                          isPending,
+                                                      CircleAvatar(
+                                                        radius: 18.r,
+                                                        backgroundColor:
+                                                            AppColors
+                                                                .electricBlue
+                                                                .withValues(
+                                                                  alpha: 0.2,
+                                                                ),
+                                                        backgroundImage:
+                                                            _avatarProvider(
+                                                          avatar,
                                                         ),
-                                                        isPending: isPending,
                                                       ),
-                                                      const Spacer(),
-                                                      if (isPending) ...<Widget>[
-                                                        OutlinedButton(
-                                                          onPressed: () {
-                                                            context
-                                                                .read<
-                                                                    NotificationsBloc>()
-                                                                .add(
-                                                                  NotificationRequestDeclined(
-                                                                    notification:
-                                                                        item,
-                                                                  ),
-                                                                );
-                                                          },
-                                                          child: Text(
-                                                            AppStrings
-                                                                .declineAction,
-                                                          ),
+                                                      SizedBox(width: 12.w),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: <Widget>[
+                                                            Text(
+                                                              title,
+                                                              style:
+                                                                  AppTextStyles
+                                                                      .bodyMedium
+                                                                      .copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                            if (item.body
+                                                                .isNotEmpty)
+                                                              Padding(
+                                                                padding:
+                                                                    EdgeInsets
+                                                                        .only(
+                                                                  top: 4.h,
+                                                                ),
+                                                                child: Text(
+                                                                  item.body,
+                                                                  style:
+                                                                      AppTextStyles
+                                                                          .caption,
+                                                                ),
+                                                              ),
+                                                          ],
                                                         ),
-                                                        SizedBox(width: 8.w),
-                                                        ElevatedButton(
-                                                          onPressed: () {
-                                                            context
-                                                                .read<
-                                                                    NotificationsBloc>()
-                                                                .add(
-                                                                  NotificationRequestAccepted(
-                                                                    notification:
-                                                                        item,
-                                                                  ),
-                                                                );
-                                                          },
-                                                          child: Text(
-                                                            AppStrings
-                                                                .acceptAction,
-                                                          ),
+                                                      ),
+                                                      if (!isRequest)
+                                                        Icon(
+                                                          item.isRead
+                                                              ? Icons
+                                                                  .notifications_none
+                                                              : Icons
+                                                                  .notifications_active_outlined,
+                                                          size: 22.sp,
+                                                          color: Colors.white,
                                                         ),
-                                                      ],
                                                     ],
                                                   ),
+                                                  if (isRequest) ...<Widget>[
+                                                    SizedBox(height: 12.h),
+                                                    Row(
+                                                      children: <Widget>[
+                                                        _StatusChip(
+                                                          label: _statusLabel(
+                                                            item.status,
+                                                            isPending,
+                                                          ),
+                                                          isPending: isPending,
+                                                        ),
+                                                        const Spacer(),
+                                                        if (isPending)
+                                                          ...<Widget>[
+                                                            OutlinedButton(
+                                                              onPressed: () {
+                                                                context
+                                                                    .read<
+                                                                        NotificationsBloc>()
+                                                                    .add(
+                                                                      NotificationRequestDeclined(
+                                                                        notification:
+                                                                            item,
+                                                                      ),
+                                                                    );
+                                                              },
+                                                              child: Text(
+                                                                AppStrings
+                                                                    .declineAction,
+                                                              ),
+                                                            ),
+                                                            SizedBox(
+                                                              width: 8.w,
+                                                            ),
+                                                            ElevatedButton(
+                                                              onPressed: () {
+                                                                context
+                                                                    .read<
+                                                                        NotificationsBloc>()
+                                                                    .add(
+                                                                      NotificationRequestAccepted(
+                                                                        notification:
+                                                                            item,
+                                                                      ),
+                                                                    );
+                                                              },
+                                                              child: Text(
+                                                                AppStrings
+                                                                    .acceptAction,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                      ],
+                                                    ),
+                                                  ],
                                                 ],
-                                              ],
+                                              ),
                                             ),
                                           );
                                         },
                                       ),
-                              ),
+                            ),
                             ],
                           );
                         },

@@ -67,6 +67,60 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
   }
 
   @override
+  Future<void> markAllAsRead() async {
+    final uid = _requireUserId();
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .where('readAt', isNull: true)
+        .get();
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.set(
+        doc.reference,
+        <String, dynamic>{
+          'readAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+    await batch.commit();
+  }
+
+  @override
+  Future<void> deleteNotification(String notificationId) async {
+    final uid = _requireUserId();
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .doc(notificationId)
+        .delete();
+  }
+
+  @override
+  Future<void> clearNotifications() async {
+    final uid = _requireUserId();
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .get();
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  @override
   Future<void> sendChatRequest({
     required String targetUserId,
     required String gameId,
@@ -97,6 +151,40 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
           'createdAt': FieldValue.serverTimestamp(),
           'readAt': null,
         });
+  }
+
+  @override
+  Future<bool> hasPendingChatRequest({
+    required String targetUserId,
+    required String fromUserId,
+  }) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(targetUserId)
+        .collection('notifications')
+        .where('type', isEqualTo: NotificationItem.typeChatRequest)
+        .where('status', isEqualTo: NotificationItem.statusPending)
+        .where('fromUserId', isEqualTo: fromUserId)
+        .limit(1)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  @override
+  Future<bool> hasIncomingChatRequest({
+    required String targetUserId,
+    required String fromUserId,
+  }) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(fromUserId)
+        .collection('notifications')
+        .where('type', isEqualTo: NotificationItem.typeChatRequest)
+        .where('status', isEqualTo: NotificationItem.statusPending)
+        .where('fromUserId', isEqualTo: targetUserId)
+        .limit(1)
+        .get();
+    return snapshot.docs.isNotEmpty;
   }
 
   @override

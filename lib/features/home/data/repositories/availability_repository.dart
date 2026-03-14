@@ -21,6 +21,8 @@ abstract class AvailabilityRepository {
 
   Future<AvailablePlayerModel?> fetchCurrentAvailability();
 
+  Future<AvailablePlayerModel?> fetchAvailabilityById(String userId);
+
   Future<PagedResult<AvailablePlayerModel>> fetchAvailablePlayersPage({
     String? gameId,
     String? rank,

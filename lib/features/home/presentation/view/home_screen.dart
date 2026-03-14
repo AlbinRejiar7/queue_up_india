@@ -69,6 +69,12 @@ class HomeScreen extends StatelessWidget {
                                   gameId: selectedGameId,
                                 ),
                               );
+                        } else if (state.selectedGameId != selectedGameId) {
+                          context.read<HomeAvailabilityBloc>().add(
+                                HomeAvailabilityGameChanged(
+                                  gameId: selectedGameId,
+                                ),
+                              );
                         }
 
                         return Column(

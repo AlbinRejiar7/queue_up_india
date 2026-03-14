@@ -14,7 +14,6 @@ import '../../features/settings/presentation/view/language_selection_screen.dart
 import '../constants/app_options.dart';
 import '../constants/app_images.dart';
 import '../constants/app_routes.dart';
-import '../utils/app_preferences.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'main_tab_shell_screen.dart';
 
@@ -23,13 +22,8 @@ abstract final class AppRouter {
     return GoRouter(
       initialLocation: AppRoutes.splash,
       redirect: (context, state) async {
-        if (state.matchedLocation == AppRoutes.splash ||
-            state.matchedLocation == '/') {
-          final isFirstLaunch = await AppPreferences.isFirstLaunch();
-          if (!isFirstLaunch) {
-            final isLoggedIn = await AppPreferences.isLoggedIn();
-            return isLoggedIn ? AppRoutes.home : AppRoutes.login;
-          }
+        if (state.matchedLocation == '/') {
+          return AppRoutes.splash;
         }
         return null;
       },
