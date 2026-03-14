@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../../core/constants/app_images.dart';
 import '../../models/notification_item.dart';
 import 'notifications_repository.dart';
 
@@ -33,6 +34,13 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
               title: (data['title'] as String?) ?? 'Notification',
               body: (data['body'] as String?) ?? '',
               type: data['type'] as String?,
+              status: data['status'] as String?,
+              fromUserId: data['fromUserId'] as String?,
+              fromUserName: data['fromUserName'] as String?,
+              fromUserAvatar: data['fromUserAvatar'] as String?,
+              gameId: data['gameId'] as String?,
+              rank: data['rankId'] as String?,
+              language: data['languageId'] as String?,
               createdAt: createdAt is Timestamp
                   ? createdAt.toDate()
                   : DateTime.now(),
@@ -58,11 +66,127 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
         );
   }
 
+  @override
+  Future<void> sendChatRequest({
+    required String targetUserId,
+    required String gameId,
+    required String rank,
+    required String language,
+    required String title,
+    required String body,
+  }) async {
+    final fromUserId = _requireUserId();
+    final senderName = await _resolveDisplayName(fromUserId);
+    final senderAvatar = await _resolveAvatarUrl(fromUserId);
+
+    await _db
+        .collection('users')
+        .doc(targetUserId)
+        .collection('notifications')
+        .add(<String, dynamic>{
+          'type': NotificationItem.typeChatRequest,
+          'status': NotificationItem.statusPending,
+          'title': title,
+          'body': body,
+          'fromUserId': fromUserId,
+          'fromUserName': senderName,
+          'fromUserAvatar': senderAvatar,
+          'gameId': gameId,
+          'rankId': rank,
+          'languageId': language,
+          'createdAt': FieldValue.serverTimestamp(),
+          'readAt': null,
+        });
+  }
+
+  @override
+  Future<void> sendChatRequestResponse({
+    required String targetUserId,
+    required String status,
+    required String title,
+    required String body,
+    String? gameId,
+    String? rank,
+    String? language,
+  }) async {
+    final fromUserId = _requireUserId();
+    final senderName = await _resolveDisplayName(fromUserId);
+    final senderAvatar = await _resolveAvatarUrl(fromUserId);
+
+    await _db
+        .collection('users')
+        .doc(targetUserId)
+        .collection('notifications')
+        .add(<String, dynamic>{
+          'type': NotificationItem.typeChatRequestResponse,
+          'status': status,
+          'title': title,
+          'body': body,
+          'fromUserId': fromUserId,
+          'fromUserName': senderName,
+          'fromUserAvatar': senderAvatar,
+          'gameId': gameId,
+          'rankId': rank,
+          'languageId': language,
+          'createdAt': FieldValue.serverTimestamp(),
+          'readAt': null,
+        });
+  }
+
+  @override
+  Future<void> updateNotificationStatus({
+    required String notificationId,
+    required String status,
+  }) async {
+    final uid = _requireUserId();
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .doc(notificationId)
+        .set(
+          <String, dynamic>{
+            'status': status,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+  }
+
   String _requireUserId() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
       throw StateError('Authentication required.');
     }
     return uid;
+  }
+
+  Future<String> _resolveDisplayName(String uid) async {
+    final user = _auth.currentUser;
+    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
+      return user.displayName!;
+    }
+
+    final snapshot = await _db.collection('users').doc(uid).get();
+    final data = snapshot.data();
+    final name = data == null ? null : data['displayName'] as String?;
+    if (name != null && name.trim().isNotEmpty) {
+      return name;
+    }
+    return 'QueuePlayer';
+  }
+
+  Future<String> _resolveAvatarUrl(String uid) async {
+    final snapshot = await _db.collection('users').doc(uid).get();
+    final data = snapshot.data();
+    final avatarUrl = data == null ? null : data['avatarUrl'] as String?;
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      return avatarUrl;
+    }
+    final user = _auth.currentUser;
+    if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
+      return user.photoURL!;
+    }
+    return AppImages.avatarHost;
   }
 }

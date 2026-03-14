@@ -107,6 +107,7 @@ void _registerBlocs() {
   sl.registerFactory<AvailablePlayersBloc>(
     () => AvailablePlayersBloc(
       availablePlayersViewModel: sl<AvailablePlayersViewModel>(),
+      notificationsViewModel: sl<NotificationsViewModel>(),
     ),
   );
   sl.registerFactory<AuthBloc>(
@@ -132,6 +133,7 @@ void _registerBlocs() {
   sl.registerFactory<NotificationsBloc>(
     () => NotificationsBloc(
       notificationsViewModel: sl<NotificationsViewModel>(),
+      chatViewModel: sl<ChatViewModel>(),
     ),
   );
   sl.registerFactory<ChatBadgeBloc>(

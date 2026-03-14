@@ -34,7 +34,17 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow create: if isSignedIn() &&
+          request.resource.data.fromUserId == request.auth.uid &&
+          (
+            (request.resource.data.type == 'chat_request' &&
+              request.resource.data.status == 'pending') ||
+            (request.resource.data.type == 'chat_request_response' &&
+              (request.resource.data.status == 'accepted' ||
+                request.resource.data.status == 'declined'))
+          );
+        allow update, delete: if isOwner(uid);
       }
     }
 

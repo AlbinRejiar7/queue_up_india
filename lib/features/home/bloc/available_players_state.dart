@@ -12,6 +12,9 @@ class AvailablePlayersState extends Equatable {
     required this.isLoadingMore,
     required this.hasMore,
     required this.cursor,
+    required this.isRequesting,
+    required this.requestMessage,
+    required this.requestSuccess,
   });
 
   const AvailablePlayersState.initial()
@@ -22,7 +25,10 @@ class AvailablePlayersState extends Equatable {
       isLoading = false,
       isLoadingMore = false,
       hasMore = true,
-      cursor = null;
+      cursor = null,
+      isRequesting = false,
+      requestMessage = null,
+      requestSuccess = null;
 
   final List<AvailablePlayerModel> players;
   final String? selectedGameId;
@@ -32,6 +38,9 @@ class AvailablePlayersState extends Equatable {
   final bool isLoadingMore;
   final bool hasMore;
   final Object? cursor;
+  final bool isRequesting;
+  final String? requestMessage;
+  final bool? requestSuccess;
 
   AvailablePlayersState copyWith({
     List<AvailablePlayerModel>? players,
@@ -46,6 +55,11 @@ class AvailablePlayersState extends Equatable {
     bool? hasMore,
     Object? cursor,
     bool clearCursor = false,
+    bool? isRequesting,
+    String? requestMessage,
+    bool clearRequestMessage = false,
+    bool? requestSuccess,
+    bool clearRequestSuccess = false,
   }) {
     return AvailablePlayersState(
       players: players ?? this.players,
@@ -58,6 +72,11 @@ class AvailablePlayersState extends Equatable {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
       cursor: clearCursor ? null : cursor ?? this.cursor,
+      isRequesting: isRequesting ?? this.isRequesting,
+      requestMessage:
+          clearRequestMessage ? null : requestMessage ?? this.requestMessage,
+      requestSuccess:
+          clearRequestSuccess ? null : requestSuccess ?? this.requestSuccess,
     );
   }
 
@@ -71,5 +90,8 @@ class AvailablePlayersState extends Equatable {
     isLoadingMore,
     hasMore,
     cursor,
+    isRequesting,
+    requestMessage,
+    requestSuccess,
   ];
 }

@@ -116,10 +116,14 @@ abstract final class AppStrings {
       'Tap the button to broadcast status';
   static const String availableForLabel = 'Available started for';
   static const String newMessagesHint = 'You have new messages';
+  static const String newRequestsHint = 'You have new requests';
+  static const String newRequestsAndMessagesHint =
+      'You have new requests and messages';
   static const String completeAvailabilitySelection =
       'Select game, language, and rank to go available';
   static const String seeAvailablePlayers = 'See Available Players';
-  static const String availablePlayersTitle = 'Available Players';
+  static const String seeAvailableSoloPlayers = 'See Available Solo Players';
+  static const String availablePlayersTitle = 'Available Solo Players';
   static const String availablePlayersSubtitle =
       'Players currently looking for a squad';
   static const String noAvailablePlayers =
@@ -129,6 +133,35 @@ abstract final class AppStrings {
   static const String notificationsSubtitle =
       'Recent activity and party updates';
   static const String noNotifications = 'No notifications yet.';
+  static const String quickMessagesTitle = 'Quick Messages';
+  static const String seeMore = 'See more';
+  static const String seeLess = 'See less';
+  static const String sharePlayerId = 'Share Player ID';
+  static const String sharePartyCode = 'Share Party Code';
+  static const String enterPlayerIdHint = 'Enter your in-game ID';
+  static const String enterPartyCodeHint = 'Enter party code';
+  static const String sendAction = 'Send';
+  static const String emptyQuickValue = 'Please enter a value.';
+  static const String chatRequestTitle = 'Chat request';
+  static const String chatRequestBody = 'Tap to respond to this request.';
+  static const String sendChatRequestTitle = 'Send chat request?';
+  static const String sendChatRequestAction = 'Send Request';
+  static const String chatRequestSent = 'Chat request sent.';
+  static const String chatRequestFailed = 'Unable to send request right now.';
+  static const String chatRequestAcceptedTitle = 'Request accepted';
+  static const String chatRequestAcceptedBody = 'Accepted your chat request.';
+  static const String chatRequestDeclinedTitle = 'Request declined';
+  static const String chatRequestDeclinedBody = 'Declined your chat request.';
+  static const String requestAcceptedToast =
+      'Request accepted. Opening chat.';
+  static const String requestDeclinedToast = 'Request declined.';
+  static const String requestActionFailed =
+      'Unable to update request right now.';
+  static const String acceptAction = 'Accept';
+  static const String declineAction = 'Decline';
+  static const String requestPendingLabel = 'Pending';
+  static const String requestAcceptedLabel = 'Accepted';
+  static const String requestDeclinedLabel = 'Declined';
   static const String confirmLogoutTitle = 'Log out?';
   static const String confirmLogoutMessage =
       'You will need to verify again to access your account.';
@@ -219,6 +252,8 @@ abstract final class AppStrings {
   static const String chatEmptyMessage = 'Type a message to send.';
   static const String directChatGreeting = 'Hey! Ready for a quick queue?';
   static const String directChatResponse = 'Yes, let us squad up!';
+  static const String chatRequestAcceptedMessage =
+      'You can now chat with me here.';
   static const String cannotChatWithSelf = 'You cannot chat with yourself.';
   static const String chatHistorySubtitle = 'Recent conversations';
   static const String noChatsYet = 'No chats yet. Start one from players list.';
@@ -256,4 +291,12 @@ abstract final class AppStrings {
 
   static String availableForTimeLabel(String timeAgo) =>
       '$availableForLabel $timeAgo';
+
+  static String playerIdMessage(String playerId) => 'My Player ID: $playerId';
+
+  static String partyCodeMessage(String partyCode) =>
+      'Party Code: $partyCode';
+
+  static String sendChatRequestMessage(String playerName) =>
+      'Send a chat request to $playerName?';
 }

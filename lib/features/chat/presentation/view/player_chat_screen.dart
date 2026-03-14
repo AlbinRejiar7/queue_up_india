@@ -1,13 +1,17 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
@@ -18,7 +22,6 @@ import '../../bloc/chat_event.dart';
 import '../../bloc/chat_state.dart';
 import '../../viewmodel/chat_view_model.dart';
 import '../widgets/chat_bubble.dart';
-import '../widgets/chat_input_bar.dart';
 
 class PlayerChatScreen extends StatefulWidget {
   const PlayerChatScreen({required this.player, super.key});
@@ -32,6 +35,20 @@ class PlayerChatScreen extends StatefulWidget {
 class _PlayerChatScreenState extends State<PlayerChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _stickToBottom = true;
+  bool _showAllQuickMessages = false;
+
+  static const List<String> _quickMessages = <String>[
+    'Do you want to play a game with me?',
+    'I am ready to queue now.',
+    'Want to join my party?',
+    'Which server are you on?',
+    'Give me 5 minutes.',
+    'Yes, let us play.',
+    'No worries, maybe later.',
+    'What rank are you pushing?',
+    'Send your in-game ID.',
+    'Share your party code.',
+  ];
 
   @override
   void dispose() {
@@ -52,9 +69,129 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     });
   }
 
+  void _sendQuickMessage(BuildContext context, String message) {
+    context.read<ChatBloc>().add(ChatMessageSent(message: message));
+  }
+
+  Future<void> _promptAndSend({
+    required BuildContext context,
+    required String title,
+    required String hint,
+    required String Function(String) formatter,
+  }) async {
+    final controller = TextEditingController();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16.w,
+              16.h,
+              16.w,
+              bottomInset + 16.h,
+            ),
+            child: GlassContainer(
+              borderRadius: 24.r,
+              padding: EdgeInsets.all(16.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  TextField(
+                    controller: controller,
+                    style: AppTextStyles.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: hint,
+                      hintStyle: AppTextStyles.caption,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: Text(AppStrings.cancelAction),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.emptyQuickValue,
+                              );
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(text);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlueBright,
+                            foregroundColor: AppColors.textPrimary,
+                          ),
+                          child: Text(AppStrings.sendAction),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == null || result.trim().isEmpty) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    _sendQuickMessage(context, formatter(result.trim()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = widget.player;
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight =
+        MediaQuery.of(context).size.height - viewInsets;
+    final quickHeightFactor = _showAllQuickMessages ? 0.35 : 0.22;
+    final maxQuickHeight = max(
+      80.h,
+      min(
+        _showAllQuickMessages ? 260.h : 150.h,
+        availableHeight * quickHeightFactor,
+      ),
+    );
+    final visibleQuickMessages = _showAllQuickMessages
+        ? _quickMessages
+        : _quickMessages.take(5).toList();
 
     return BlocProvider<ChatBloc>(
       create: (_) => ChatBloc(
@@ -217,15 +354,180 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                     ),
                                   ),
                                 SizedBox(height: 10.h),
-                                ChatInputBar(
-                                  hintText: AppStrings.chatPlaceholder,
-                                  emptyMessage: AppStrings.chatEmptyMessage,
-                                  onSend: (text) {
-                                    _stickToBottom = true;
-                                    context.read<ChatBloc>().add(
-                                          ChatMessageSent(message: text),
-                                        );
-                                  },
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  verticalDirection: VerticalDirection.up,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () {
+                                              _promptAndSend(
+                                                context: context,
+                                                title: AppStrings.sharePlayerId,
+                                                hint:
+                                                    AppStrings.enterPlayerIdHint,
+                                                formatter: (value) =>
+                                                    AppStrings.playerIdMessage(
+                                                      value,
+                                                    ),
+                                              );
+                                            },
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  AppColors.textPrimary,
+                                              side: BorderSide(
+                                                color: AppColors
+                                                    .electricBlueBright,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(14.r),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              AppStrings.sharePlayerId,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 10.w),
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: () {
+                                              _promptAndSend(
+                                                context: context,
+                                                title: AppStrings.sharePartyCode,
+                                                hint:
+                                                    AppStrings.enterPartyCodeHint,
+                                                formatter: (value) =>
+                                                    AppStrings.partyCodeMessage(
+                                                      value,
+                                                    ),
+                                              );
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppColors.electricBlueBright,
+                                              foregroundColor:
+                                                  AppColors.textPrimary,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(14.r),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              AppStrings.sharePartyCode,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 10.h),
+                                    GlassContainer(
+                                      borderRadius: 22.r,
+                                      padding: EdgeInsets.all(14.r),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Text(
+                                                AppStrings.quickMessagesTitle,
+                                                style: AppTextStyles.bodyMedium
+                                                    .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              if (_quickMessages.length > 5)
+                                                TextButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _showAllQuickMessages =
+                                                          !_showAllQuickMessages;
+                                                    });
+                                                  },
+                                                  child: Text(
+                                                    _showAllQuickMessages
+                                                        ? AppStrings.seeLess
+                                                        : AppStrings.seeMore,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 8.h),
+                                          AnimatedSize(
+                                            duration: const Duration(
+                                              milliseconds: 220,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                            alignment: Alignment.bottomCenter,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxHeight: maxQuickHeight,
+                                              ),
+                                              child: SingleChildScrollView(
+                                                child: Wrap(
+                                                  spacing: 8.w,
+                                                  runSpacing: 8.h,
+                                                  children: visibleQuickMessages
+                                                      .map(
+                                                        (message) => ActionChip(
+                                                          label: Text(
+                                                            message,
+                                                            style: AppTextStyles
+                                                                .caption
+                                                                .copyWith(
+                                                              color: AppColors
+                                                                  .textPrimary,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                            ),
+                                                          ),
+                                                          backgroundColor:
+                                                              AppColors
+                                                                  .electricBlue
+                                                                  .withValues(
+                                                                    alpha: 0.15,
+                                                                  ),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                              16.r,
+                                                            ),
+                                                            side: BorderSide(
+                                                              color: AppColors
+                                                                  .electricBlueBright
+                                                                  .withValues(
+                                                                    alpha: 0.3,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                          onPressed: () {
+                                                            _stickToBottom =
+                                                                true;
+                                                            _sendQuickMessage(
+                                                              context,
+                                                              message,
+                                                            );
+                                                          },
+                                                        ),
+                                                      )
+                                                      .toList(),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

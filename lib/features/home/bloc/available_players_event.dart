@@ -57,3 +57,16 @@ class AvailablePlayersLanguageChanged extends AvailablePlayersEvent {
 class AvailablePlayersReset extends AvailablePlayersEvent {
   const AvailablePlayersReset();
 }
+
+class AvailablePlayersRequestSent extends AvailablePlayersEvent {
+  const AvailablePlayersRequestSent({required this.player});
+
+  final AvailablePlayerModel player;
+
+  @override
+  List<Object?> get props => <Object?>[player];
+}
+
+class AvailablePlayersRequestMessageCleared extends AvailablePlayersEvent {
+  const AvailablePlayersRequestMessageCleared();
+}

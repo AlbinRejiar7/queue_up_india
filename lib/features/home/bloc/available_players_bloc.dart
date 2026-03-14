@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_options.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/paged_result.dart';
 import '../models/available_player_model.dart';
 import '../viewmodel/available_players_view_model.dart';
+import '../../notifications/viewmodel/notifications_view_model.dart';
 import 'available_players_event.dart';
 import 'available_players_state.dart';
 
@@ -13,7 +15,9 @@ class AvailablePlayersBloc
     extends Bloc<AvailablePlayersEvent, AvailablePlayersState> {
   AvailablePlayersBloc({
     required AvailablePlayersViewModel availablePlayersViewModel,
+    required NotificationsViewModel notificationsViewModel,
   })  : _availablePlayersViewModel = availablePlayersViewModel,
+        _notificationsViewModel = notificationsViewModel,
         super(const AvailablePlayersState.initial()) {
     on<AvailablePlayersLoaded>(_onLoaded);
     on<AvailablePlayersLoadMoreRequested>(_onLoadMore);
@@ -22,9 +26,12 @@ class AvailablePlayersBloc
     on<AvailablePlayersRankChanged>(_onRankChanged);
     on<AvailablePlayersLanguageChanged>(_onLanguageChanged);
     on<AvailablePlayersReset>(_onReset);
+    on<AvailablePlayersRequestSent>(_onRequestSent);
+    on<AvailablePlayersRequestMessageCleared>(_onRequestMessageCleared);
   }
 
   final AvailablePlayersViewModel _availablePlayersViewModel;
+  final NotificationsViewModel _notificationsViewModel;
   static const int _pageSize = 10;
   StreamSubscription<PagedResult<AvailablePlayerModel>>? _liveSubscription;
   List<AvailablePlayerModel> _livePlayers = const <AvailablePlayerModel>[];
@@ -145,6 +152,59 @@ class AvailablePlayersBloc
       ),
     );
     await _reloadWithFilters(emit);
+  }
+
+  Future<void> _onRequestSent(
+    AvailablePlayersRequestSent event,
+    Emitter<AvailablePlayersState> emit,
+  ) async {
+    if (state.isRequesting) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        isRequesting: true,
+        clearRequestMessage: true,
+        clearRequestSuccess: true,
+      ),
+    );
+    try {
+      await _notificationsViewModel.sendChatRequest(
+        targetUserId: event.player.id,
+        gameId: event.player.gameId,
+        rank: event.player.rank,
+        language: event.player.language,
+        title: AppStrings.chatRequestTitle,
+        body: AppStrings.chatRequestBody,
+      );
+      emit(
+        state.copyWith(
+          isRequesting: false,
+          requestMessage: AppStrings.chatRequestSent,
+          requestSuccess: true,
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          isRequesting: false,
+          requestMessage: AppStrings.chatRequestFailed,
+          requestSuccess: false,
+        ),
+      );
+    }
+  }
+
+  void _onRequestMessageCleared(
+    AvailablePlayersRequestMessageCleared event,
+    Emitter<AvailablePlayersState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        clearRequestMessage: true,
+        clearRequestSuccess: true,
+      ),
+    );
   }
 
   void _onLivePageUpdated(

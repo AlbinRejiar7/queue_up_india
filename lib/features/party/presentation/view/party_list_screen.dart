@@ -11,6 +11,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/party_bloc.dart';
@@ -268,6 +269,16 @@ class _PartyListScreenState extends State<PartyListScreen> {
                                       ),
                                     ],
                                   ),
+                                ),
+                                SizedBox(height: 10.h),
+                                PrimaryButton(
+                                  label: AppStrings.seeAvailableSoloPlayers,
+                                  icon: Icons.groups_rounded,
+                                  onPressed: () {
+                                    context.push(
+                                      '${AppRoutes.availablePlayers}?gameId=${widget.gameId}',
+                                    );
+                                  },
                                 ),
                               ],
                             ),

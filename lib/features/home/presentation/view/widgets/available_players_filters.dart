@@ -12,7 +12,6 @@ class AvailablePlayersFilters extends StatelessWidget {
     required this.selectedGameId,
     required this.selectedRank,
     required this.selectedLanguage,
-    required this.onGameChanged,
     required this.onRankChanged,
     required this.onLanguageChanged,
     required this.onReset,
@@ -22,21 +21,15 @@ class AvailablePlayersFilters extends StatelessWidget {
   final String? selectedGameId;
   final String? selectedRank;
   final String? selectedLanguage;
-  final ValueChanged<String?> onGameChanged;
   final ValueChanged<String?> onRankChanged;
   final ValueChanged<String?> onLanguageChanged;
   final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    final gameIds = AppOptions.gameOptions
-        .map((GameOption game) => game.id)
-        .toList(growable: false);
-    final resolvedGame = _resolveSelection(selectedGameId, gameIds);
-
-    final rankOptions = resolvedGame == null
+    final rankOptions = selectedGameId == null
         ? const <RankOption>[]
-        : AppOptions.rankOptionsByGame(resolvedGame);
+        : AppOptions.rankOptionsByGame(selectedGameId!);
     final rankNames = rankOptions
         .map((RankOption rank) => rank.name)
         .toList(growable: false);
@@ -82,40 +75,12 @@ class AvailablePlayersFilters extends StatelessWidget {
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final maxWidth = constraints.maxWidth;
-              final itemWidth = (maxWidth - 8.w) / 2;
               return Wrap(
                 spacing: 8.w,
                 runSpacing: 8.h,
                 children: <Widget>[
                   SizedBox(
-                    width: itemWidth,
-                    child: _FilterDropdown(
-                      label: AppStrings.game,
-                      initialValue: resolvedGame,
-                      options: AppOptions.gameOptions
-                          .map(
-                            (GameOption option) => DropdownMenuItem<String>(
-                              value: option.id,
-                              child: _ImageLabelRow(
-                                imageUrl: option.imageUrl,
-                                text: option.name.toUpperCase(),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      selectedWidgets: AppOptions.gameOptions
-                          .map(
-                            (GameOption option) => _ImageLabelRow(
-                              imageUrl: option.imageUrl,
-                              text: option.name.toUpperCase(),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: onGameChanged,
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
+                    width: maxWidth,
                     child: _FilterDropdown(
                       label: AppStrings.filterRank,
                       initialValue: resolvedRank,
@@ -138,7 +103,8 @@ class AvailablePlayersFilters extends StatelessWidget {
                             ),
                           )
                           .toList(),
-                      onChanged: resolvedGame == null ? null : onRankChanged,
+                      onChanged:
+                          selectedGameId == null ? null : onRankChanged,
                     ),
                   ),
                   SizedBox(
