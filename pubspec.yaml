@@ -26,6 +26,7 @@ dependencies:
   audioplayers: ^6.1.0
   vibration: ^2.0.1
   firebase_messaging: ^16.1.2
+  firebase_crashlytics: ^5.0.0
   flutter_local_notifications: ^21.0.0
   flutter_dotenv: ^5.2.1
 

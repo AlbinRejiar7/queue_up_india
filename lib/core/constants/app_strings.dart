@@ -282,6 +282,30 @@ abstract final class AppStrings {
   static const String inLobby = 'In Lobby';
   static const String startMatch = 'Start Match';
   static const String leaveParty = 'Leave Party';
+  static const String blockPlayer = 'Block player';
+  static const String unblockPlayer = 'Unblock player';
+  static const String reportPlayer = 'Report player';
+  static const String blockedPlayerNotice = 'You have blocked this player.';
+  static const String blockedChatDisabled =
+      'You blocked this player. Unblock to send messages.';
+  static const String blockPlayerConfirmTitle = 'Block this player?';
+  static const String blockPlayerConfirmMessage =
+      'You will no longer receive messages from this player.';
+  static const String blockPlayerConfirmAction = 'Block';
+  static const String unblockPlayerConfirmTitle = 'Unblock this player?';
+  static const String unblockPlayerConfirmMessage =
+      'You will be able to message this player again.';
+  static const String unblockPlayerConfirmAction = 'Unblock';
+  static const String reportPlayerConfirmTitle = 'Report this player?';
+  static const String reportPlayerConfirmMessage =
+      'We will review this report. Use block if you want to stop messages.';
+  static const String reportPlayerConfirmAction = 'Report';
+  static const String reportReasonTitle = 'Report reason';
+  static const String reportReasonHint = 'Tell us what happened';
+  static const String reportReasonRequired = 'Please add a reason.';
+  static const String playerBlockedToast = 'Player blocked.';
+  static const String playerUnblockedToast = 'Player unblocked.';
+  static const String playerReportedToast = 'Report submitted.';
 
   static const String loading = 'Loading...';
   static const String errorTitle = 'Something went wrong';

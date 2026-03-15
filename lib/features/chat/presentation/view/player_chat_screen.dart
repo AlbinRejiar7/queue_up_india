@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -12,6 +14,7 @@ import '../../../../core/constants/app_images.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/utils/app_preferences.dart';
 import '../../../../core/widgets/glass_container.dart';
@@ -39,6 +42,9 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _stickToBottom = true;
   bool _showAllQuickMessages = false;
+  bool _isBlocked = false;
+  bool _isBlocking = false;
+  bool _isReporting = false;
   late AvailablePlayerModel _player;
   List<String> _customQuickMessages = <String>[];
 
@@ -64,6 +70,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     PushNotificationService.instance.setActiveDirectChatId(_player.id);
     _syncAvailability();
     _loadCustomQuickMessages();
+    _loadBlockStatus();
   }
 
   @override
@@ -87,6 +94,10 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   }
 
   void _sendQuickMessage(BuildContext context, String message) {
+    if (_isBlocked) {
+      AppSnackBar.showInfo(context, AppStrings.blockedChatDisabled);
+      return;
+    }
     context.read<ChatBloc>().add(ChatMessageSent(message: message));
   }
 
@@ -98,6 +109,299 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     setState(() {
       _customQuickMessages = messages;
     });
+  }
+
+  Future<void> _loadBlockStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return;
+    }
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('private')
+          .doc('blocks')
+          .get();
+      final data = doc.data();
+      if (data == null) {
+        return;
+      }
+      final blocked =
+          (data['blockedUserIds'] as List?)?.cast<String>() ?? <String>[];
+      if (!mounted) {
+        return;
+      }
+      if (blocked.contains(_player.id)) {
+        setState(() {
+          _isBlocked = true;
+        });
+      }
+    } catch (_) {
+      // Ignore block fetch failures.
+    }
+  }
+
+  Future<void> _blockPlayer() async {
+    if (_isBlocking) {
+      return;
+    }
+    final confirmed = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.blockPlayerConfirmTitle,
+      message: AppStrings.blockPlayerConfirmMessage,
+      confirmLabel: AppStrings.blockPlayerConfirmAction,
+      cancelLabel: AppStrings.cancelAction,
+      confirmIsDestructive: true,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      AppSnackBar.showError(context, AppStrings.authFailed);
+      return;
+    }
+    setState(() {
+      _isBlocking = true;
+    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('private')
+          .doc('blocks')
+          .set(
+        <String, dynamic>{
+          'blockedUserIds': FieldValue.arrayUnion(<String>[_player.id]),
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
+        },
+        SetOptions(merge: true),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isBlocked = true;
+        _isBlocking = false;
+      });
+      AppSnackBar.showSuccess(context, AppStrings.playerBlockedToast);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isBlocking = false;
+      });
+      AppSnackBar.showError(context, AppStrings.requestActionFailed);
+    }
+  }
+
+  Future<void> _unblockPlayer() async {
+    if (_isBlocking) {
+      return;
+    }
+    final confirmed = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.unblockPlayerConfirmTitle,
+      message: AppStrings.unblockPlayerConfirmMessage,
+      confirmLabel: AppStrings.unblockPlayerConfirmAction,
+      cancelLabel: AppStrings.cancelAction,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      AppSnackBar.showError(context, AppStrings.authFailed);
+      return;
+    }
+    setState(() {
+      _isBlocking = true;
+    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('private')
+          .doc('blocks')
+          .set(
+        <String, dynamic>{
+          'blockedUserIds': FieldValue.arrayRemove(<String>[_player.id]),
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
+        },
+        SetOptions(merge: true),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isBlocked = false;
+        _isBlocking = false;
+      });
+      AppSnackBar.showSuccess(context, AppStrings.playerUnblockedToast);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isBlocking = false;
+      });
+      AppSnackBar.showError(context, AppStrings.requestActionFailed);
+    }
+  }
+
+  Future<void> _reportPlayer(String reason) async {
+    if (_isReporting) {
+      return;
+    }
+    if (reason.trim().isEmpty) {
+      AppSnackBar.showError(context, AppStrings.reportReasonRequired);
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      AppSnackBar.showError(context, AppStrings.authFailed);
+      return;
+    }
+    setState(() {
+      _isReporting = true;
+    });
+    try {
+      final report = <String, dynamic>{
+        'reporterId': uid,
+        'playerId': _player.id,
+        'playerName': _player.name,
+        'gameId': _player.gameId,
+        'rank': _player.rank,
+        'language': _player.language,
+        'reason': reason.trim(),
+        'status': 'open',
+        'reportedAt': DateTime.now().toUtc().toIso8601String(),
+      };
+      await FirebaseFirestore.instance.collection('reports').add(report);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isReporting = false;
+      });
+      AppSnackBar.showSuccess(context, AppStrings.playerReportedToast);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isReporting = false;
+      });
+      AppSnackBar.showError(context, AppStrings.requestActionFailed);
+    }
+  }
+
+  void _handleChatAction(_ChatAction action) {
+    switch (action) {
+      case _ChatAction.block:
+        _blockPlayer();
+      case _ChatAction.unblock:
+        _unblockPlayer();
+      case _ChatAction.report:
+        _promptReportReason();
+    }
+  }
+
+  Future<void> _promptReportReason() async {
+    final controller = TextEditingController();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16.w,
+              16.h,
+              16.w,
+              bottomInset + 16.h,
+            ),
+            child: GlassContainer(
+              borderRadius: 24.r,
+              padding: EdgeInsets.all(16.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    AppStrings.reportReasonTitle,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  TextField(
+                    controller: controller,
+                    maxLines: 3,
+                    style: AppTextStyles.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: AppStrings.reportReasonHint,
+                      hintStyle: AppTextStyles.caption,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: Text(AppStrings.cancelAction),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.reportReasonRequired,
+                              );
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(text);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlueBright,
+                            foregroundColor: AppColors.textPrimary,
+                          ),
+                          child: Text(AppStrings.reportPlayerConfirmAction),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == null || result.trim().isEmpty || !mounted) {
+      return;
+    }
+    await _reportPlayer(result);
   }
 
   Future<void> _addCustomQuickMessage(String message) async {
@@ -406,19 +710,77 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                               SizedBox(height: 6.h),
                                 Row(
                                   children: <Widget>[
-                                  const SafeBackButton(
-                                    fallbackRoute: AppRoutes.availablePlayers,
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      '${AppStrings.chatWith} ${player.name}',
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.pageTitle,
+                                    const SafeBackButton(
+                                      fallbackRoute: AppRoutes.availablePlayers,
                                     ),
-                                  ),
-                                  SizedBox(width: 48.w),
-                                ],
-                              ),
+                                    Expanded(
+                                      child: Text(
+                                        '${AppStrings.chatWith} ${player.name}',
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.pageTitle,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 48.w,
+                                      child: PopupMenuButton<_ChatAction>(
+                                        tooltip: '',
+                                        onSelected: _handleChatAction,
+                                        itemBuilder: (context) =>
+                                            <PopupMenuEntry<_ChatAction>>[
+                                          PopupMenuItem<_ChatAction>(
+                                            value: _isBlocked
+                                                ? _ChatAction.unblock
+                                                : _ChatAction.block,
+                                            child: Row(
+                                              children: <Widget>[
+                                                Icon(
+                                                  _isBlocked
+                                                      ? Icons.lock_open_rounded
+                                                      : Icons.block,
+                                                  size: 18.sp,
+                                                  color: _isBlocked
+                                                      ? AppColors.success
+                                                      : AppColors.danger,
+                                                ),
+                                                SizedBox(width: 8.w),
+                                                Text(
+                                                  _isBlocked
+                                                      ? AppStrings.unblockPlayer
+                                                      : AppStrings.blockPlayer,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem<_ChatAction>(
+                                            value: _ChatAction.report,
+                                            child: Row(
+                                              children: <Widget>[
+                                                Icon(
+                                                  Icons.flag_outlined,
+                                                  size: 18.sp,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                                SizedBox(width: 8.w),
+                                                Text(
+                                                  AppStrings.reportPlayer,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        icon: Icon(
+                                          Icons.more_vert,
+                                          size: 22.sp,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               SizedBox(height: 12.h),
                               GlassContainer(
                                 borderRadius: 24.r,
@@ -457,6 +819,17 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                   ],
                                 ),
                               ),
+                              if (_isBlocked)
+                                Padding(
+                                  padding: EdgeInsets.only(top: 8.h),
+                                  child: Text(
+                                    AppStrings.blockedPlayerNotice,
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.danger,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -551,13 +924,20 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                         Row(
                                           children: <Widget>[
                                             Expanded(
-                                              child: OutlinedButton(
-                                                onPressed: () {
-                                                  _promptAndSend(
-                                                    context: context,
-                                                    title: AppStrings.sharePlayerId,
-                                                    hint: AppStrings
-                                                        .enterPlayerIdHint,
+                                          child: OutlinedButton(
+                                            onPressed: () {
+                                              if (_isBlocked) {
+                                                AppSnackBar.showInfo(
+                                                  context,
+                                                  AppStrings.blockedChatDisabled,
+                                                );
+                                                return;
+                                              }
+                                              _promptAndSend(
+                                                context: context,
+                                                title: AppStrings.sharePlayerId,
+                                                hint: AppStrings
+                                                    .enterPlayerIdHint,
                                                     formatter: (value) =>
                                                         AppStrings
                                                             .playerIdMessage(
@@ -587,13 +967,20 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                             ),
                                             SizedBox(width: 10.w),
                                             Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  _promptAndSend(
-                                                    context: context,
-                                                    title: AppStrings
-                                                        .sharePartyCode,
-                                                    hint: AppStrings
+                                          child: ElevatedButton(
+                                            onPressed: () {
+                                              if (_isBlocked) {
+                                                AppSnackBar.showInfo(
+                                                  context,
+                                                  AppStrings.blockedChatDisabled,
+                                                );
+                                                return;
+                                              }
+                                              _promptAndSend(
+                                                context: context,
+                                                title: AppStrings
+                                                    .sharePartyCode,
+                                                hint: AppStrings
                                                         .enterPartyCodeHint,
                                                     formatter: (value) =>
                                                         AppStrings
@@ -726,6 +1113,15 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                             ),
                                                           ),
                                                           onPressed: () {
+                                                            if (_isBlocked) {
+                                                              AppSnackBar
+                                                                  .showInfo(
+                                                                context,
+                                                                AppStrings
+                                                                    .blockedChatDisabled,
+                                                              );
+                                                              return;
+                                                            }
                                                             _stickToBottom =
                                                                 true;
                                                             _sendQuickMessage(
@@ -760,6 +1156,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     );
   }
 }
+
+enum _ChatAction { block, unblock, report }
 
 ImageProvider _avatarProvider(String url) {
   if (url.trim().isEmpty) {
