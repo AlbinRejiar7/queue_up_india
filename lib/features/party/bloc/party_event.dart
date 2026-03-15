@@ -24,6 +24,10 @@ class PartyListRequested extends PartyEvent {
   List<Object?> get props => <Object?>[gameId];
 }
 
+class PartyListRefreshRequested extends PartyEvent {
+  const PartyListRefreshRequested();
+}
+
 class PartyListLoadMoreRequested extends PartyEvent {
   const PartyListLoadMoreRequested();
 }
@@ -88,15 +92,6 @@ class PartyFormNameChanged extends PartyEvent {
 
   @override
   List<Object?> get props => <Object?>[value];
-}
-
-class PartyFormAutoNameToggled extends PartyEvent {
-  const PartyFormAutoNameToggled({required this.useAutoName});
-
-  final bool useAutoName;
-
-  @override
-  List<Object?> get props => <Object?>[useAutoName];
 }
 
 class PartyFormGameChanged extends PartyEvent {

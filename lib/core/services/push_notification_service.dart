@@ -43,6 +43,7 @@ class PushNotificationService {
   String? _currentUid;
   String? _lastSyncedToken;
   DateTime? _lastSyncAt;
+  bool _tokenSyncInFlight = false;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -87,11 +88,6 @@ class PushNotificationService {
       }
     });
 
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
-      _syncToken(uid);
-    }
-
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleNotificationTap(initialMessage.data);
@@ -114,6 +110,9 @@ class PushNotificationService {
   }
 
   Future<void> _syncToken(String uid) async {
+    if (_tokenSyncInFlight) {
+      return;
+    }
     final token = await _messaging.getToken();
     if (token == null) {
       debugPrint('[Push] FCM token not available yet.');
@@ -126,10 +125,15 @@ class PushNotificationService {
       debugPrint('[Push] token already synced recently.');
       return;
     }
-    debugPrint('[Push] syncing token for $uid');
-    await _saveToken(uid, token);
-    _lastSyncedToken = token;
-    _lastSyncAt = now;
+    _tokenSyncInFlight = true;
+    try {
+      debugPrint('[Push] syncing token for $uid');
+      await _saveToken(uid, token);
+      _lastSyncedToken = token;
+      _lastSyncAt = now;
+    } finally {
+      _tokenSyncInFlight = false;
+    }
   }
 
   Future<void> _saveToken(String uid, String token) async {

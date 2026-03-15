@@ -13,6 +13,14 @@ class NotificationsStarted extends NotificationsEvent {
   const NotificationsStarted();
 }
 
+class NotificationsStopped extends NotificationsEvent {
+  const NotificationsStopped();
+}
+
+class NotificationsRefreshRequested extends NotificationsEvent {
+  const NotificationsRefreshRequested();
+}
+
 class NotificationsUpdated extends NotificationsEvent {
   const NotificationsUpdated({required this.notifications});
 

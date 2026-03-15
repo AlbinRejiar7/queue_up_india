@@ -14,6 +14,7 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
         super(const ChatHistoryState.initial()) {
     on<ChatHistoryStarted>(_onStarted);
     on<ChatHistoryLoadMoreRequested>(_onLoadMore);
+    on<ChatHistoryRefreshRequested>(_onRefresh);
     on<ChatHistoryLivePageUpdated>(_onLiveUpdated);
     add(const ChatHistoryStarted());
   }
@@ -75,6 +76,13 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
     } catch (_) {
       emit(state.copyWith(isLoadingMore: false));
     }
+  }
+
+  Future<void> _onRefresh(
+    ChatHistoryRefreshRequested event,
+    Emitter<ChatHistoryState> emit,
+  ) async {
+    await _reload(emit);
   }
 
   void _onLiveUpdated(

@@ -29,23 +29,68 @@ import '../../bloc/home_availability_state.dart';
 import 'widgets/availability_filters_card.dart';
 import 'widgets/availability_wave_button.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.showBackButton = true,
     this.selectedGameId,
+    this.isActive = true,
   });
 
   final bool showBackButton;
   final String? selectedGameId;
+  final bool isActive;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final NotificationsBloc _notificationsBloc;
+  bool _wasActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsBloc = sl<NotificationsBloc>();
+    _syncActive(widget.isActive);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive) {
+      _syncActive(widget.isActive);
+    }
+  }
+
+  void _syncActive(bool isActive) {
+    if (_wasActive == isActive) {
+      return;
+    }
+    _wasActive = isActive;
+    if (isActive) {
+      _notificationsBloc.add(const NotificationsStarted());
+      context.read<ChatBadgeBloc>().add(const ChatBadgeStarted());
+    } else {
+      _notificationsBloc.add(const NotificationsStopped());
+      context.read<ChatBadgeBloc>().add(const ChatBadgeStopped());
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationsBloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final selectedGameId = this.selectedGameId ?? AppOptions.valorantId;
+    final selectedGameId = widget.selectedGameId ?? AppOptions.valorantId;
+    final showBackButton = widget.showBackButton;
 
-    return BlocProvider<NotificationsBloc>(
-      create: (_) =>
-          sl<NotificationsBloc>()..add(const NotificationsStarted()),
+    return BlocProvider<NotificationsBloc>.value(
+      value: _notificationsBloc,
       child: Scaffold(
         body: GlowBackground(
           child: SafeArea(
@@ -60,9 +105,6 @@ class HomeScreen extends StatelessWidget {
                         HomeAvailabilityState>(
                       builder:
                           (BuildContext context, HomeAvailabilityState state) {
-                        context.read<ChatBadgeBloc>().add(
-                              const ChatBadgeStarted(),
-                            );
                         if (state.selectedGameId == null) {
                           context.read<HomeAvailabilityBloc>().add(
                                 HomeAvailabilityInitialized(

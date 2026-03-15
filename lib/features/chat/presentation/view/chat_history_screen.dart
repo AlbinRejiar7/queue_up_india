@@ -51,6 +51,13 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    final bloc = context.read<ChatHistoryBloc>();
+    bloc.add(const ChatHistoryRefreshRequested());
+    await bloc.stream.firstWhere((state) => state.isLoading);
+    await bloc.stream.firstWhere((state) => !state.isLoading);
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider<ChatHistoryBloc>(
@@ -59,6 +66,8 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         body: GlowBackground(
           child: SafeArea(
             child: ResponsiveLayoutBuilder(
+              tabletMaxWidth: 960,
+              tabletHorizontalPadding: 32,
               builder:
                   (
                     BuildContext context,
@@ -68,6 +77,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                     return BlocBuilder<ChatHistoryBloc, ChatHistoryState>(
                       builder: (BuildContext context, ChatHistoryState state) {
                         final threads = state.threads;
+                        final bool isTablet = constraints.maxWidth >= 600;
 
                         return Column(
                           children: <Widget>[
@@ -102,62 +112,158 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                               ),
                             ),
                             Expanded(
-                              child: state.isLoading && threads.isEmpty
-                                  ? const Center(
-                                      child: CircularProgressIndicator(),
-                                    )
-                                  : threads.isEmpty
-                                      ? Center(
-                                          child: Text(
-                                            AppStrings.noChatsYet,
-                                            style: AppTextStyles.bodyMedium,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        )
-                                      : ListView.separated(
-                                          controller: _scrollController,
-                                          padding: EdgeInsets.fromLTRB(
-                                            contentPadding.left,
-                                            16.h,
-                                            contentPadding.right,
-                                            20.h,
-                                          ),
-                                          itemCount: threads.length +
-                                              (state.isLoadingMore ? 1 : 0),
-                                          separatorBuilder: (_, __) =>
-                                              SizedBox(height: 10.h),
-                                          itemBuilder:
-                                              (BuildContext context, int index) {
-                                            if (index >= threads.length) {
-                                              return Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  vertical: 8.h,
-                                                ),
-                                                child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator(),
-                                                ),
-                                              );
-                                            }
-                                            final thread = threads[index];
-                                            final subtitle =
-                                                thread.lastMessage.trim().isEmpty
-                                                    ? AppStrings.chatTapToOpen
-                                                    : thread.lastMessage;
-                                            return ChatHistoryTile(
-                                              thread: thread,
-                                              subtitle: subtitle,
-                                              onTap: () {
-                                                context.push(
-                                                  AppRoutes.playerChatPath(
-                                                    thread.peerId,
-                                                  ),
-                                                  extra: _toPlayer(thread),
-                                                );
-                                              },
-                                            );
-                                          },
+                              child: RefreshIndicator(
+                                onRefresh: _handleRefresh,
+                                child: state.isLoading && threads.isEmpty
+                                    ? ListView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          120.h,
+                                          contentPadding.right,
+                                          20.h,
                                         ),
+                                        children: const <Widget>[
+                                          Center(
+                                            child:
+                                                CircularProgressIndicator(),
+                                          ),
+                                        ],
+                                      )
+                                    : threads.isEmpty
+                                        ? ListView(
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: EdgeInsets.fromLTRB(
+                                              contentPadding.left,
+                                              120.h,
+                                              contentPadding.right,
+                                              20.h,
+                                            ),
+                                            children: <Widget>[
+                                              Center(
+                                                child: Text(
+                                                  AppStrings.noChatsYet,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : (isTablet
+                                            ? GridView.builder(
+                                                controller: _scrollController,
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  16.h,
+                                                  contentPadding.right,
+                                                  20.h,
+                                                ),
+                                                itemCount: threads.length +
+                                                    (state.isLoadingMore
+                                                        ? 1
+                                                        : 0),
+                                                gridDelegate:
+                                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                                  crossAxisCount: 2,
+                                                  mainAxisExtent: 96.h,
+                                                  mainAxisSpacing: 10.h,
+                                                  crossAxisSpacing: 12.w,
+                                                ),
+                                                itemBuilder:
+                                                    (BuildContext context,
+                                                        int index) {
+                                                  if (index >= threads.length) {
+                                                    return const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
+                                                    );
+                                                  }
+                                                  final thread = threads[index];
+                                                  final subtitle = thread
+                                                          .lastMessage
+                                                          .trim()
+                                                          .isEmpty
+                                                      ? AppStrings.chatTapToOpen
+                                                      : thread.lastMessage;
+                                                  return ChatHistoryTile(
+                                                    thread: thread,
+                                                    subtitle: subtitle,
+                                                    onTap: () {
+                                                      context.push(
+                                                        AppRoutes
+                                                            .playerChatPath(
+                                                          thread.peerId,
+                                                        ),
+                                                        extra: _toPlayer(
+                                                          thread,
+                                                        ),
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                              )
+                                            : ListView.separated(
+                                                controller: _scrollController,
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  16.h,
+                                                  contentPadding.right,
+                                                  20.h,
+                                                ),
+                                                itemCount: threads.length +
+                                                    (state.isLoadingMore
+                                                        ? 1
+                                                        : 0),
+                                                separatorBuilder: (_, __) =>
+                                                    SizedBox(height: 10.h),
+                                                itemBuilder: (
+                                                  BuildContext context,
+                                                  int index,
+                                                ) {
+                                                  if (index >= threads.length) {
+                                                    return Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                        vertical: 8.h,
+                                                      ),
+                                                      child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  }
+                                                  final thread = threads[index];
+                                                  final subtitle = thread
+                                                          .lastMessage
+                                                          .trim()
+                                                          .isEmpty
+                                                      ? AppStrings.chatTapToOpen
+                                                      : thread.lastMessage;
+                                                  return ChatHistoryTile(
+                                                    thread: thread,
+                                                    subtitle: subtitle,
+                                                    onTap: () {
+                                                      context.push(
+                                                        AppRoutes
+                                                            .playerChatPath(
+                                                          thread.peerId,
+                                                        ),
+                                                        extra: _toPlayer(
+                                                          thread,
+                                                        ),
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                              )),
+                              ),
                             ),
                           ],
                         );

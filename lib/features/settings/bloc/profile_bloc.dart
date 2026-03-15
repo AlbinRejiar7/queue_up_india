@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/app_preferences.dart';
+import '../../../core/services/availability_session_manager.dart';
 import '../models/language_model.dart';
 import '../models/profile_preferences_model.dart';
 import '../viewmodel/profile_view_model.dart';
@@ -142,6 +143,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     emit(ProfileLoading(data: state.data));
+    try {
+      await AvailabilitySessionManager.clearAvailabilityOnTerminate();
+    } catch (_) {}
     await AppPreferences.setLoggedIn(false);
     emit(ProfileSuccess(data: state.data.copyWith(didLogout: true)));
   }

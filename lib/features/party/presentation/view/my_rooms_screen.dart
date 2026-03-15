@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
@@ -15,6 +16,7 @@ import '../../bloc/party_bloc.dart';
 import '../../bloc/party_event.dart';
 import '../../bloc/party_state.dart';
 import 'widgets/empty_rooms_card.dart';
+import 'widgets/my_room_card.dart';
 import 'widgets/my_rooms_section.dart';
 
 class MyRoomsScreen extends StatefulWidget {
@@ -38,12 +40,21 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
     context.read<PartyBloc>().add(const PartyRoomsRequested());
   }
 
+  Future<void> _handleRefresh() async {
+    final bloc = context.read<PartyBloc>();
+    bloc.add(const PartyRoomsRequested());
+    await bloc.stream.firstWhere((state) => state is PartyLoading);
+    await bloc.stream.firstWhere((state) => state is! PartyLoading);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: GlowBackground(
         child: SafeArea(
           child: ResponsiveLayoutBuilder(
+            tabletMaxWidth: 960,
+            tabletHorizontalPadding: 32,
             builder:
                 (
                   BuildContext context,
@@ -61,6 +72,7 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                       final isLoading = state is PartyLoading && created.isEmpty;
                       final selectedGameId =
                           widget.selectedGameId ?? AppOptions.valorantId;
+                      final bool isTablet = constraints.maxWidth >= 600;
 
                       return Column(
                         children: <Widget>[
@@ -98,53 +110,146 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                             ),
                           ),
                           Expanded(
-                            child: isLoading
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : ListView(
-                                    padding: EdgeInsets.fromLTRB(
-                                      contentPadding.left,
-                                      14.h,
-                                      contentPadding.right,
-                                      22.h,
-                                    ),
-                                    children: <Widget>[
-                                      if (created.isEmpty)
-                                        const EmptyRoomsCard(
-                                          message: AppStrings.noCreatedRooms,
-                                        )
-                                      else
-                                        MyRoomsSection(
-                                          title: AppStrings.createdRooms,
-                                          parties: created,
-                                          isCreatedSection: true,
-                                          onDelete: (party) async {
-                                            final shouldDelete =
-                                                await AppDialog.showConfirm(
-                                              context,
-                                              title: AppStrings
-                                                  .confirmDeletePartyTitle,
-                                              message: AppStrings
-                                                  .confirmDeletePartyMessage,
-                                              confirmLabel:
-                                                  AppStrings.deleteParty,
-                                              cancelLabel:
-                                                  AppStrings.cancelAction,
-                                              confirmIsDestructive: true,
-                                            );
-                                            if (!shouldDelete) {
-                                              return;
-                                            }
-                                            context.read<PartyBloc>().add(
-                                              PartyLeaveRequested(
-                                                partyId: party.id,
-                                              ),
-                                            );
-                                          },
+                            child: RefreshIndicator(
+                              onRefresh: _handleRefresh,
+                              child: isLoading
+                                  ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: EdgeInsets.fromLTRB(
+                                        contentPadding.left,
+                                        120.h,
+                                        contentPadding.right,
+                                        22.h,
+                                      ),
+                                      children: const <Widget>[
+                                        Center(
+                                          child:
+                                              CircularProgressIndicator(),
                                         ),
-                                    ],
-                                  ),
+                                      ],
+                                    )
+                                  : ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: EdgeInsets.fromLTRB(
+                                        contentPadding.left,
+                                        14.h,
+                                        contentPadding.right,
+                                        22.h,
+                                      ),
+                                      children: <Widget>[
+                                        if (created.isEmpty)
+                                          const EmptyRoomsCard(
+                                            message:
+                                                AppStrings.noCreatedRooms,
+                                          )
+                                        else if (isTablet)
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Text(
+                                                AppStrings.createdRooms,
+                                                style: AppTextStyles
+                                                    .sectionTitle
+                                                    .copyWith(
+                                                  fontSize: 21.sp,
+                                                ),
+                                              ),
+                                              SizedBox(height: 10.h),
+                                              GridView.builder(
+                                                shrinkWrap: true,
+                                                physics:
+                                                    const NeverScrollableScrollPhysics(),
+                                                itemCount: created.length,
+                                                gridDelegate:
+                                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                                  crossAxisCount: 2,
+                                                  mainAxisExtent: 190.h,
+                                                  mainAxisSpacing: 12.h,
+                                                  crossAxisSpacing: 12.w,
+                                                ),
+                                                itemBuilder:
+                                                    (BuildContext context,
+                                                        int index) {
+                                                  final party = created[index];
+                                                  return MyRoomCard(
+                                                    party: party,
+                                                    isCreatedRoom: true,
+                                                    onOpen: () {
+                                                      context.push(
+                                                        AppRoutes
+                                                            .partyDetailsPath(
+                                                          party.id,
+                                                        ),
+                                                      );
+                                                    },
+                                                    onDelete: () async {
+                                                      final shouldDelete =
+                                                          await AppDialog
+                                                              .showConfirm(
+                                                        context,
+                                                        title: AppStrings
+                                                            .confirmDeletePartyTitle,
+                                                        message: AppStrings
+                                                            .confirmDeletePartyMessage,
+                                                        confirmLabel: AppStrings
+                                                            .deleteParty,
+                                                        cancelLabel: AppStrings
+                                                            .cancelAction,
+                                                        confirmIsDestructive:
+                                                            true,
+                                                      );
+                                                      if (!shouldDelete) {
+                                                        return;
+                                                      }
+                                                      context
+                                                          .read<PartyBloc>()
+                                                          .add(
+                                                            PartyLeaveRequested(
+                                                              partyId:
+                                                                  party.id,
+                                                            ),
+                                                          );
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          MyRoomsSection(
+                                            title: AppStrings.createdRooms,
+                                            parties: created,
+                                            isCreatedSection: true,
+                                            onDelete: (party) async {
+                                              final shouldDelete =
+                                                  await AppDialog.showConfirm(
+                                                context,
+                                                title: AppStrings
+                                                    .confirmDeletePartyTitle,
+                                                message: AppStrings
+                                                    .confirmDeletePartyMessage,
+                                                confirmLabel:
+                                                    AppStrings.deleteParty,
+                                                cancelLabel:
+                                                    AppStrings.cancelAction,
+                                                confirmIsDestructive: true,
+                                              );
+                                              if (!shouldDelete) {
+                                                return;
+                                              }
+                                              context.read<PartyBloc>().add(
+                                                PartyLeaveRequested(
+                                                  partyId: party.id,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                            ),
                           ),
                         ],
                       );

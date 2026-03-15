@@ -12,6 +12,8 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
+  static const int _defaultLimit = 50;
+
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
 
@@ -23,6 +25,7 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
         .doc(uid)
         .collection('notifications')
         .orderBy('createdAt', descending: true)
+        .limit(_defaultLimit)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs.map((doc) {

@@ -22,6 +22,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       super(const PartyInitial()) {
     on<PartySessionChecked>(_onSessionChecked);
     on<PartyListRequested>(_onPartyListRequested);
+    on<PartyListRefreshRequested>(_onPartyListRefreshRequested);
     on<PartyListLoadMoreRequested>(_onPartyListLoadMoreRequested);
     on<PartyListLivePageUpdated>(_onPartyListLivePageUpdated);
     on<PartyRoomsRequested>(_onPartyRoomsRequested);
@@ -30,7 +31,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     on<PartyJoinRequested>(_onPartyJoinRequested);
     on<PartyCreateStarted>(_onPartyCreateStarted);
     on<PartyFormNameChanged>(_onPartyFormNameChanged);
-    on<PartyFormAutoNameToggled>(_onPartyFormAutoNameToggled);
     on<PartyFormGameChanged>(_onPartyFormGameChanged);
     on<PartyFormRankChanged>(_onPartyFormRankChanged);
     on<PartyFormLanguageChanged>(_onPartyFormLanguageChanged);
@@ -163,6 +163,24 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         ),
       );
     }
+  }
+
+  Future<void> _onPartyListRefreshRequested(
+    PartyListRefreshRequested event,
+    Emitter<PartyState> emit,
+  ) async {
+    final activeGameId = state.data.activeGameId;
+    if (activeGameId.isEmpty) {
+      return;
+    }
+    final nextData = state.data.copyWith(
+      parties: const <PartyModel>[],
+      clearPartiesCursor: true,
+      hasMoreParties: true,
+      isLoadingMoreParties: false,
+    );
+    emit(PartyLoading(data: nextData));
+    await _reloadPartiesWithFilters(nextData, emit);
   }
 
   void _onPartyListLivePageUpdated(
@@ -421,38 +439,12 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     PartyFormNameChanged event,
     Emitter<PartyState> emit,
   ) {
-    if (state.data.form.useAutoName) {
-      return;
-    }
-
     emit(
       PartySuccess(
         data: state.data.copyWith(
-          form: state.data.form.copyWith(partyName: event.value),
-          isCreateCompleted: false,
-        ),
-      ),
-    );
-  }
-
-  void _onPartyFormAutoNameToggled(
-    PartyFormAutoNameToggled event,
-    Emitter<PartyState> emit,
-  ) {
-    final form = state.data.form;
-    final gameId = _normalizeGameId(
-      form.gameId.isEmpty ? state.data.activeGameId : form.gameId,
-    );
-    final partyName = event.useAutoName
-        ? _buildAutoPartyName(gameId: gameId, maxPlayers: form.maxPlayers)
-        : form.partyName;
-
-    emit(
-      PartySuccess(
-        data: state.data.copyWith(
-          form: form.copyWith(
-            useAutoName: event.useAutoName,
-            partyName: partyName,
+          form: state.data.form.copyWith(
+            partyName: event.value,
+            useAutoName: false,
           ),
           isCreateCompleted: false,
         ),

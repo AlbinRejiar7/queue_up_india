@@ -43,6 +43,8 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
       body: GlowBackground(
         child: SafeArea(
           child: ResponsiveLayoutBuilder(
+            tabletMaxWidth: 960,
+            tabletHorizontalPadding: 32,
             builder:
                 (
                   BuildContext context,
@@ -58,6 +60,7 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                     builder: (BuildContext context, GameState state) {
                       final games = state.data.games;
                       final selectedGameId = state.data.selectedGameId;
+                      final bool isTablet = constraints.maxWidth >= 600;
 
                       return Column(
                         children: <Widget>[
@@ -108,6 +111,35 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                       child: const Center(
                                         child: CircularProgressIndicator(),
                                       ),
+                                    )
+                                  else if (isTablet)
+                                    GridView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: games.length,
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisExtent: 180.h,
+                                        mainAxisSpacing: 16.h,
+                                        crossAxisSpacing: 16.w,
+                                      ),
+                                      itemBuilder:
+                                          (BuildContext context, int index) {
+                                        final game = games[index];
+                                        return GameTile(
+                                          game: game,
+                                          onTap: () {
+                                            context.read<GameBloc>().add(
+                                              GameSelected(gameId: game.id),
+                                            );
+                                            context.push(
+                                              AppRoutes.partyListPath(game.id),
+                                            );
+                                          },
+                                        );
+                                      },
                                     )
                                   else
                                     ...games.map(

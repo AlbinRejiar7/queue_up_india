@@ -13,8 +13,8 @@ class ChatBadgeBloc extends Bloc<ChatBadgeEvent, ChatBadgeState> {
       : _chatViewModel = chatViewModel,
         super(const ChatBadgeState.initial()) {
     on<ChatBadgeStarted>(_onStarted);
+    on<ChatBadgeStopped>(_onStopped);
     on<ChatBadgeUpdated>(_onUpdated);
-    add(const ChatBadgeStarted());
   }
 
   static const int _pageSize = 20;
@@ -46,6 +46,15 @@ class ChatBadgeBloc extends Bloc<ChatBadgeEvent, ChatBadgeState> {
   ) {
     final hasUnread = event.page.items.any((thread) => thread.unreadCount > 0);
     emit(state.copyWith(hasUnread: hasUnread, isLoading: false));
+  }
+
+  Future<void> _onStopped(
+    ChatBadgeStopped event,
+    Emitter<ChatBadgeState> emit,
+  ) async {
+    await _subscription?.cancel();
+    _subscription = null;
+    emit(state.copyWith(hasUnread: false, isLoading: false));
   }
 
   @override

@@ -14,6 +14,7 @@ class AppBottomBar extends StatelessWidget {
     required this.activeTab,
     super.key,
     this.selectedGameId,
+    this.profileAvatarUrl,
     this.showCenterAction = true,
     this.onTabSelected,
     this.onCenterActionPressed,
@@ -21,6 +22,7 @@ class AppBottomBar extends StatelessWidget {
 
   final AppBottomTab activeTab;
   final String? selectedGameId;
+  final String? profileAvatarUrl;
   final bool showCenterAction;
   final ValueChanged<AppBottomTab>? onTabSelected;
   final VoidCallback? onCenterActionPressed;
@@ -119,8 +121,8 @@ class AppBottomBar extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: _BottomItem(
-                icon: Icons.account_circle_rounded,
+              child: _BottomAvatarItem(
+                avatarUrl: profileAvatarUrl,
                 label: AppStrings.profile,
                 active: activeTab == AppBottomTab.profile,
                 onTap: () {
@@ -180,4 +182,81 @@ class _BottomItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BottomAvatarItem extends StatelessWidget {
+  const _BottomAvatarItem({
+    required this.avatarUrl,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String? avatarUrl;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.electricBlue : AppColors.textSecondary;
+    final avatarProvider = _avatarProvider(avatarUrl);
+    final size = 22.sp;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: color,
+                  width: active ? 1.6 : 1.2,
+                ),
+              ),
+              child: ClipOval(
+                child: avatarProvider != null
+                    ? Image(
+                        image: avatarProvider,
+                        fit: BoxFit.cover,
+                      )
+                    : Icon(
+                        Icons.account_circle_rounded,
+                        color: color,
+                        size: size,
+                      ),
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 9.sp,
+                letterSpacing: 1.3,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+ImageProvider? _avatarProvider(String? avatarUrl) {
+  if (avatarUrl == null || avatarUrl.trim().isEmpty) {
+    return null;
+  }
+  if (avatarUrl.startsWith('http')) {
+    return NetworkImage(avatarUrl);
+  }
+  return AssetImage(avatarUrl);
 }

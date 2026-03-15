@@ -168,39 +168,8 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                 SizedBox(height: 16.h),
                                 _Label(text: AppStrings.partyName),
                                 SizedBox(height: 8.h),
-                                GlassContainer(
-                                  borderRadius: 20.r,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 14.w,
-                                    vertical: 8.h,
-                                  ),
-                                  child: Row(
-                                    children: <Widget>[
-                                      Expanded(
-                                        child: Text(
-                                          AppStrings.autoPartyName,
-                                          style: AppTextStyles.bodyMedium,
-                                        ),
-                                      ),
-                                      Switch(
-                                        value: form.useAutoName,
-                                        activeThumbColor:
-                                            AppColors.electricBlue,
-                                        onChanged: (bool value) {
-                                          context.read<PartyBloc>().add(
-                                            PartyFormAutoNameToggled(
-                                              useAutoName: value,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(height: 8.h),
                                 TextField(
                                   controller: _partyNameController,
-                                  readOnly: form.useAutoName,
                                   onChanged: (String value) {
                                     context.read<PartyBloc>().add(
                                       PartyFormNameChanged(value: value),
@@ -208,9 +177,6 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                   },
                                   decoration: InputDecoration(
                                     hintText: AppStrings.partyNameHint,
-                                    helperText: form.useAutoName
-                                        ? AppStrings.autoPartyNameHint
-                                        : null,
                                   ),
                                 ),
                                 SizedBox(height: 18.h),
@@ -257,13 +223,24 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                   borderRadius: 24.r,
                                   child: Row(
                                     children: <Widget>[
-                                      IconButton.filledTonal(
+                                      IconButton(
                                         onPressed: () {
                                           context.read<PartyBloc>().add(
                                             const PartyFormMaxPlayersDecremented(),
                                           );
                                         },
-                                        icon: Icon(Icons.remove, size: 20.sp),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.textPrimary,
+                                          foregroundColor:
+                                              AppColors.navSurface,
+                                          minimumSize: Size(48.w, 48.w),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14.r),
+                                          ),
+                                        ),
+                                        icon: Icon(Icons.remove, size: 22.sp),
                                       ),
                                       Expanded(
                                         child: Center(
@@ -283,8 +260,14 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                         style: IconButton.styleFrom(
                                           backgroundColor:
                                               AppColors.electricBlue,
+                                          foregroundColor: Colors.white,
+                                          minimumSize: Size(52.w, 52.w),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16.r),
+                                          ),
                                         ),
-                                        icon: Icon(Icons.add, size: 20.sp),
+                                        icon: Icon(Icons.add, size: 24.sp),
                                       ),
                                     ],
                                   ),

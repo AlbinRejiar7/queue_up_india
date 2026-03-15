@@ -20,6 +20,8 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
         _chatViewModel = chatViewModel,
         super(const NotificationsState()) {
     on<NotificationsStarted>(_onStarted);
+    on<NotificationsStopped>(_onStopped);
+    on<NotificationsRefreshRequested>(_onRefresh);
     on<NotificationsUpdated>(_onUpdated);
     on<NotificationReadRequested>(_onReadRequested);
     on<NotificationsMarkAllReadRequested>(_onMarkAllReadRequested);
@@ -39,6 +41,34 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     Emitter<NotificationsState> emit,
   ) {
     _subscription ??= _notificationsViewModel
+        .watchNotifications()
+        .listen((notifications) {
+          add(NotificationsUpdated(notifications: notifications));
+        });
+  }
+
+  Future<void> _onStopped(
+    NotificationsStopped event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    await _subscription?.cancel();
+    _subscription = null;
+    emit(
+      state.copyWith(
+        notifications: const <NotificationItem>[],
+        isLoading: false,
+      ),
+    );
+  }
+
+  Future<void> _onRefresh(
+    NotificationsRefreshRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    await _subscription?.cancel();
+    _subscription = null;
+    emit(state.copyWith(isLoading: true));
+    _subscription = _notificationsViewModel
         .watchNotifications()
         .listen((notifications) {
           add(NotificationsUpdated(notifications: notifications));

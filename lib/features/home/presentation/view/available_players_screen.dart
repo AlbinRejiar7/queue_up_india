@@ -69,12 +69,21 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    final bloc = context.read<AvailablePlayersBloc>();
+    bloc.add(const AvailablePlayersRefreshRequested());
+    await bloc.stream.firstWhere((state) => state.isLoading);
+    await bloc.stream.firstWhere((state) => !state.isLoading);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: GlowBackground(
         child: SafeArea(
           child: ResponsiveLayoutBuilder(
+            tabletMaxWidth: 960,
+            tabletHorizontalPadding: 32,
             builder:
                 (
                   BuildContext context,
@@ -86,6 +95,7 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                       final players = state.players;
                       final currentUserId =
                           FirebaseAuth.instance.currentUser?.uid;
+                      final bool isTablet = constraints.maxWidth >= 600;
 
                       return BlocListener<
                         AvailablePlayersBloc,
@@ -165,94 +175,219 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                               ),
                             ),
                             Expanded(
-                              child: state.isLoading && players.isEmpty
-                                  ? const Center(
-                                      child: CircularProgressIndicator(),
-                                    )
-                                  : players.isEmpty
-                                      ? Center(
-                                          child: Text(
-                                            AppStrings.noAvailablePlayers,
-                                            style: AppTextStyles.bodyMedium,
-                                          ),
-                                        )
-                                      : ListView.separated(
-                                          controller: _scrollController,
-                                          padding: EdgeInsets.fromLTRB(
-                                            contentPadding.left,
-                                            14.h,
-                                            contentPadding.right,
-                                            20.h,
-                                          ),
-                                          itemCount: players.length +
-                                              (state.isLoadingMore ? 1 : 0),
-                                          separatorBuilder: (context, index) =>
-                                              SizedBox(height: 10.h),
-                                          itemBuilder: (BuildContext context,
-                                              int index) {
-                                            if (index >= players.length) {
-                                              return Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  vertical: 8.h,
-                                                ),
-                                                child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator(),
-                                                ),
-                                              );
-                                            }
-                                            final player = players[index];
-                                            final isSelf =
-                                                currentUserId != null &&
-                                                player.id == currentUserId;
-                                            Future<void> handleRequestTap()
-                                            async {
-                                              if (isSelf) {
-                                                AppSnackBar.showError(
-                                                  context,
-                                                  AppStrings
-                                                      .cannotChatWithSelf,
-                                                );
-                                                return;
-                                              }
-                                              final confirmed =
-                                                  await AppDialog.showConfirm(
-                                                context,
-                                                title: AppStrings
-                                                    .sendChatRequestTitle,
-                                                message: AppStrings
-                                                    .sendChatRequestMessage(
-                                                      player.name,
-                                                    ),
-                                                confirmLabel: AppStrings
-                                                    .sendChatRequestAction,
-                                                cancelLabel:
-                                                    AppStrings.cancelAction,
-                                              );
-                                              if (!context.mounted) {
-                                                return;
-                                              }
-                                              if (!confirmed) {
-                                                return;
-                                              }
-                                              context
-                                                  .read<
-                                                      AvailablePlayersBloc>()
-                                                  .add(
-                                                    AvailablePlayersRequestSent(
-                                                      player: player,
-                                                    ),
-                                                  );
-                                            }
-
-                                            return AvailablePlayerCard(
-                                              player: player,
-                                              canChat: !isSelf,
-                                              onTap: handleRequestTap,
-                                              onChatTap: handleRequestTap,
-                                            );
-                                          },
+                              child: RefreshIndicator(
+                                onRefresh: _handleRefresh,
+                                child: state.isLoading && players.isEmpty
+                                    ? ListView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          120.h,
+                                          contentPadding.right,
+                                          20.h,
                                         ),
+                                        children: const <Widget>[
+                                          Center(
+                                            child:
+                                                CircularProgressIndicator(),
+                                          ),
+                                        ],
+                                      )
+                                    : players.isEmpty
+                                        ? ListView(
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: EdgeInsets.fromLTRB(
+                                              contentPadding.left,
+                                              120.h,
+                                              contentPadding.right,
+                                              20.h,
+                                            ),
+                                            children: <Widget>[
+                                              Center(
+                                                child: Text(
+                                                  AppStrings.noAvailablePlayers,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : (isTablet
+                                            ? GridView.builder(
+                                                controller: _scrollController,
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  14.h,
+                                                  contentPadding.right,
+                                                  20.h,
+                                                ),
+                                                itemCount: players.length +
+                                                    (state.isLoadingMore
+                                                        ? 1
+                                                        : 0),
+                                                gridDelegate:
+                                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                                  crossAxisCount: 2,
+                                                  mainAxisExtent: 140.h,
+                                                  mainAxisSpacing: 12.h,
+                                                  crossAxisSpacing: 12.w,
+                                                ),
+                                                itemBuilder:
+                                                    (BuildContext context,
+                                                        int index) {
+                                                  if (index >= players.length) {
+                                                    return const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
+                                                    );
+                                                  }
+                                                  final player = players[index];
+                                                  final isSelf =
+                                                      currentUserId != null &&
+                                                      player.id ==
+                                                          currentUserId;
+                                                  Future<void>
+                                                      handleRequestTap() async {
+                                                    if (isSelf) {
+                                                      AppSnackBar.showError(
+                                                        context,
+                                                        AppStrings
+                                                            .cannotChatWithSelf,
+                                                      );
+                                                      return;
+                                                    }
+                                                    final confirmed =
+                                                        await AppDialog
+                                                            .showConfirm(
+                                                      context,
+                                                      title: AppStrings
+                                                          .sendChatRequestTitle,
+                                                      message: AppStrings
+                                                          .sendChatRequestMessage(
+                                                        player.name,
+                                                      ),
+                                                      confirmLabel: AppStrings
+                                                          .sendChatRequestAction,
+                                                      cancelLabel: AppStrings
+                                                          .cancelAction,
+                                                    );
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    if (!confirmed) {
+                                                      return;
+                                                    }
+                                                    context
+                                                        .read<
+                                                            AvailablePlayersBloc>()
+                                                        .add(
+                                                          AvailablePlayersRequestSent(
+                                                            player: player,
+                                                          ),
+                                                        );
+                                                  }
+
+                                                  return AvailablePlayerCard(
+                                                    player: player,
+                                                    canChat: !isSelf,
+                                                    onTap: handleRequestTap,
+                                                    onChatTap: handleRequestTap,
+                                                  );
+                                                },
+                                              )
+                                            : ListView.separated(
+                                                controller: _scrollController,
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  14.h,
+                                                  contentPadding.right,
+                                                  20.h,
+                                                ),
+                                                itemCount: players.length +
+                                                    (state.isLoadingMore
+                                                        ? 1
+                                                        : 0),
+                                                separatorBuilder:
+                                                    (context, index) =>
+                                                        SizedBox(height: 10.h),
+                                                itemBuilder: (
+                                                  BuildContext context,
+                                                  int index,
+                                                ) {
+                                                  if (index >= players.length) {
+                                                    return Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                        vertical: 8.h,
+                                                      ),
+                                                      child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  }
+                                                  final player =
+                                                      players[index];
+                                                  final isSelf =
+                                                      currentUserId != null &&
+                                                      player.id ==
+                                                          currentUserId;
+                                                  Future<void>
+                                                      handleRequestTap() async {
+                                                    if (isSelf) {
+                                                      AppSnackBar.showError(
+                                                        context,
+                                                        AppStrings
+                                                            .cannotChatWithSelf,
+                                                      );
+                                                      return;
+                                                    }
+                                                    final confirmed =
+                                                        await AppDialog
+                                                            .showConfirm(
+                                                      context,
+                                                      title: AppStrings
+                                                          .sendChatRequestTitle,
+                                                      message: AppStrings
+                                                          .sendChatRequestMessage(
+                                                        player.name,
+                                                      ),
+                                                      confirmLabel: AppStrings
+                                                          .sendChatRequestAction,
+                                                      cancelLabel: AppStrings
+                                                          .cancelAction,
+                                                    );
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    if (!confirmed) {
+                                                      return;
+                                                    }
+                                                    context
+                                                        .read<
+                                                            AvailablePlayersBloc>()
+                                                        .add(
+                                                          AvailablePlayersRequestSent(
+                                                            player: player,
+                                                          ),
+                                                        );
+                                                  }
+
+                                                  return AvailablePlayerCard(
+                                                    player: player,
+                                                    canChat: !isSelf,
+                                                    onTap: handleRequestTap,
+                                                    onChatTap: handleRequestTap,
+                                                  );
+                                                },
+                                              )),
+                              ),
                             ),
                           ],
                         ),

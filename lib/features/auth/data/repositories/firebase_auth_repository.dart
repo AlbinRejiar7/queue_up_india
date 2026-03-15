@@ -212,18 +212,36 @@ class FirebaseAuthRepository implements AuthRepository {
       throw StateError('Google sign-in failed.');
     }
 
+    String? storedName;
+    String? storedAvatar;
+    try {
+      final snapshot = await _db.collection('users').doc(user.uid).get();
+      final data = snapshot.data();
+      storedName = (data?['displayName'] as String?)?.trim();
+      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
+    } catch (_) {}
+
+    final resolvedName =
+        storedName != null && storedName.isNotEmpty
+            ? storedName
+            : (user.displayName ?? 'QueuePlayer');
+    final resolvedAvatar =
+        storedAvatar != null && storedAvatar.isNotEmpty
+            ? storedAvatar
+            : user.photoURL;
+
     await _upsertUserProfile(
       user,
-      displayName: user.displayName,
-      avatarUrl: user.photoURL,
+      displayName: resolvedName,
+      avatarUrl: resolvedAvatar,
       isGuest: false,
     );
 
     return UserModel(
       id: user.uid,
-      displayName: user.displayName ?? 'QueuePlayer',
+      displayName: resolvedName,
       isGuest: false,
-      avatarUrl: user.photoURL,
+      avatarUrl: resolvedAvatar,
     );
   }
 

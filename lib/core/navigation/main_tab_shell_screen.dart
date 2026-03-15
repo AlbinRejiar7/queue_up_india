@@ -14,6 +14,9 @@ import '../../features/game_selection/presentation/view/game_selection_screen.da
 import '../../features/home/bloc/home_availability_bloc.dart';
 import '../../features/party/presentation/view/create_party_screen.dart';
 import '../../features/party/presentation/view/my_rooms_screen.dart';
+import '../../features/settings/bloc/profile_bloc.dart';
+import '../../features/settings/bloc/profile_event.dart';
+import '../../features/settings/bloc/profile_state.dart';
 import '../../features/settings/presentation/view/profile_screen.dart';
 import '../constants/app_options.dart';
 import '../constants/app_strings.dart';
@@ -45,9 +48,12 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   late final PageController _pageController;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _directChatSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _hostPartySub;
+  StreamSubscription<bool>? _availabilitySub;
   final Map<String, DateTime> _lastChatSeenAt = <String, DateTime>{};
   final Map<String, int> _lastPartyCount = <String, int>{};
   bool _isAppActive = true;
+  bool _directChatPrimed = false;
+  bool _hostPartyPrimed = false;
 
   @override
   void initState() {
@@ -60,7 +66,16 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     if (initialGameId != null && initialGameId.trim().isNotEmpty) {
       context.read<GameBloc>().add(GameSelected(gameId: initialGameId));
     }
-    _startInAppAlerts();
+    context.read<ProfileBloc>().add(const ProfileRequested());
+    _availabilitySub = context
+        .read<HomeAvailabilityBloc>()
+        .stream
+        .map((state) => state.isAvailable)
+        .distinct()
+        .listen((_) {
+          _refreshInAppAlerts();
+        });
+    _refreshInAppAlerts();
   }
 
   @override
@@ -78,6 +93,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     WidgetsBinding.instance.removeObserver(this);
     _directChatSub?.cancel();
     _hostPartySub?.cancel();
+    _availabilitySub?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -85,6 +101,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppActive = state == AppLifecycleState.resumed;
+    _refreshInAppAlerts();
   }
 
   Future<void> _animateToIndex(int index) async {
@@ -99,25 +116,53 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     );
   }
 
+  void _refreshInAppAlerts() {
+    if (_shouldListenForAlerts()) {
+      _startInAppAlerts();
+    } else {
+      _stopInAppAlerts();
+    }
+  }
+
   void _startInAppAlerts() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
+      _stopInAppAlerts();
       return;
     }
 
-    _directChatSub = FirebaseFirestore.instance
-        .collection('direct_chats')
-        .where('participants', arrayContains: uid)
-        .orderBy('lastMessageAt', descending: true)
-        .snapshots()
-        .listen(_handleDirectChatSnapshot);
+    if (_directChatSub == null) {
+      _directChatPrimed = false;
+      _directChatSub = FirebaseFirestore.instance
+          .collection('direct_chats')
+          .where('participants', arrayContains: uid)
+          .orderBy('lastMessageAt', descending: true)
+          .limit(20)
+          .snapshots()
+          .listen(_handleDirectChatSnapshot);
+    }
 
-    _hostPartySub = FirebaseFirestore.instance
-        .collection('parties')
-        .where('hostId', isEqualTo: uid)
-        .where('status', whereIn: <String>['open', 'full'])
-        .snapshots()
-        .listen(_handleHostPartySnapshot);
+    if (_hostPartySub == null) {
+      _hostPartyPrimed = false;
+      _hostPartySub = FirebaseFirestore.instance
+          .collection('parties')
+          .where('hostId', isEqualTo: uid)
+          .where('status', whereIn: <String>['open', 'full'])
+          .limit(10)
+          .snapshots()
+          .listen(_handleHostPartySnapshot);
+    }
+  }
+
+  void _stopInAppAlerts() {
+    _directChatSub?.cancel();
+    _directChatSub = null;
+    _hostPartySub?.cancel();
+    _hostPartySub = null;
+    _directChatPrimed = false;
+    _hostPartyPrimed = false;
+    _lastChatSeenAt.clear();
+    _lastPartyCount.clear();
   }
 
   void _handleDirectChatSnapshot(
@@ -127,6 +172,17 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
       return;
     }
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (!_directChatPrimed) {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final rawTime = data['lastMessageAt'];
+        final lastMessageAt =
+            rawTime is Timestamp ? rawTime.toDate() : DateTime.now();
+        _lastChatSeenAt[doc.id] = lastMessageAt;
+      }
+      _directChatPrimed = true;
+      return;
+    }
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final senderId = data['lastMessageSenderId'] as String?;
@@ -150,6 +206,15 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     if (!_shouldNotify()) {
       return;
     }
+    if (!_hostPartyPrimed) {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final currentPlayers = (data['currentPlayers'] as int?) ?? 0;
+        _lastPartyCount[doc.id] = currentPlayers;
+      }
+      _hostPartyPrimed = true;
+      return;
+    }
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final currentPlayers = (data['currentPlayers'] as int?) ?? 0;
@@ -161,12 +226,16 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     }
   }
 
-  bool _shouldNotify() {
+  bool _shouldListenForAlerts() {
     if (!_isAppActive) {
       return false;
     }
     final availability = context.read<HomeAvailabilityBloc>().state;
     return availability.isAvailable;
+  }
+
+  bool _shouldNotify() {
+    return _shouldListenForAlerts();
   }
 
   @override
@@ -193,22 +262,29 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
 
             return BlocBuilder<MainTabBloc, MainTabState>(
               builder: (BuildContext context, MainTabState tabState) {
-                return AppBottomBar(
-                  activeTab: _tabForIndex(tabState.activeIndex),
-                  selectedGameId: selectedGameId,
-                  onTabSelected: (AppBottomTab tab) {
-                    final nextIndex = _indexForTab(tab);
-                    context
-                        .read<MainTabBloc>()
-                        .add(MainTabIndexChanged(index: nextIndex));
-                    _animateToIndex(nextIndex);
-                  },
-                  onCenterActionPressed: () {
-                    final nextIndex = _indexForTab(AppBottomTab.create);
-                    context
-                        .read<MainTabBloc>()
-                        .add(MainTabIndexChanged(index: nextIndex));
-                    _animateToIndex(nextIndex);
+                return BlocBuilder<ProfileBloc, ProfileState>(
+                  buildWhen: (previous, current) =>
+                      previous.data.avatarUrl != current.data.avatarUrl,
+                  builder: (context, profileState) {
+                    return AppBottomBar(
+                      activeTab: _tabForIndex(tabState.activeIndex),
+                      selectedGameId: selectedGameId,
+                      profileAvatarUrl: profileState.data.avatarUrl,
+                      onTabSelected: (AppBottomTab tab) {
+                        final nextIndex = _indexForTab(tab);
+                        context
+                            .read<MainTabBloc>()
+                            .add(MainTabIndexChanged(index: nextIndex));
+                        _animateToIndex(nextIndex);
+                      },
+                      onCenterActionPressed: () {
+                        final nextIndex = _indexForTab(AppBottomTab.create);
+                        context
+                            .read<MainTabBloc>()
+                            .add(MainTabIndexChanged(index: nextIndex));
+                        _animateToIndex(nextIndex);
+                      },
+                    );
                   },
                 );
               },
@@ -220,45 +296,51 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
             final selectedGameId =
                 gameState.data.selectedGameId ?? AppOptions.valorantId;
 
-            return PageView.builder(
-              controller: _pageController,
-              itemCount: 5,
-              onPageChanged: (int pageIndex) {
-                context
-                    .read<MainTabBloc>()
-                    .add(MainTabIndexChanged(index: pageIndex));
-              },
-              itemBuilder: (BuildContext context, int index) {
-                if (index == 0) {
-                  return HomeScreen(
-                    key: ValueKey<String>('home-tab-$selectedGameId'),
-                    selectedGameId: selectedGameId,
-                    showBackButton: false,
-                  );
-                }
+            return BlocBuilder<MainTabBloc, MainTabState>(
+              builder: (BuildContext context, MainTabState tabState) {
+                final activeIndex = tabState.activeIndex;
+                return PageView.builder(
+                  controller: _pageController,
+                  itemCount: 5,
+                  onPageChanged: (int pageIndex) {
+                    context
+                        .read<MainTabBloc>()
+                        .add(MainTabIndexChanged(index: pageIndex));
+                  },
+                  itemBuilder: (BuildContext context, int index) {
+                    if (index == 0) {
+                      return HomeScreen(
+                        key: ValueKey<String>('home-tab-$selectedGameId'),
+                        selectedGameId: selectedGameId,
+                        showBackButton: false,
+                        isActive: activeIndex == 0,
+                      );
+                    }
 
-                if (index == 1) {
-                  return const GameSelectionScreen(
-                    showBackButton: false,
-                  );
-                }
+                    if (index == 1) {
+                      return const GameSelectionScreen(
+                        showBackButton: false,
+                      );
+                    }
 
-                if (index == 2) {
-                  return CreatePartyScreen(
-                    key: ValueKey<String>('create-tab-$selectedGameId'),
-                    gameId: selectedGameId,
-                    showBackButton: false,
-                  );
-                }
+                    if (index == 2) {
+                      return CreatePartyScreen(
+                        key: ValueKey<String>('create-tab-$selectedGameId'),
+                        gameId: selectedGameId,
+                        showBackButton: false,
+                      );
+                    }
 
-                if (index == 3) {
-                  return const MyRoomsScreen(
-                    showBackButton: false,
-                  );
-                }
+                    if (index == 3) {
+                      return const MyRoomsScreen(
+                        showBackButton: false,
+                      );
+                    }
 
-                return const ProfileScreen(
-                  showBackButton: false,
+                    return const ProfileScreen(
+                      showBackButton: false,
+                    );
+                  },
                 );
               },
             );

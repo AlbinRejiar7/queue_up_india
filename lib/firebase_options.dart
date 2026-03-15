@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -49,20 +50,28 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDOlUamQBWHfhPutrepqXNmEdy2Hp0wfSY',
-    appId: '1:361379272562:android:69f75f9845dba7e53f2feb',
-    messagingSenderId: '361379272562',
-    projectId: 'queueupindia-de281',
-    storageBucket: 'queueupindia-de281.firebasestorage.app',
+  static FirebaseOptions get android => FirebaseOptions(
+    apiKey: _env('FIREBASE_ANDROID_API_KEY'),
+    appId: _env('FIREBASE_ANDROID_APP_ID'),
+    messagingSenderId: _env('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: _env('FIREBASE_PROJECT_ID'),
+    storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyD28sUVqVeAIQA8jJMXRsaUQuOQz8hQOWk',
-    appId: '1:361379272562:ios:0137583e3d971e6a3f2feb',
-    messagingSenderId: '361379272562',
-    projectId: 'queueupindia-de281',
-    storageBucket: 'queueupindia-de281.firebasestorage.app',
-    iosBundleId: 'com.example.queueUpIndia',
+  static FirebaseOptions get ios => FirebaseOptions(
+    apiKey: _env('FIREBASE_IOS_API_KEY'),
+    appId: _env('FIREBASE_IOS_APP_ID'),
+    messagingSenderId: _env('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: _env('FIREBASE_PROJECT_ID'),
+    storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
+    iosBundleId: _env('FIREBASE_IOS_BUNDLE_ID'),
   );
+}
+
+String _env(String key) {
+  final value = dotenv.env[key];
+  if (value == null || value.isEmpty) {
+    throw StateError('Missing $key in .env');
+  }
+  return value;
 }

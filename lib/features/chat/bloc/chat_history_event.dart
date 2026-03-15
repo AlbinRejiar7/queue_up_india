@@ -18,6 +18,10 @@ class ChatHistoryLoadMoreRequested extends ChatHistoryEvent {
   const ChatHistoryLoadMoreRequested();
 }
 
+class ChatHistoryRefreshRequested extends ChatHistoryEvent {
+  const ChatHistoryRefreshRequested();
+}
+
 class ChatHistoryLivePageUpdated extends ChatHistoryEvent {
   const ChatHistoryLivePageUpdated({required this.page});
 

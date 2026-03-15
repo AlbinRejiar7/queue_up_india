@@ -14,6 +14,10 @@ class ChatBadgeStarted extends ChatBadgeEvent {
   const ChatBadgeStarted();
 }
 
+class ChatBadgeStopped extends ChatBadgeEvent {
+  const ChatBadgeStopped();
+}
+
 class ChatBadgeUpdated extends ChatBadgeEvent {
   const ChatBadgeUpdated({required this.page});
 

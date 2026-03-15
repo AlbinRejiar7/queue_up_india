@@ -27,6 +27,7 @@ class AvailablePlayersBloc
     on<AvailablePlayersRankChanged>(_onRankChanged);
     on<AvailablePlayersLanguageChanged>(_onLanguageChanged);
     on<AvailablePlayersReset>(_onReset);
+    on<AvailablePlayersRefreshRequested>(_onRefresh);
     on<AvailablePlayersRequestSent>(_onRequestSent);
     on<AvailablePlayersRequestMessageCleared>(_onRequestMessageCleared);
   }
@@ -152,6 +153,13 @@ class AvailablePlayersBloc
         clearLanguage: true,
       ),
     );
+    await _reloadWithFilters(emit);
+  }
+
+  Future<void> _onRefresh(
+    AvailablePlayersRefreshRequested event,
+    Emitter<AvailablePlayersState> emit,
+  ) async {
     await _reloadWithFilters(emit);
   }
 

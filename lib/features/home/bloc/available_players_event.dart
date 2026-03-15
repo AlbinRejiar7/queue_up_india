@@ -58,6 +58,10 @@ class AvailablePlayersReset extends AvailablePlayersEvent {
   const AvailablePlayersReset();
 }
 
+class AvailablePlayersRefreshRequested extends AvailablePlayersEvent {
+  const AvailablePlayersRefreshRequested();
+}
+
 class AvailablePlayersRequestSent extends AvailablePlayersEvent {
   const AvailablePlayersRequestSent({required this.player});
 
