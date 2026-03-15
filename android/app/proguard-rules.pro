@@ -12,3 +12,9 @@
 # AndroidX lifecycle (avoid reflection issues)
 -keep class androidx.lifecycle.DefaultLifecycleObserver
 -keepclassmembers class * extends androidx.lifecycle.ViewModel { <init>(...); }
+
+# Play Core tasks (Flutter deferred components not used)
+-dontwarn com.google.android.play.core.tasks.OnFailureListener
+-dontwarn com.google.android.play.core.tasks.OnSuccessListener
+-dontwarn com.google.android.play.core.tasks.Task
+

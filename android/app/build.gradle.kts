@@ -73,9 +73,9 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("com.google.android.play:core:1.10.3")
+    implementation("com.google.android.play:feature-delivery:2.1.0")
+    implementation("com.google.android.play:asset-delivery:2.3.0")
 }
 
-configurations.all {
-    exclude(group = "com.google.android.play", module = "core-common")
-}
+
+
