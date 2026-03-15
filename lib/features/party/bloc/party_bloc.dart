@@ -334,6 +334,8 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       final authUser = FirebaseAuth.instance.currentUser;
       if (authUser == null) {
         debugPrint('[PartyBloc] joinParty auth: no currentUser');
+        emit(PartyError(message: AppStrings.authFailed, data: rollbackData));
+        return;
       } else {
         final providers = authUser.providerData
             .map((provider) => provider.providerId)
@@ -354,15 +356,13 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       }
       final joinedParty = await _partyViewModel.joinParty(
         partyId: event.partyId,
-        user: const UserModel(
-          id: 'u_guest_join',
-          displayName: 'GuestPlayer',
-          isGuest: true,
-        ).copyWith(
-          id: authUser?.uid,
-          displayName: authUser?.displayName ?? 'GuestPlayer',
-          avatarUrl: authUser?.photoURL,
-          isGuest: authUser == null,
+        user: UserModel(
+          id: authUser.uid,
+          displayName:
+              authUser.displayName?.trim().isNotEmpty == true
+                  ? authUser.displayName!.trim()
+                  : 'QueuePlayer',
+          avatarUrl: authUser.photoURL,
         ),
       );
       final updatedParties = _replacePartyInList(
@@ -380,7 +380,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
 
       debugPrint(
         '[PartyBloc] User joined party '
-        'partyId=${joinedParty.id} userId=${authUser?.uid ?? 'guest'}',
+        'partyId=${joinedParty.id} userId=${authUser.uid}',
       );
 
       emit(

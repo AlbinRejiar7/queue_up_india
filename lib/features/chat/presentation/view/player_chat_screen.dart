@@ -47,8 +47,12 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   bool _isReporting = false;
   late AvailablePlayerModel _player;
   List<String> _customQuickMessages = <String>[];
+  DateTime? _lastQuickMessageAt;
+  final Map<String, DateTime> _quickMessageHistory = <String, DateTime>{};
 
   static const int _maxCustomQuickMessages = 5;
+  static const Duration _quickMessageCooldown = Duration(seconds: 3);
+  static const Duration _quickMessageDuplicateCooldown = Duration(seconds: 15);
 
   static const List<String> _quickMessages = <String>[
     'Do you want to play a game with me?',
@@ -98,6 +102,20 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
       AppSnackBar.showInfo(context, AppStrings.blockedChatDisabled);
       return;
     }
+    final now = DateTime.now();
+    if (_lastQuickMessageAt != null &&
+        now.difference(_lastQuickMessageAt!) < _quickMessageCooldown) {
+      AppSnackBar.showInfo(context, AppStrings.quickMessageCooldown);
+      return;
+    }
+    final lastForMessage = _quickMessageHistory[message];
+    if (lastForMessage != null &&
+        now.difference(lastForMessage) < _quickMessageDuplicateCooldown) {
+      AppSnackBar.showInfo(context, AppStrings.quickMessageDuplicateCooldown);
+      return;
+    }
+    _lastQuickMessageAt = now;
+    _quickMessageHistory[message] = now;
     context.read<ChatBloc>().add(ChatMessageSent(message: message));
   }
 

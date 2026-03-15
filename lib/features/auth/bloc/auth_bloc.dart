@@ -12,7 +12,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     : _authViewModel = authViewModel,
       super(const AuthInitial()) {
     on<AuthGooglePressed>(_onGooglePressed);
-    on<AuthGuestPressed>(_onGuestPressed);
     on<AuthResetRequested>(_onResetRequested);
   }
 
@@ -25,27 +24,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _authViewModel.continueWithGoogle();
-      await AppPreferences.setLoggedIn(true);
-      emit(AuthSuccess(user: user));
-    } catch (error) {
-      emit(
-        AuthError(
-          message: AuthErrorMapper.message(
-            error,
-            fallback: AppStrings.authFailed,
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _onGuestPressed(
-    AuthGuestPressed event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthLoading());
-    try {
-      final user = await _authViewModel.continueAsGuest();
       await AppPreferences.setLoggedIn(true);
       emit(AuthSuccess(user: user));
     } catch (error) {

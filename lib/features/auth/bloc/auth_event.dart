@@ -11,10 +11,6 @@ class AuthGooglePressed extends AuthEvent {
   const AuthGooglePressed();
 }
 
-class AuthGuestPressed extends AuthEvent {
-  const AuthGuestPressed();
-}
-
 class AuthResetRequested extends AuthEvent {
   const AuthResetRequested();
 }

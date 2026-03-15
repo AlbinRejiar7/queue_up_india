@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "361379272562-6l64854sag8a2o8ms72mpgrtiofiodp9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.queueup.india",
+            "certificate_hash": "f5b1b8457c911e2e8341aa08881cb99d1e2ff00a"
+          }
+        },
+        {
+          "client_id": "361379272562-nfq0fq5eivd7m45in8amus2o1bv4qtc1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.queueup.india",
+            "certificate_hash": "449ee0329e3e5d438c44bba2a6cba7b3be8cdc87"
+          }
+        },
+        {
           "client_id": "361379272562-0pikr094vaot66t1jqla3jgb2o2lltct.apps.googleusercontent.com",
           "client_type": 3
         }

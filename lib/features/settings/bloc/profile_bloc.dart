@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
@@ -21,6 +22,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileSaveNoticeConsumed>(_onProfileSaveNoticeConsumed);
     on<ProfileLogoutRequested>(_onProfileLogoutRequested);
     on<ProfileLogoutConsumed>(_onProfileLogoutConsumed);
+    on<ProfileDeleteRequested>(_onProfileDeleteRequested);
+    on<ProfileDeleteConsumed>(_onProfileDeleteConsumed);
   }
 
   final ProfileViewModel _profileViewModel;
@@ -47,6 +50,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             avatarUrl: prefs.avatarUrl,
             showSavedNotice: false,
             didLogout: false,
+            didDeleteAccount: false,
           ),
         ),
       );
@@ -67,6 +71,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           queueName: event.queueName,
           showSavedNotice: false,
           didLogout: false,
+          didDeleteAccount: false,
         ),
       ),
     );
@@ -82,6 +87,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           preferredLanguageCode: event.languageCode,
           showSavedNotice: false,
           didLogout: false,
+          didDeleteAccount: false,
         ),
       ),
     );
@@ -97,6 +103,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           avatarUrl: event.avatarUrl,
           showSavedNotice: false,
           didLogout: false,
+          didDeleteAccount: false,
         ),
       ),
     );
@@ -119,7 +126,14 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           avatarUrl: state.data.avatarUrl,
         ),
       );
-      emit(ProfileSuccess(data: state.data.copyWith(showSavedNotice: true)));
+      emit(
+        ProfileSuccess(
+          data: state.data.copyWith(
+            showSavedNotice: true,
+            didDeleteAccount: false,
+          ),
+        ),
+      );
     } catch (_) {
       emit(
         ProfileError(message: AppStrings.profileSaveFailed, data: state.data),
@@ -133,7 +147,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) {
     emit(
       ProfileSuccess(
-        data: state.data.copyWith(showSavedNotice: false, didLogout: false),
+        data: state.data.copyWith(
+          showSavedNotice: false,
+          didLogout: false,
+          didDeleteAccount: false,
+        ),
       ),
     );
   }
@@ -147,13 +165,66 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       await AvailabilitySessionManager.clearAvailabilityOnTerminate();
     } catch (_) {}
     await AppPreferences.setLoggedIn(false);
-    emit(ProfileSuccess(data: state.data.copyWith(didLogout: true)));
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(didLogout: true, didDeleteAccount: false),
+      ),
+    );
   }
 
   void _onProfileLogoutConsumed(
     ProfileLogoutConsumed event,
     Emitter<ProfileState> emit,
   ) {
-    emit(ProfileSuccess(data: state.data.copyWith(didLogout: false)));
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(didLogout: false, didDeleteAccount: false),
+      ),
+    );
+  }
+
+  Future<void> _onProfileDeleteRequested(
+    ProfileDeleteRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    emit(ProfileLoading(data: state.data));
+    try {
+      await AvailabilitySessionManager.clearAvailabilityOnTerminate();
+    } catch (_) {}
+
+    try {
+      await _profileViewModel.deleteAccount(
+        displayName: state.data.queueName,
+      );
+      await AppPreferences.setLoggedIn(false);
+      emit(
+        ProfileSuccess(
+          data: state.data.copyWith(
+            didDeleteAccount: true,
+            didLogout: false,
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      final message = error.code == 'requires-recent-login'
+          ? AppStrings.deleteAccountReauthRequired
+          : AppStrings.deleteAccountFailed;
+      emit(ProfileError(message: message, data: state.data));
+    } catch (_) {
+      emit(
+        ProfileError(message: AppStrings.deleteAccountFailed, data: state.data),
+      );
+    }
+  }
+
+  void _onProfileDeleteConsumed(
+    ProfileDeleteConsumed event,
+    Emitter<ProfileState> emit,
+  ) {
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(didDeleteAccount: false, didLogout: false),
+      ),
+    );
   }
 }

@@ -25,7 +25,7 @@ class PushNotificationService {
 
   static final PushNotificationService instance = PushNotificationService._();
 
-  static const String _channelId = 'queueup_alerts';
+  static const String _channelId = 'queueup_alerts_v2';
   static const String _channelName = 'QueueUp Alerts';
   static const String _channelDescription = 'Chat requests and party messages';
   static const String _androidSound = 'queueup_notification';

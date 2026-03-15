@@ -17,6 +17,7 @@ class RegistrationViewData extends Equatable {
     required this.selectedAvatarUrl,
     required this.selectedCountryCodeId,
     required this.didCompleteRegistration,
+    required this.acceptedLegal,
     required this.mode,
   });
 
@@ -30,6 +31,7 @@ class RegistrationViewData extends Equatable {
       selectedAvatarUrl = null,
       selectedCountryCodeId = defaultCountryCodeId,
       didCompleteRegistration = false,
+      acceptedLegal = false,
       mode = RegistrationMode.login;
 
   final String phoneNumber;
@@ -41,6 +43,7 @@ class RegistrationViewData extends Equatable {
   final String? selectedAvatarUrl;
   final String selectedCountryCodeId;
   final bool didCompleteRegistration;
+  final bool acceptedLegal;
   final RegistrationMode mode;
 
   bool get isRegistration => mode == RegistrationMode.register;
@@ -55,6 +58,9 @@ class RegistrationViewData extends Equatable {
       return false;
     }
     if (isRegistration && !isUsernameAvailable) {
+      return false;
+    }
+    if (isRegistration && !acceptedLegal) {
       return false;
     }
     final option = countryCodeOptionById(selectedCountryCodeId);
@@ -77,6 +83,9 @@ class RegistrationViewData extends Equatable {
     if (isRegistration && !isUsernameAvailable) {
       return false;
     }
+    if (isRegistration && !acceptedLegal) {
+      return false;
+    }
     return true;
   }
 
@@ -92,6 +101,7 @@ class RegistrationViewData extends Equatable {
     bool clearAvatar = false,
     String? selectedCountryCodeId,
     bool? didCompleteRegistration,
+    bool? acceptedLegal,
     RegistrationMode? mode,
   }) {
     return RegistrationViewData(
@@ -108,6 +118,7 @@ class RegistrationViewData extends Equatable {
           selectedCountryCodeId ?? this.selectedCountryCodeId,
       didCompleteRegistration:
           didCompleteRegistration ?? this.didCompleteRegistration,
+      acceptedLegal: acceptedLegal ?? this.acceptedLegal,
       mode: mode ?? this.mode,
     );
   }
@@ -123,6 +134,7 @@ class RegistrationViewData extends Equatable {
     selectedAvatarUrl,
     selectedCountryCodeId,
     didCompleteRegistration,
+    acceptedLegal,
     mode,
   ];
 }

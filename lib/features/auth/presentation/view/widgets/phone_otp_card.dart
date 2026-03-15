@@ -132,6 +132,13 @@ class PhoneOtpCard extends StatelessWidget {
                       ? null
                       : () {
                           if (!data.canSendOtp) {
+                            if (needsUsername && !data.acceptedLegal) {
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.acceptLegalRequired,
+                              );
+                              return;
+                            }
                             if (needsUsername && !hasUsername) {
                               AppSnackBar.showError(
                                 context,
@@ -207,6 +214,13 @@ class PhoneOtpCard extends StatelessWidget {
                   isLoading: isLoading,
                   enabled: canVerify,
                   onDisabledPressed: () {
+                    if (needsUsername && !data.acceptedLegal) {
+                      AppSnackBar.showError(
+                        context,
+                        AppStrings.acceptLegalRequired,
+                      );
+                      return;
+                    }
                     if (needsUsername && !hasUsername) {
                       AppSnackBar.showError(
                         context,

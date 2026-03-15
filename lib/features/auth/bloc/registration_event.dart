@@ -91,3 +91,12 @@ class RegistrationModeChanged extends RegistrationEvent {
   @override
   List<Object?> get props => <Object?>[mode];
 }
+
+class RegistrationLegalAcceptedChanged extends RegistrationEvent {
+  const RegistrationLegalAcceptedChanged({required this.accepted});
+
+  final bool accepted;
+
+  @override
+  List<Object?> get props => <Object?>[accepted];
+}

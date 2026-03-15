@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_images.dart';
@@ -26,6 +27,7 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _controller;
   late final Animation<double> _progress;
   bool _hasNavigated = false;
+  String _versionLabel = '';
 
   @override
   void initState() {
@@ -37,12 +39,27 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     Future<void>.delayed(_navigationDelay, _navigateNext);
+    _loadVersion();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _versionLabel = 'Ver ${info.version}';
+      });
+    } catch (_) {
+      // Keep the fallback label.
+    }
   }
 
   Future<void> _navigateNext() async {
@@ -282,7 +299,9 @@ class _SplashScreenState extends State<SplashScreen>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  AppStrings.versionLabel,
+                                  _versionLabel.isEmpty
+                                      ? AppStrings.versionLabel
+                                      : _versionLabel,
                                   style: AppTextStyles.caption.copyWith(
                                     letterSpacing: 2.2,
                                   ),

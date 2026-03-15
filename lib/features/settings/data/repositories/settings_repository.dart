@@ -15,4 +15,6 @@ abstract class SettingsRepository {
   Future<ProfilePreferencesModel> fetchProfilePreferences();
 
   Future<void> saveProfilePreferences(ProfilePreferencesModel preferences);
+
+  Future<void> deleteAccount({required String displayName});
 }

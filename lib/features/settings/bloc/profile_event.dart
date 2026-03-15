@@ -53,3 +53,11 @@ class ProfileLogoutRequested extends ProfileEvent {
 class ProfileLogoutConsumed extends ProfileEvent {
   const ProfileLogoutConsumed();
 }
+
+class ProfileDeleteRequested extends ProfileEvent {
+  const ProfileDeleteRequested();
+}
+
+class ProfileDeleteConsumed extends ProfileEvent {
+  const ProfileDeleteConsumed();
+}

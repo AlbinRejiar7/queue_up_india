@@ -12,7 +12,7 @@ const db = getFirestore();
 const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
-const NOTIFICATION_CHANNEL_ID = "queueup_alerts";
+const NOTIFICATION_CHANNEL_ID = "queueup_alerts_v2";
 
 function normalizeData(data) {
   const payload = {};

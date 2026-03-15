@@ -24,7 +24,9 @@ abstract final class AppStrings {
   static const String loginDescription =
       'Manage your waitlist seamlessly with modern tools';
   static const String continueWithGoogle = 'Continue with Google';
-  static const String continueAsGuest = 'Continue as Guest';
+  static const String googleConsentTitle = 'Agree to continue';
+  static const String googleConsentMessage =
+      'Please review and accept our Privacy Policy and Terms before signing in with Google.';
   static const String createAccountTitle = 'Create Account';
   static const String createAccountSubtitle =
       'Register with your phone and jump into the queue.';
@@ -92,6 +94,10 @@ abstract final class AppStrings {
   static const String legalPrefix = 'By continuing, you agree to our';
   static const String termsOfService = 'Terms of Service';
   static const String privacyPolicy = 'Privacy Policy';
+  static const String privacyPolicyUrl =
+      'https://albinrejiar7.github.io/legal/privacy.html';
+  static const String termsUrl =
+      'https://albinrejiar7.github.io/legal/terms.html';
   static const String secureAccess = 'Secure Access';
   static const String rapidEntry = 'Rapid Entry';
   static const String availableGlobal = 'Available Global';
@@ -147,6 +153,10 @@ abstract final class AppStrings {
       'That quick message already exists.';
   static const String quickMessageLimit =
       'You can add up to 5 custom quick messages.';
+  static const String quickMessageCooldown =
+      'Please wait a moment before sending another quick message.';
+  static const String quickMessageDuplicateCooldown =
+      'You just sent that message. Try a different one.';
   static const String seeMore = 'See more';
   static const String seeLess = 'See less';
   static const String sharePlayerId = 'Share Player ID';
@@ -186,6 +196,10 @@ abstract final class AppStrings {
   static const String confirmExitTitle = 'Exit QueueUp India?';
   static const String confirmExitMessage =
       'Are you sure you want to close the app?';
+  static const String acceptLegalRequired =
+      'Please accept the Privacy Policy and Terms to continue.';
+  static const String acceptLegalPrefix = 'I agree to the';
+  static const String acceptLegalAnd = 'and';
   static const String cancelAction = 'Cancel';
   static const String confirmAction = 'Confirm';
   static const String confirmKickTitle = 'Remove player?';
@@ -282,6 +296,15 @@ abstract final class AppStrings {
   static const String inLobby = 'In Lobby';
   static const String startMatch = 'Start Match';
   static const String leaveParty = 'Leave Party';
+  static const String deleteAccount = 'Delete Account';
+  static const String confirmDeleteAccountTitle = 'Delete your account?';
+  static const String confirmDeleteAccountMessage =
+      'Your account and all data will be permanently deleted.';
+  static const String deleteAccountConfirmAction = 'Delete';
+  static const String deleteAccountSuccess = 'Account deleted.';
+  static const String deleteAccountFailed = 'Unable to delete account right now.';
+  static const String deleteAccountReauthRequired =
+      'Please log in again to delete your account.';
   static const String blockPlayer = 'Block player';
   static const String unblockPlayer = 'Unblock player';
   static const String reportPlayer = 'Report player';

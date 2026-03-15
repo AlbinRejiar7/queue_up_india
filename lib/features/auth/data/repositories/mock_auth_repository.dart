@@ -23,25 +23,12 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserModel> signInAsGuest() async {
-    // TODO: Implement FirebaseAuth here
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    return const UserModel(
-      id: 'guest_001',
-      displayName: 'GuestPlayer',
-      isGuest: true,
-      avatarUrl: null,
-    );
-  }
-
-  @override
   Future<UserModel> signInWithGoogle() async {
     // TODO: Implement FirebaseAuth here
     await Future<void>.delayed(const Duration(milliseconds: 900));
     return const UserModel(
       id: 'google_001',
       displayName: 'ShadowPlayer',
-      isGuest: false,
       avatarUrl: null,
     );
   }
@@ -60,7 +47,6 @@ class MockAuthRepository implements AuthRepository {
       displayName: displayName?.trim().isNotEmpty == true
           ? displayName!.trim()
           : 'QueuePlayer',
-      isGuest: false,
       avatarUrl: avatarUrl,
     );
   }

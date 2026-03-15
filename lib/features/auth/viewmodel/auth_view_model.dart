@@ -10,8 +10,4 @@ class AuthViewModel {
   Future<UserModel> continueWithGoogle() {
     return _authRepository.signInWithGoogle();
   }
-
-  Future<UserModel> continueAsGuest() {
-    return _authRepository.signInAsGuest();
-  }
 }

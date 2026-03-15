@@ -10,6 +10,7 @@ class ProfileViewData extends Equatable {
     required this.avatarUrl,
     this.showSavedNotice = false,
     this.didLogout = false,
+    this.didDeleteAccount = false,
   });
 
   const ProfileViewData.initial()
@@ -18,7 +19,8 @@ class ProfileViewData extends Equatable {
       preferredLanguageCode = '',
       avatarUrl = '',
       showSavedNotice = false,
-      didLogout = false;
+      didLogout = false,
+      didDeleteAccount = false;
 
   final List<LanguageModel> languages;
   final String queueName;
@@ -26,6 +28,7 @@ class ProfileViewData extends Equatable {
   final String avatarUrl;
   final bool showSavedNotice;
   final bool didLogout;
+  final bool didDeleteAccount;
 
   bool get canSave =>
       queueName.trim().isNotEmpty && preferredLanguageCode.trim().isNotEmpty;
@@ -37,6 +40,7 @@ class ProfileViewData extends Equatable {
     String? avatarUrl,
     bool? showSavedNotice,
     bool? didLogout,
+    bool? didDeleteAccount,
   }) {
     return ProfileViewData(
       languages: languages ?? this.languages,
@@ -46,6 +50,7 @@ class ProfileViewData extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       showSavedNotice: showSavedNotice ?? this.showSavedNotice,
       didLogout: didLogout ?? this.didLogout,
+      didDeleteAccount: didDeleteAccount ?? this.didDeleteAccount,
     );
   }
 
@@ -57,6 +62,7 @@ class ProfileViewData extends Equatable {
     avatarUrl,
     showSavedNotice,
     didLogout,
+    didDeleteAccount,
   ];
 }
 

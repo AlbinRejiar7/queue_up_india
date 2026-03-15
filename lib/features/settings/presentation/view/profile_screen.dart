@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_routes.dart';
@@ -35,6 +36,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _queueNameController;
+
+  Future<void> _openExternalLink(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   void initState() {
@@ -95,6 +101,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         context.go(AppRoutes.login);
                         context.read<ProfileBloc>().add(
                           const ProfileLogoutConsumed(),
+                        );
+                      }
+
+                      if (state is ProfileSuccess &&
+                          state.data.didDeleteAccount) {
+                        AppSnackBar.showSuccess(
+                          context,
+                          AppStrings.deleteAccountSuccess,
+                        );
+                        context.read<RegistrationBloc>().add(
+                          const RegistrationResetRequested(),
+                        );
+                        context.go(AppRoutes.login);
+                        context.read<ProfileBloc>().add(
+                          const ProfileDeleteConsumed(),
                         );
                       }
                     },
@@ -269,9 +290,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   },
                                 ),
                                 SizedBox(height: 12.h),
+                                GlassContainer(
+                                  borderRadius: 22.r,
+                                  padding: EdgeInsets.all(14.r),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        AppStrings.privacy,
+                                        style: AppTextStyles.bodyMedium,
+                                      ),
+                                      SizedBox(height: 6.h),
+                                      Wrap(
+                                        spacing: 8.w,
+                                        children: <Widget>[
+                                          TextButton(
+                                            onPressed: () =>
+                                                _openExternalLink(
+                                                  AppStrings.privacyPolicyUrl,
+                                                ),
+                                            child: Text(
+                                              AppStrings.privacyPolicy,
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                _openExternalLink(
+                                                  AppStrings.termsUrl,
+                                                ),
+                                            child: Text(
+                                              AppStrings.termsOfService,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 12.h),
                                 PrimaryButton(
                                   label: AppStrings.logout,
                                   isDanger: true,
+                                  enabled: !isLoading,
                                   onPressed: () async {
                                     final shouldLogout =
                                         await AppDialog.showConfirm(
@@ -287,6 +348,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     }
                                     context.read<ProfileBloc>().add(
                                       const ProfileLogoutRequested(),
+                                    );
+                                  },
+                                ),
+                                SizedBox(height: 12.h),
+                                PrimaryButton(
+                                  label: AppStrings.deleteAccount,
+                                  isDanger: true,
+                                  enabled: !isLoading,
+                                  onPressed: () async {
+                                    final shouldDelete =
+                                        await AppDialog.showConfirm(
+                                      context,
+                                      title:
+                                          AppStrings.confirmDeleteAccountTitle,
+                                      message:
+                                          AppStrings.confirmDeleteAccountMessage,
+                                      confirmLabel:
+                                          AppStrings.deleteAccountConfirmAction,
+                                      cancelLabel: AppStrings.cancelAction,
+                                      confirmIsDestructive: true,
+                                    );
+                                    if (!shouldDelete) {
+                                      return;
+                                    }
+                                    context.read<ProfileBloc>().add(
+                                      const ProfileDeleteRequested(),
                                     );
                                   },
                                 ),

@@ -124,6 +124,56 @@ class FirestoreSettingsRepository implements SettingsRepository {
     );
   }
 
+  @override
+  Future<void> deleteAccount({required String displayName}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return;
+    }
+    final uid = user.uid;
+    final userRef = _db.collection('users').doc(uid);
+
+    await _deleteSubcollection(userRef, 'private');
+    await _deleteSubcollection(userRef, 'rooms');
+    await _deleteSubcollection(userRef, 'fcmTokens');
+    await _deleteSubcollection(userRef, 'notifications');
+
+    await userRef.delete();
+    await _db.collection('availability').doc(uid).delete();
+
+    final normalized = _normalizeUsername(displayName);
+    if (normalized.isNotEmpty) {
+      try {
+        await _db.collection('usernames').doc(normalized).delete();
+      } catch (_) {}
+    }
+
+    await user.delete();
+  }
+
+  Future<void> _deleteSubcollection(
+    DocumentReference<Map<String, dynamic>> parent,
+    String name,
+  ) async {
+    final snapshot = await parent.collection(name).get();
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  String _normalizeUsername(String username) {
+    final trimmed = username.trim().toLowerCase();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    return trimmed.replaceAll(RegExp(r'[^a-z0-9_]'), '');
+  }
+
   ProfilePreferencesModel _fallbackProfile() {
     return const ProfilePreferencesModel(
       queueName: 'QueuePlayer',

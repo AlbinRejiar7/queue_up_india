@@ -19,4 +19,8 @@ class ProfileViewModel {
   Future<void> savePreferences(ProfilePreferencesModel preferences) {
     return _settingsRepository.saveProfilePreferences(preferences);
   }
+
+  Future<void> deleteAccount({required String displayName}) {
+    return _settingsRepository.deleteAccount(displayName: displayName);
+  }
 }

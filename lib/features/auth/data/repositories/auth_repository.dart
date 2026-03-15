@@ -3,8 +3,6 @@ import '../../models/user_model.dart';
 abstract class AuthRepository {
   Future<UserModel> signInWithGoogle();
 
-  Future<UserModel> signInAsGuest();
-
   Future<void> sendOtp({required String phoneNumber});
 
   Future<bool> isPhoneRegistered({required String phoneNumber});

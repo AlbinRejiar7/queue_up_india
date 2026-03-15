@@ -9,7 +9,7 @@ import 'party_repository.dart';
 
 class MockPartyRepository implements PartyRepository {
   static const String _hostUserId = 'u_001';
-  static const String _joinedUserId = 'u_guest_join';
+  static const String _joinedUserId = 'u_joined_001';
 
   MockPartyRepository() {
     _parties = <PartyModel>[
@@ -142,7 +142,7 @@ class MockPartyRepository implements PartyRepository {
           ),
           const PartyPlayerModel(
             id: _joinedUserId,
-            name: 'GuestPlayer',
+            name: 'QueuePlayer',
             avatarUrl: AppImages.avatarTwo,
             status: 'Joined',
           ),

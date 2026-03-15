@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -90,6 +93,81 @@ class RegistrationScreen extends StatelessWidget {
                             const AvatarSelectionSection(),
                             SizedBox(height: 18.h),
                             const PhoneOtpCard(),
+                            SizedBox(height: 16.h),
+                            BlocBuilder<RegistrationBloc, RegistrationState>(
+                              builder: (context, state) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Checkbox(
+                                      value: state.data.acceptedLegal,
+                                      onChanged: (value) {
+                                        context.read<RegistrationBloc>().add(
+                                          RegistrationLegalAcceptedChanged(
+                                            accepted: value ?? false,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(top: 6.h),
+                                        child: Text.rich(
+                                          TextSpan(
+                                            text: '${AppStrings.acceptLegalPrefix} ',
+                                            style: AppTextStyles.caption,
+                                            children: <TextSpan>[
+                                              TextSpan(
+                                                text: AppStrings.privacyPolicy,
+                                                style: AppTextStyles.caption
+                                                    .copyWith(
+                                                  color: AppColors.electricBlue,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () {
+                                                    launchUrl(
+                                                      Uri.parse(
+                                                        AppStrings
+                                                            .privacyPolicyUrl,
+                                                      ),
+                                                      mode: LaunchMode
+                                                          .externalApplication,
+                                                    );
+                                                  },
+                                              ),
+                                              TextSpan(
+                                                text: ' ${AppStrings.acceptLegalAnd} ',
+                                                style: AppTextStyles.caption,
+                                              ),
+                                              TextSpan(
+                                                text: AppStrings.termsOfService,
+                                                style: AppTextStyles.caption
+                                                    .copyWith(
+                                                  color: AppColors.electricBlue,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () {
+                                                    launchUrl(
+                                                      Uri.parse(
+                                                        AppStrings.termsUrl,
+                                                      ),
+                                                      mode: LaunchMode
+                                                          .externalApplication,
+                                                    );
+                                                  },
+                                              ),
+                                              const TextSpan(text: '.'),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                             SizedBox(height: 20.h),
                           ],
                         ),

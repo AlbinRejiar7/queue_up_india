@@ -27,6 +27,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     on<RegistrationNavigationConsumed>(_onNavigationConsumed);
     on<RegistrationResetRequested>(_onResetRequested);
     on<RegistrationModeChanged>(_onModeChanged);
+    on<RegistrationLegalAcceptedChanged>(_onLegalAcceptedChanged);
   }
 
   final RegistrationViewModel _registrationViewModel;
@@ -193,6 +194,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       } else if (state.data.isRegistration &&
           !state.data.isUsernameAvailable) {
         message = AppStrings.usernameCheckFailed;
+      } else if (state.data.isRegistration && !state.data.acceptedLegal) {
+        message = AppStrings.acceptLegalRequired;
       } else if (state.data.isRegistration && !state.data.hasUsername) {
         message = AppStrings.usernameRequired;
       } else if (state.data.phoneNumber.trim().isEmpty) {
@@ -286,6 +289,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       } else if (state.data.isRegistration &&
           !state.data.isUsernameAvailable) {
         message = AppStrings.usernameCheckFailed;
+      } else if (state.data.isRegistration && !state.data.acceptedLegal) {
+        message = AppStrings.acceptLegalRequired;
       } else if (state.data.isRegistration && !state.data.hasUsername) {
         message = AppStrings.usernameRequired;
       } else {
@@ -388,6 +393,20 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
               ? UsernameCheckStatus.unknown
               : state.data.usernameStatus,
           isUsernameChecking: false,
+          didCompleteRegistration: false,
+        ),
+      ),
+    );
+  }
+
+  void _onLegalAcceptedChanged(
+    RegistrationLegalAcceptedChanged event,
+    Emitter<RegistrationState> emit,
+  ) {
+    emit(
+      RegistrationSuccess(
+        data: state.data.copyWith(
+          acceptedLegal: event.accepted,
           didCompleteRegistration: false,
         ),
       ),

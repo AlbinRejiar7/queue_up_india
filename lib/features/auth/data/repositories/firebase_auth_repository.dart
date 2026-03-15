@@ -163,7 +163,6 @@ class FirebaseAuthRepository implements AuthRepository {
       refreshed ?? user,
       displayName: trimmedName,
       avatarUrl: avatarUrl,
-      isGuest: false,
     );
     if (trimmedName != null && trimmedName.isNotEmpty) {
       await _claimUsername(trimmedName, user.uid);
@@ -187,13 +186,15 @@ class FirebaseAuthRepository implements AuthRepository {
       displayName: trimmedName?.isNotEmpty == true
           ? trimmedName!
           : (refreshed?.displayName ?? user.displayName ?? 'QueuePlayer'),
-      isGuest: false,
       avatarUrl: avatarUrl,
     );
   }
 
   @override
   Future<UserModel> signInWithGoogle() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     final GoogleSignInAccount? account = await _googleSignIn.signIn();
     if (account == null) {
       throw StateError('Google sign-in cancelled.');
@@ -234,45 +235,20 @@ class FirebaseAuthRepository implements AuthRepository {
       user,
       displayName: resolvedName,
       avatarUrl: resolvedAvatar,
-      isGuest: false,
     );
 
     return UserModel(
       id: user.uid,
       displayName: resolvedName,
-      isGuest: false,
       avatarUrl: resolvedAvatar,
     );
   }
 
   @override
-  Future<UserModel> signInAsGuest() async {
-    final UserCredential result = await _auth.signInAnonymously();
-    final User? user = result.user;
-    if (user == null) {
-      throw StateError('Guest sign-in failed.');
-    }
-
-    await _upsertUserProfile(
-      user,
-      displayName: 'GuestPlayer',
-      avatarUrl: null,
-      isGuest: true,
-    );
-
-    return UserModel(
-      id: user.uid,
-      displayName: 'GuestPlayer',
-      isGuest: true,
-      avatarUrl: null,
-    );
-  }
-
   Future<void> _upsertUserProfile(
     User user, {
     String? displayName,
     String? avatarUrl,
-    bool? isGuest,
   }) async {
     final docRef = _db.collection('users').doc(user.uid);
     final snapshot = await docRef.get();
@@ -286,7 +262,6 @@ class FirebaseAuthRepository implements AuthRepository {
       'displayName': resolvedName,
       'avatarUrl': avatarUrl ?? user.photoURL,
       'updatedAt': FieldValue.serverTimestamp(),
-      if (isGuest != null) 'isGuest': isGuest,
     };
 
     if (!snapshot.exists) {
