@@ -453,6 +453,221 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     AppSnackBar.showSuccess(context, AppStrings.quickMessageAdded);
   }
 
+  bool _isCustomQuickMessage(String message) {
+    return _customQuickMessages.any(
+      (item) => item.toLowerCase() == message.toLowerCase(),
+    );
+  }
+
+  Future<void> _editCustomQuickMessage({
+    required String original,
+    required String updatedMessage,
+  }) async {
+    final trimmed = updatedMessage.trim();
+    if (trimmed.isEmpty) {
+      AppSnackBar.showError(context, AppStrings.emptyQuickValue);
+      return;
+    }
+    final existsInDefaults = _quickMessages.any(
+      (item) => item.toLowerCase() == trimmed.toLowerCase(),
+    );
+    final existsInCustom = _customQuickMessages.any(
+      (item) =>
+          item.toLowerCase() == trimmed.toLowerCase() &&
+          item.toLowerCase() != original.toLowerCase(),
+    );
+    if (existsInDefaults || existsInCustom) {
+      AppSnackBar.showInfo(context, AppStrings.quickMessageExists);
+      return;
+    }
+
+    final updated = _customQuickMessages
+        .map(
+          (item) => item.toLowerCase() == original.toLowerCase()
+              ? trimmed
+              : item,
+        )
+        .toList();
+    await AppPreferences.saveCustomQuickMessages(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _customQuickMessages = updated;
+    });
+    AppSnackBar.showSuccess(context, AppStrings.quickMessageUpdated);
+  }
+
+  Future<void> _removeCustomQuickMessage(String message) async {
+    final updated = _customQuickMessages
+        .where(
+          (item) => item.toLowerCase() != message.toLowerCase(),
+        )
+        .toList();
+    await AppPreferences.saveCustomQuickMessages(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _customQuickMessages = updated;
+    });
+    AppSnackBar.showSuccess(context, AppStrings.quickMessageRemoved);
+  }
+
+  Future<void> _promptEditQuickMessage(String message) async {
+    final controller = TextEditingController(text: message);
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16.w,
+              16.h,
+              16.w,
+              bottomInset + 16.h,
+            ),
+            child: GlassContainer(
+              borderRadius: 24.r,
+              padding: EdgeInsets.all(16.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    AppStrings.editQuickMessageTitle,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  TextField(
+                    controller: controller,
+                    style: AppTextStyles.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: AppStrings.editQuickMessageHint,
+                      hintStyle: AppTextStyles.caption,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: Text(AppStrings.cancelAction),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.emptyQuickValue,
+                              );
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(text);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlueBright,
+                            foregroundColor: AppColors.textPrimary,
+                          ),
+                          child: Text(AppStrings.updateAction),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == null || result.trim().isEmpty || !mounted) {
+      return;
+    }
+    await _editCustomQuickMessage(
+      original: message,
+      updatedMessage: result,
+    );
+  }
+
+  Future<void> _promptQuickMessageActions(String message) async {
+    final action = await showModalBottomSheet<_QuickMessageAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(16.r),
+            child: GlassContainer(
+              borderRadius: 20.r,
+              padding: EdgeInsets.all(12.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: Text(AppStrings.editQuickMessage),
+                    onTap: () => Navigator.of(sheetContext)
+                        .pop(_QuickMessageAction.edit),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: Text(AppStrings.removeQuickMessage),
+                    onTap: () => Navigator.of(sheetContext)
+                        .pop(_QuickMessageAction.remove),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == null || !mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _QuickMessageAction.edit:
+        await _promptEditQuickMessage(message);
+      case _QuickMessageAction.remove:
+        final confirmed = await AppDialog.showConfirm(
+          context,
+          title: AppStrings.removeQuickMessageTitle,
+          message: AppStrings.removeQuickMessageMessage,
+          confirmLabel: AppStrings.removeQuickMessage,
+          cancelLabel: AppStrings.cancelAction,
+          confirmIsDestructive: true,
+        );
+        if (!confirmed || !mounted) {
+          return;
+        }
+        await _removeCustomQuickMessage(message);
+    }
+  }
+
   Future<void> _promptAddQuickMessage() async {
     final controller = TextEditingController();
     final result = await showModalBottomSheet<String>(
@@ -548,6 +763,48 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
       return;
     }
     await _addCustomQuickMessage(result);
+  }
+
+  Widget _buildQuickChip(
+    BuildContext context,
+    String message, {
+    required bool isCustom,
+  }) {
+    return ActionChip(
+      label: Text(
+        message,
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: isCustom ? FontWeight.w700 : FontWeight.w600,
+        ),
+      ),
+      backgroundColor:
+          (isCustom ? AppColors.softPurple : AppColors.electricBlue).withValues(
+        alpha: isCustom ? 0.22 : 0.15,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.r),
+        side: BorderSide(
+          color: (isCustom
+                  ? AppColors.softPurple
+                  : AppColors.electricBlueBright)
+              .withValues(
+            alpha: isCustom ? 0.5 : 0.3,
+          ),
+        ),
+      ),
+      onPressed: () {
+        if (_isBlocked) {
+          AppSnackBar.showInfo(
+            context,
+            AppStrings.blockedChatDisabled,
+          );
+          return;
+        }
+        _stickToBottom = true;
+        _sendQuickMessage(context, message);
+      },
+    );
   }
 
   Future<void> _syncAvailability() async {
@@ -683,23 +940,19 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final availableHeight =
         MediaQuery.of(context).size.height - viewInsets;
-    final quickHeightFactor = _showAllQuickMessages ? 0.35 : 0.22;
-    final maxQuickHeight = max(
-      80.h,
-      min(
-        _showAllQuickMessages ? 260.h : 150.h,
-        availableHeight * quickHeightFactor,
-      ),
-    );
     final maxBottomSectionHeight =
         min(availableHeight * 0.45, 340.h);
-    final allQuickMessages = <String>[
-      ..._customQuickMessages,
-      ..._quickMessages,
-    ];
-    final visibleQuickMessages = _showAllQuickMessages
-        ? allQuickMessages
-        : allQuickMessages.take(5).toList();
+    final allCustomMessages = _customQuickMessages;
+    final allDefaultMessages = _quickMessages;
+    final totalQuickCount =
+        allCustomMessages.length + allDefaultMessages.length;
+    int remaining =
+        _showAllQuickMessages ? totalQuickCount : min(5, totalQuickCount);
+    final visibleCustomMessages = allCustomMessages.take(remaining).toList();
+    remaining -= visibleCustomMessages.length;
+    final visibleDefaultMessages = remaining > 0
+        ? allDefaultMessages.take(remaining).toList()
+        : <String>[];
 
     return BlocProvider<ChatBloc>(
       create: (_) => ChatBloc(
@@ -1060,8 +1313,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                       AppStrings.addAction,
                                                     ),
                                                   ),
-                                                  if (allQuickMessages.length >
-                                                      5)
+                                                  if (totalQuickCount > 5)
                                                     TextButton(
                                                       onPressed: () {
                                                         setState(() {
@@ -1074,8 +1326,17 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                             ? AppStrings.seeLess
                                                             : AppStrings.seeMore,
                                                       ),
-                                                    ),
+                                                  ),
                                                 ],
+                                              ),
+                                              SizedBox(height: 4.h),
+                                              Text(
+                                                AppStrings.quickMessagesHint,
+                                                style: AppTextStyles.caption
+                                                    .copyWith(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
                                               ),
                                               SizedBox(height: 8.h),
                                               AnimatedSize(
@@ -1085,72 +1346,99 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                 curve: Curves.easeInOut,
                                                 alignment:
                                                     Alignment.bottomCenter,
-                                                child: ConstrainedBox(
-                                                  constraints: BoxConstraints(
-                                                    maxHeight: maxQuickHeight,
-                                                  ),
-                                                  child: SingleChildScrollView(
-                                                    child: Wrap(
-                                                      spacing: 8.w,
-                                                      runSpacing: 8.h,
-                                                      children:
-                                                          visibleQuickMessages
-                                                              .map(
-                                                        (message) =>
-                                                            ActionChip(
-                                                          label: Text(
-                                                            message,
-                                                            style: AppTextStyles
-                                                                .caption
-                                                                .copyWith(
-                                                              color: AppColors
-                                                                  .textPrimary,
-                                                              fontWeight:
-                                                                  FontWeight.w600,
-                                                            ),
-                                                          ),
-                                                          backgroundColor:
-                                                              AppColors
-                                                                  .electricBlue
-                                                                  .withValues(
-                                                                    alpha: 0.15,
-                                                                  ),
-                                                          shape:
-                                                              RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                              16.r,
-                                                            ),
-                                                            side: BorderSide(
-                                                              color: AppColors
-                                                                  .electricBlueBright
-                                                                  .withValues(
-                                                                    alpha: 0.3,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                          onPressed: () {
-                                                            if (_isBlocked) {
-                                                              AppSnackBar
-                                                                  .showInfo(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: <Widget>[
+                                                    if (visibleCustomMessages
+                                                        .isNotEmpty) ...<
+                                                      Widget
+                                                    >[
+                                                      Text(
+                                                        AppStrings
+                                                            .customQuickMessagesTitle,
+                                                        style: AppTextStyles
+                                                            .caption
+                                                            .copyWith(
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                      SizedBox(height: 8.h),
+                                                      Wrap(
+                                                        spacing: 8.w,
+                                                        runSpacing: 8.h,
+                                                        children:
+                                                            visibleCustomMessages
+                                                                .map(
+                                                          (message) {
+                                                            return GestureDetector(
+                                                              onLongPress: () {
+                                                                _promptQuickMessageActions(
+                                                                  message,
+                                                                );
+                                                              },
+                                                              child:
+                                                                  _buildQuickChip(
                                                                 context,
-                                                                AppStrings
-                                                                    .blockedChatDisabled,
-                                                              );
-                                                              return;
-                                                            }
-                                                            _stickToBottom =
-                                                                true;
-                                                            _sendQuickMessage(
-                                                              context,
-                                                              message,
+                                                                message,
+                                                                isCustom: true,
+                                                              ),
                                                             );
                                                           },
+                                                        ).toList(),
+                                                      ),
+                                                    ],
+                                                    if (visibleCustomMessages
+                                                            .isNotEmpty &&
+                                                        visibleDefaultMessages
+                                                            .isNotEmpty) ...<
+                                                      Widget
+                                                    >[
+                                                      SizedBox(height: 12.h),
+                                                      Divider(
+                                                        height: 1,
+                                                        color:
+                                                            AppColors.navSurface,
+                                                      ),
+                                                      SizedBox(height: 12.h),
+                                                    ],
+                                                    if (visibleDefaultMessages
+                                                        .isNotEmpty) ...<
+                                                      Widget
+                                                    >[
+                                                      Text(
+                                                        AppStrings
+                                                            .defaultQuickMessagesTitle,
+                                                        style: AppTextStyles
+                                                            .caption
+                                                            .copyWith(
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                          fontWeight:
+                                                              FontWeight.w600,
                                                         ),
-                                                      ).toList(),
-                                                    ),
-                                                  ),
+                                                      ),
+                                                      SizedBox(height: 8.h),
+                                                      Wrap(
+                                                        spacing: 8.w,
+                                                        runSpacing: 8.h,
+                                                        children:
+                                                            visibleDefaultMessages
+                                                                .map(
+                                                          (message) {
+                                                            return _buildQuickChip(
+                                                              context,
+                                                              message,
+                                                              isCustom: false,
+                                                            );
+                                                          },
+                                                        ).toList(),
+                                                      ),
+                                                    ],
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -1176,6 +1464,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 }
 
 enum _ChatAction { block, unblock, report }
+
+enum _QuickMessageAction { edit, remove }
 
 ImageProvider _avatarProvider(String url) {
   if (url.trim().isEmpty) {

@@ -76,6 +76,10 @@ class ChatViewModel {
     );
   }
 
+  Future<bool> hasDirectChat({required String peerId}) {
+    return _repository.hasDirectChat(peerId: peerId);
+  }
+
   Future<void> sendMessage({
     required ChatScope scope,
     required String targetId,

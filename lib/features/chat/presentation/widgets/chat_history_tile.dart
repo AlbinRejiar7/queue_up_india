@@ -29,10 +29,32 @@ class ChatHistoryTile extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         child: Row(
           children: <Widget>[
-            CircleAvatar(
-              radius: 22.r,
-              backgroundColor: AppColors.navSurface,
-              backgroundImage: _avatarProvider(thread.peerAvatarUrl),
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 22.r,
+                  backgroundColor: AppColors.navSurface,
+                  backgroundImage: _avatarProvider(thread.peerAvatarUrl),
+                ),
+                if (thread.unreadCount > 0)
+                  Positioned(
+                    right: -1.r,
+                    top: -1.r,
+                    child: Container(
+                      width: 10.r,
+                      height: 10.r,
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.navSurface,
+                          width: 2.r,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             SizedBox(width: 12.w),
             Expanded(

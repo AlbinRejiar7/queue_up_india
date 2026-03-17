@@ -145,10 +145,20 @@ abstract final class AppStrings {
   static const String confirmClearNotificationsMessage =
       'This will remove all notifications.';
   static const String quickMessagesTitle = 'Quick Messages';
+  static const String quickMessagesHint = 'Tap to send • Long-press to edit';
+  static const String customQuickMessagesTitle = 'Custom Messages';
+  static const String defaultQuickMessagesTitle = 'Default Messages';
   static const String addQuickMessage = 'Add quick message';
   static const String addQuickMessageHint = 'Type a quick message';
   static const String addAction = 'Add';
+  static const String editQuickMessage = 'Edit';
+  static const String removeQuickMessage = 'Remove';
+  static const String editQuickMessageTitle = 'Edit quick message';
+  static const String editQuickMessageHint = 'Update your quick message';
+  static const String updateAction = 'Update';
   static const String quickMessageAdded = 'Quick message added.';
+  static const String quickMessageUpdated = 'Quick message updated.';
+  static const String quickMessageRemoved = 'Quick message removed.';
   static const String quickMessageExists =
       'That quick message already exists.';
   static const String quickMessageLimit =
@@ -157,6 +167,9 @@ abstract final class AppStrings {
       'Please wait a moment before sending another quick message.';
   static const String quickMessageDuplicateCooldown =
       'You just sent that message. Try a different one.';
+  static const String removeQuickMessageTitle = 'Remove quick message?';
+  static const String removeQuickMessageMessage =
+      'This message will be deleted.';
   static const String seeMore = 'See more';
   static const String seeLess = 'See less';
   static const String sharePlayerId = 'Share Player ID';
@@ -176,6 +189,9 @@ abstract final class AppStrings {
       'Solo invite already sent. Check notifications.';
   static String chatRequestIncomingExists(String playerName) =>
       '$playerName already sent you an invite. Check notifications on Home.';
+  static String chatAlreadyExists(String playerName) =>
+      'You already have a chat with $playerName.';
+  static const String openChatAction = 'Open chat';
   static const String chatRequestAcceptedTitle = 'Solo Invite Accepted';
   static const String chatRequestAcceptedBody = 'Accepted your solo invite.';
   static const String chatRequestDeclinedTitle = 'Solo Invite Declined';

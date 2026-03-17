@@ -153,16 +153,39 @@ class FirebaseAuthRepository implements AuthRepository {
     }
 
     final String? trimmedName = displayName?.trim();
-    if (trimmedName != null && trimmedName.isNotEmpty) {
-      await user.updateDisplayName(trimmedName);
+    String? storedName;
+    String? storedAvatar;
+    try {
+      final snapshot = await _db.collection('users').doc(user.uid).get();
+      final data = snapshot.data();
+      storedName = (data?['displayName'] as String?)?.trim();
+      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
+    } catch (_) {}
+
+    final resolvedName =
+        trimmedName != null && trimmedName.isNotEmpty
+            ? trimmedName
+            : (storedName != null && storedName.isNotEmpty
+                ? storedName
+                : (user.displayName ?? 'QueuePlayer'));
+    final resolvedAvatar =
+        avatarUrl ??
+        (storedAvatar != null && storedAvatar.isNotEmpty
+            ? storedAvatar
+            : user.photoURL);
+
+    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
+      try {
+        await user.updateDisplayName(resolvedName);
+      } catch (_) {}
     }
 
     await user.reload();
     final User? refreshed = _auth.currentUser;
     await _upsertUserProfile(
       refreshed ?? user,
-      displayName: trimmedName,
-      avatarUrl: avatarUrl,
+      displayName: resolvedName,
+      avatarUrl: resolvedAvatar,
     );
     if (trimmedName != null && trimmedName.isNotEmpty) {
       await _claimUsername(trimmedName, user.uid);
@@ -183,10 +206,8 @@ class FirebaseAuthRepository implements AuthRepository {
 
     return UserModel(
       id: refreshed?.uid ?? user.uid,
-      displayName: trimmedName?.isNotEmpty == true
-          ? trimmedName!
-          : (refreshed?.displayName ?? user.displayName ?? 'QueuePlayer'),
-      avatarUrl: avatarUrl,
+      displayName: resolvedName,
+      avatarUrl: resolvedAvatar,
     );
   }
 
@@ -231,8 +252,16 @@ class FirebaseAuthRepository implements AuthRepository {
             ? storedAvatar
             : user.photoURL;
 
+    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
+      try {
+        await user.updateDisplayName(resolvedName);
+      } catch (_) {}
+    }
+
+    await user.reload();
+
     await _upsertUserProfile(
-      user,
+      _auth.currentUser ?? user,
       displayName: resolvedName,
       avatarUrl: resolvedAvatar,
     );

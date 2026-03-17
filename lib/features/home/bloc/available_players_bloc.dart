@@ -9,6 +9,7 @@ import '../../../core/utils/paged_result.dart';
 import '../models/available_player_model.dart';
 import '../viewmodel/available_players_view_model.dart';
 import '../../notifications/viewmodel/notifications_view_model.dart';
+import '../../chat/viewmodel/chat_view_model.dart';
 import 'available_players_event.dart';
 import 'available_players_state.dart';
 
@@ -17,8 +18,10 @@ class AvailablePlayersBloc
   AvailablePlayersBloc({
     required AvailablePlayersViewModel availablePlayersViewModel,
     required NotificationsViewModel notificationsViewModel,
+    required ChatViewModel chatViewModel,
   })  : _availablePlayersViewModel = availablePlayersViewModel,
         _notificationsViewModel = notificationsViewModel,
+        _chatViewModel = chatViewModel,
         super(const AvailablePlayersState.initial()) {
     on<AvailablePlayersLoaded>(_onLoaded);
     on<AvailablePlayersLoadMoreRequested>(_onLoadMore);
@@ -34,6 +37,7 @@ class AvailablePlayersBloc
 
   final AvailablePlayersViewModel _availablePlayersViewModel;
   final NotificationsViewModel _notificationsViewModel;
+  final ChatViewModel _chatViewModel;
   static const int _pageSize = 10;
   StreamSubscription<PagedResult<AvailablePlayerModel>>? _liveSubscription;
   List<AvailablePlayerModel> _livePlayers = const <AvailablePlayerModel>[];
@@ -186,9 +190,27 @@ class AvailablePlayersBloc
         isRequesting: true,
         clearRequestMessage: true,
         clearRequestSuccess: true,
+        clearRequestMessageType: true,
+        clearRequestActionPeerId: true,
       ),
     );
     try {
+      final hasChat = await _chatViewModel.hasDirectChat(
+        peerId: event.player.id,
+      );
+      if (hasChat) {
+        emit(
+          state.copyWith(
+            isRequesting: false,
+            requestMessage: AppStrings.chatAlreadyExists(event.player.name),
+            requestSuccess: null,
+            requestMessageType: RequestMessageType.info,
+            requestActionPeerId: event.player.id,
+          ),
+        );
+        return;
+      }
+
       final alreadySent = await _notificationsViewModel.hasPendingChatRequest(
         targetUserId: event.player.id,
         fromUserId: currentUserId,
@@ -199,6 +221,8 @@ class AvailablePlayersBloc
             isRequesting: false,
             requestMessage: AppStrings.chatRequestAlreadySent,
             requestSuccess: false,
+            requestMessageType: RequestMessageType.error,
+            requestActionPeerId: null,
           ),
         );
         return;
@@ -217,6 +241,8 @@ class AvailablePlayersBloc
               event.player.name,
             ),
             requestSuccess: false,
+            requestMessageType: RequestMessageType.error,
+            requestActionPeerId: null,
           ),
         );
         return;
@@ -235,6 +261,8 @@ class AvailablePlayersBloc
           isRequesting: false,
           requestMessage: AppStrings.chatRequestSent,
           requestSuccess: true,
+          requestMessageType: RequestMessageType.success,
+          requestActionPeerId: null,
         ),
       );
     } catch (_) {
@@ -243,6 +271,8 @@ class AvailablePlayersBloc
           isRequesting: false,
           requestMessage: AppStrings.chatRequestFailed,
           requestSuccess: false,
+          requestMessageType: RequestMessageType.error,
+          requestActionPeerId: null,
         ),
       );
     }
@@ -256,6 +286,8 @@ class AvailablePlayersBloc
       state.copyWith(
         clearRequestMessage: true,
         clearRequestSuccess: true,
+        clearRequestMessageType: true,
+        clearRequestActionPeerId: true,
       ),
     );
   }

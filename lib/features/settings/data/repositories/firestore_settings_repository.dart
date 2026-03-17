@@ -122,6 +122,15 @@ class FirestoreSettingsRepository implements SettingsRepository {
       },
       SetOptions(merge: true),
     );
+
+    final trimmedName = preferences.queueName.trim();
+    if (trimmedName.isNotEmpty &&
+        (user.displayName ?? '').trim() != trimmedName) {
+      try {
+        await user.updateDisplayName(trimmedName);
+        await user.reload();
+      } catch (_) {}
+    }
   }
 
   @override

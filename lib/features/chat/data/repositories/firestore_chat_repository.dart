@@ -152,6 +152,24 @@ class FirestoreChatRepository implements ChatRepository {
   }
 
   @override
+  Future<bool> hasDirectChat({required String peerId}) async {
+    final uid = _requireUserId();
+    if (peerId.trim().isEmpty) {
+      return false;
+    }
+    final chatId = _chatIdForPeer(peerId);
+    final snapshot = await _db.collection('direct_chats').doc(chatId).get();
+    if (!snapshot.exists) {
+      return false;
+    }
+    final data = snapshot.data();
+    final participants =
+        (data?['participants'] as List?)?.whereType<String>().toList() ??
+            const <String>[];
+    return participants.contains(uid) && participants.contains(peerId);
+  }
+
+  @override
   Future<PagedResult<ChatMessage>> fetchOlderDirectMessages({
     required String peerId,
     Object? cursor,

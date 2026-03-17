@@ -108,6 +108,7 @@ void _registerBlocs() {
     () => AvailablePlayersBloc(
       availablePlayersViewModel: sl<AvailablePlayersViewModel>(),
       notificationsViewModel: sl<NotificationsViewModel>(),
+      chatViewModel: sl<ChatViewModel>(),
     ),
   );
   sl.registerFactory<AuthBloc>(

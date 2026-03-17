@@ -32,6 +32,8 @@ abstract class ChatRepository {
     int limit = 10,
   });
 
+  Future<bool> hasDirectChat({required String peerId});
+
   Future<void> sendPartyMessage({
     required String partyId,
     required String message,

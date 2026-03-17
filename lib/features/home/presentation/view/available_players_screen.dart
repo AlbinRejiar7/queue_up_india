@@ -109,10 +109,38 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                           if (message == null) {
                             return;
                           }
-                          if (state.requestSuccess == true) {
-                            AppSnackBar.showSuccess(context, message);
+                          final messageType = state.requestMessageType ??
+                              (state.requestSuccess == true
+                                  ? RequestMessageType.success
+                                  : RequestMessageType.error);
+                          if (state.requestActionPeerId != null) {
+                            final peerId = state.requestActionPeerId!;
+                            AppSnackBar.showAction(
+                              context,
+                              message,
+                              actionLabel: AppStrings.openChatAction,
+                              onAction: () {
+                                if (!context.mounted) {
+                                  return;
+                                }
+                                context.push(
+                                  AppRoutes.playerChatPath(peerId),
+                                );
+                              },
+                              type: _mapSnackBarType(messageType),
+                            );
                           } else {
-                            AppSnackBar.showError(context, message);
+                            switch (messageType) {
+                              case RequestMessageType.success:
+                                AppSnackBar.showSuccess(context, message);
+                                break;
+                              case RequestMessageType.info:
+                                AppSnackBar.showInfo(context, message);
+                                break;
+                              case RequestMessageType.error:
+                                AppSnackBar.showError(context, message);
+                                break;
+                            }
                           }
                           context.read<AvailablePlayersBloc>().add(
                                 const AvailablePlayersRequestMessageCleared(),
@@ -399,5 +427,16 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
         ),
       ),
     );
+  }
+}
+
+AppSnackBarType _mapSnackBarType(RequestMessageType type) {
+  switch (type) {
+    case RequestMessageType.success:
+      return AppSnackBarType.success;
+    case RequestMessageType.info:
+      return AppSnackBarType.info;
+    case RequestMessageType.error:
+      return AppSnackBarType.error;
   }
 }

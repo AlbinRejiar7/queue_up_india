@@ -48,6 +48,55 @@ abstract final class AppSnackBar {
     );
   }
 
+  static void showAction(
+    BuildContext context,
+    String message, {
+    required String actionLabel,
+    required VoidCallback onAction,
+    AppSnackBarType type = AppSnackBarType.info,
+  }) {
+    if (message.trim().isEmpty) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    final theme = _themeFor(type);
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: theme.background,
+        elevation: 10,
+        margin: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomPadding + 56),
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        action: SnackBarAction(
+          label: actionLabel,
+          textColor: Colors.white,
+          onPressed: onAction,
+        ),
+        content: Row(
+          children: <Widget>[
+            Icon(theme.icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: Colors.white,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   static void showError(BuildContext context, String message) {
     show(context, message, type: AppSnackBarType.error);
   }

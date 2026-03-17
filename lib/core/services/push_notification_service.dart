@@ -25,9 +25,14 @@ class PushNotificationService {
 
   static final PushNotificationService instance = PushNotificationService._();
 
-  static const String _channelId = 'queueup_alerts_v2';
-  static const String _channelName = 'QueueUp Alerts';
-  static const String _channelDescription = 'Chat requests and party messages';
+  static const String _backgroundChannelId = 'queueup_alerts_default_v1';
+  static const String _backgroundChannelName = 'QueueUp Alerts';
+  static const String _backgroundChannelDescription =
+      'Notifications when the app is closed or in the background';
+  static const String _foregroundChannelId = 'queueup_alerts_custom_v1';
+  static const String _foregroundChannelName = 'QueueUp In-App Alerts';
+  static const String _foregroundChannelDescription =
+      'Notifications shown while the app is open';
   static const String _androidSound = 'queueup_notification';
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -193,19 +198,27 @@ class PushNotificationService {
     );
 
     if (!kIsWeb && Platform.isAndroid) {
-      const channel = AndroidNotificationChannel(
-        _channelId,
-        _channelName,
-        description: _channelDescription,
+      const backgroundChannel = AndroidNotificationChannel(
+        _backgroundChannelId,
+        _backgroundChannelName,
+        description: _backgroundChannelDescription,
+        importance: Importance.high,
+        playSound: true,
+      );
+      const foregroundChannel = AndroidNotificationChannel(
+        _foregroundChannelId,
+        _foregroundChannelName,
+        description: _foregroundChannelDescription,
         importance: Importance.high,
         playSound: true,
         sound: RawResourceAndroidNotificationSound(_androidSound),
       );
-      await _localNotifications
+      final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(channel);
+          >();
+      await androidPlugin?.createNotificationChannel(backgroundChannel);
+      await androidPlugin?.createNotificationChannel(foregroundChannel);
     }
   }
 
@@ -257,9 +270,9 @@ class PushNotificationService {
 
     debugPrint('[Push] show local notification: $title');
     const androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDescription,
+      _foregroundChannelId,
+      _foregroundChannelName,
+      channelDescription: _foregroundChannelDescription,
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
@@ -285,9 +298,9 @@ class PushNotificationService {
       );
       const fallbackDetails = NotificationDetails(
         android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
+          _foregroundChannelId,
+          _foregroundChannelName,
+          channelDescription: _foregroundChannelDescription,
           importance: Importance.high,
           priority: Priority.high,
           playSound: false,
@@ -376,3 +389,8 @@ class PushNotificationService {
     });
   }
 }
+
+
+
+
+

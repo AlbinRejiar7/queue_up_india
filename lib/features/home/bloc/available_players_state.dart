@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../models/available_player_model.dart';
 
+enum RequestMessageType { success, error, info }
+
 class AvailablePlayersState extends Equatable {
   const AvailablePlayersState({
     required this.players,
@@ -15,6 +17,8 @@ class AvailablePlayersState extends Equatable {
     required this.isRequesting,
     required this.requestMessage,
     required this.requestSuccess,
+    required this.requestMessageType,
+    required this.requestActionPeerId,
   });
 
   const AvailablePlayersState.initial()
@@ -28,7 +32,9 @@ class AvailablePlayersState extends Equatable {
       cursor = null,
       isRequesting = false,
       requestMessage = null,
-      requestSuccess = null;
+      requestSuccess = null,
+      requestMessageType = null,
+      requestActionPeerId = null;
 
   final List<AvailablePlayerModel> players;
   final String? selectedGameId;
@@ -41,6 +47,8 @@ class AvailablePlayersState extends Equatable {
   final bool isRequesting;
   final String? requestMessage;
   final bool? requestSuccess;
+  final RequestMessageType? requestMessageType;
+  final String? requestActionPeerId;
 
   AvailablePlayersState copyWith({
     List<AvailablePlayerModel>? players,
@@ -60,6 +68,10 @@ class AvailablePlayersState extends Equatable {
     bool clearRequestMessage = false,
     bool? requestSuccess,
     bool clearRequestSuccess = false,
+    RequestMessageType? requestMessageType,
+    bool clearRequestMessageType = false,
+    String? requestActionPeerId,
+    bool clearRequestActionPeerId = false,
   }) {
     return AvailablePlayersState(
       players: players ?? this.players,
@@ -77,6 +89,12 @@ class AvailablePlayersState extends Equatable {
           clearRequestMessage ? null : requestMessage ?? this.requestMessage,
       requestSuccess:
           clearRequestSuccess ? null : requestSuccess ?? this.requestSuccess,
+      requestMessageType: clearRequestMessageType
+          ? null
+          : requestMessageType ?? this.requestMessageType,
+      requestActionPeerId: clearRequestActionPeerId
+          ? null
+          : requestActionPeerId ?? this.requestActionPeerId,
     );
   }
 
@@ -93,5 +111,7 @@ class AvailablePlayersState extends Equatable {
     isRequesting,
     requestMessage,
     requestSuccess,
+    requestMessageType,
+    requestActionPeerId,
   ];
 }

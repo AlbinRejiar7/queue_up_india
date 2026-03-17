@@ -12,7 +12,7 @@ const db = getFirestore();
 const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
-const NOTIFICATION_CHANNEL_ID = "queueup_alerts_v2";
+const NOTIFICATION_CHANNEL_ID = "queueup_alerts_default_v1";
 
 function normalizeData(data) {
   const payload = {};
@@ -38,7 +38,8 @@ function buildPushPayload({ title, body, data }) {
     android: {
       priority: "high",
       notification: {
-        channelId: NOTIFICATION_CHANNEL_ID
+        channelId: NOTIFICATION_CHANNEL_ID,
+        sound: "default"
       }
     },
     apns: {
@@ -48,6 +49,40 @@ function buildPushPayload({ title, body, data }) {
         }
       }
     }
+  };
+}
+
+function normalizePushPayload(payload) {
+  if (!payload) {
+    return payload;
+  }
+  const androidNotification = {
+    ...(payload.android?.notification || {}),
+    channelId: NOTIFICATION_CHANNEL_ID,
+    sound: "default"
+  };
+  const android = {
+    ...(payload.android || {}),
+    priority: payload.android?.priority || "high",
+    notification: androidNotification
+  };
+
+  const apnsPayload = {
+    ...(payload.apns?.payload || {}),
+    aps: {
+      ...(payload.apns?.payload?.aps || {}),
+      sound: "default"
+    }
+  };
+  const apns = {
+    ...(payload.apns || {}),
+    payload: apnsPayload
+  };
+
+  return {
+    ...payload,
+    android,
+    apns
   };
 }
 
@@ -92,15 +127,16 @@ async function sendPushToUser(uid, payload) {
     console.log("[push] skip: no tokens for", uid);
     return;
   }
+  const normalizedPayload = normalizePushPayload(payload);
   console.log("[push] sending", {
     uid,
     tokens: tokens.length,
-    title: payload?.notification?.title || "",
-    body: payload?.notification?.body || ""
+    title: normalizedPayload?.notification?.title || "",
+    body: normalizedPayload?.notification?.body || ""
   });
   const response = await messaging.sendEachForMulticast({
     tokens,
-    ...payload
+    ...normalizedPayload
   });
   console.log("[push] result", {
     uid,
@@ -699,3 +735,5 @@ exports.onUserNotificationCreate = onDocumentCreated(
     );
   }
 );
+
+
