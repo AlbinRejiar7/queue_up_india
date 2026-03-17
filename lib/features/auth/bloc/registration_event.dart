@@ -46,7 +46,12 @@ class RegistrationCountryCodeChanged extends RegistrationEvent {
 }
 
 class RegistrationSendOtpPressed extends RegistrationEvent {
-  const RegistrationSendOtpPressed();
+  const RegistrationSendOtpPressed({required this.userInitiated});
+
+  final bool userInitiated;
+
+  @override
+  List<Object?> get props => <Object?>[userInitiated];
 }
 
 class RegistrationVerifyOtpPressed extends RegistrationEvent {

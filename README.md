@@ -2,6 +2,12 @@
 
 QueueUp India is a gaming matchmaking app that helps players go available, find solo players, create/join parties, and chat in real time.
 
+## App Prompt
+Use this prompt to explain the app in a short, clear way (for stores, decks, or docs):
+```
+QueueUp India is a gaming matchmaking app where players can set their availability by game, rank, and language — for titles like Valorant, PUBG, and Free Fire — discover solo players, and create or join parties to play together. It supports real‑time direct and party chat plus fast coordination features like quick messages, sharing player IDs/party codes, and notifications. Players can also block or report users for safety, and the app supports all Indian languages while keeping the experience friendly and product‑focused.
+```
+
 ## Features
 - Go available with game, rank, and language preferences
 - Discover available solo players

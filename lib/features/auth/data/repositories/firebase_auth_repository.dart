@@ -38,6 +38,11 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> sendOtp({required String phoneNumber}) async {
     _verificationId = null;
     await AppPreferences.clearOtpSession();
+    developer.log(
+      'OTP session cleared before send',
+      name: 'FirebaseAuthRepository',
+      error: _maskPhone(phoneNumber),
+    );
     final Completer<void> completer = Completer<void>();
     developer.log(
       'Firebase sendOtp start',
@@ -50,6 +55,10 @@ class FirebaseAuthRepository implements AuthRepository {
       timeout: const Duration(seconds: 60),
       forceResendingToken: _forceResendingToken,
       verificationCompleted: (PhoneAuthCredential credential) async {
+        developer.log(
+          'Firebase sendOtp verificationCompleted',
+          name: 'FirebaseAuthRepository',
+        );
         try {
           await _auth.signInWithCredential(credential);
         } catch (_) {
@@ -86,6 +95,10 @@ class FirebaseAuthRepository implements AuthRepository {
         }
       },
       codeAutoRetrievalTimeout: (String verificationId) {
+        developer.log(
+          'Firebase sendOtp autoRetrievalTimeout',
+          name: 'FirebaseAuthRepository',
+        );
         _verificationId = verificationId;
         if (!completer.isCompleted) {
           completer.complete();
@@ -147,20 +160,41 @@ class FirebaseAuthRepository implements AuthRepository {
     String? avatarUrl,
     String? displayName,
   }) async {
+    developer.log(
+      'Firebase verifyOtp start',
+      name: 'FirebaseAuthRepository',
+      error: _maskPhone(phoneNumber),
+    );
     String? verificationId = _verificationId;
     if (verificationId == null) {
+      developer.log(
+        'No in-memory verificationId, loading OTP session',
+        name: 'FirebaseAuthRepository',
+      );
       final session = await AppPreferences.loadOtpSession();
       if (session != null &&
           session.phoneNumber == phoneNumber &&
           DateTime.now().difference(session.sentAt) <= _otpSessionTtl) {
+        developer.log(
+          'OTP session restored from storage',
+          name: 'FirebaseAuthRepository',
+        );
         verificationId = session.verificationId;
         _verificationId = session.verificationId;
         _forceResendingToken = session.forceResendingToken;
       } else {
+        developer.log(
+          'OTP session missing or expired, clearing',
+          name: 'FirebaseAuthRepository',
+        );
         await AppPreferences.clearOtpSession();
       }
     }
     if (verificationId == null) {
+      developer.log(
+        'OTP verification failed: missing verificationId',
+        name: 'FirebaseAuthRepository',
+      );
       throw StateError(_otpExpiredMessage);
     }
 
@@ -173,6 +207,10 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       result = await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (error) {
+      developer.log(
+        'Firebase verifyOtp failed: ${error.code}',
+        name: 'FirebaseAuthRepository',
+      );
       if (error.code == 'session-expired' || error.code == 'code-expired') {
         await AppPreferences.clearOtpSession();
       }
@@ -185,6 +223,10 @@ class FirebaseAuthRepository implements AuthRepository {
     await AppPreferences.clearOtpSession();
     _verificationId = null;
     _forceResendingToken = null;
+    developer.log(
+      'Firebase verifyOtp success',
+      name: 'FirebaseAuthRepository',
+    );
 
     final String? trimmedName = displayName?.trim();
     String? storedName;

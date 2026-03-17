@@ -166,7 +166,9 @@ class PhoneOtpCard extends StatelessWidget {
                             return;
                           }
                           context.read<RegistrationBloc>().add(
-                            const RegistrationSendOtpPressed(),
+                            const RegistrationSendOtpPressed(
+                              userInitiated: true,
+                            ),
                           );
                         },
                   style: ElevatedButton.styleFrom(

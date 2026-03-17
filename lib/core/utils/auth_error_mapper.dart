@@ -18,7 +18,7 @@ class AuthErrorMapper {
     }
 
     if (error is StateError) {
-      final Object? raw = error.message;
+      final Object raw = error.message;
       if (raw is String && raw.trim().isNotEmpty) {
         final String lowered = raw.toLowerCase();
         if (lowered.contains('google') && lowered.contains('cancel')) {

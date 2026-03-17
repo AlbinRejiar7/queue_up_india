@@ -199,7 +199,23 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationSendOtpPressed event,
     Emitter<RegistrationState> emit,
   ) async {
+    developer.log(
+      'OTP send pressed',
+      name: 'RegistrationBloc',
+      error: _maskPhone(_fullPhoneNumber(state.data)),
+    );
+    if (!event.userInitiated) {
+      developer.log(
+        'OTP send ignored: not user initiated',
+        name: 'RegistrationBloc',
+      );
+      return;
+    }
     if (state.data.otpResendSeconds > 0) {
+      developer.log(
+        'OTP send blocked by cooldown: ${state.data.otpResendSeconds}s',
+        name: 'RegistrationBloc',
+      );
       return;
     }
     if (!state.data.canSendOtp) {
@@ -258,6 +274,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         }
       }
       await _registrationViewModel.sendOtp(fullPhone);
+      developer.log(
+        'OTP send requested successfully',
+        name: 'RegistrationBloc',
+      );
       _startOtpCooldown(_otpCooldownSeconds);
       emit(
         RegistrationSuccess(
@@ -270,6 +290,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         ),
       );
     } catch (error) {
+      developer.log(
+        'OTP send failed: $error',
+        name: 'RegistrationBloc',
+      );
       if (error.toString().toLowerCase().contains('not registered')) {
         emit(
           RegistrationError(
@@ -295,6 +319,11 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationVerifyOtpPressed event,
     Emitter<RegistrationState> emit,
   ) async {
+    developer.log(
+      'OTP verify pressed',
+      name: 'RegistrationBloc',
+      error: _maskPhone(_fullPhoneNumber(state.data)),
+    );
     if (!state.data.canVerifyOtp) {
       final String message;
       if (!state.data.isOtpSent) {
@@ -331,6 +360,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         displayName:
             state.data.isRegistration ? state.data.username.trim() : null,
       );
+      developer.log(
+        'OTP verify success',
+        name: 'RegistrationBloc',
+      );
       await AppPreferences.setLoggedIn(true);
       _stopOtpCooldown();
       emit(
@@ -339,6 +372,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         ),
       );
     } catch (error) {
+      developer.log(
+        'OTP verify failed: $error',
+        name: 'RegistrationBloc',
+      );
       emit(
         RegistrationError(
           data: state.data,
@@ -487,6 +524,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationOtpSessionRestored event,
     Emitter<RegistrationState> emit,
   ) {
+    developer.log(
+      'OTP session restored: resend=${event.resendSeconds}s',
+      name: 'RegistrationBloc',
+    );
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
@@ -507,10 +548,18 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   Future<void> _restoreOtpSession() async {
     final session = await AppPreferences.loadOtpSession();
     if (session == null) {
+      developer.log(
+        'No OTP session to restore',
+        name: 'RegistrationBloc',
+      );
       return;
     }
     final age = DateTime.now().difference(session.sentAt);
     if (age > _otpSessionTtl) {
+      developer.log(
+        'Stored OTP session expired, clearing',
+        name: 'RegistrationBloc',
+      );
       await AppPreferences.clearOtpSession();
       return;
     }
