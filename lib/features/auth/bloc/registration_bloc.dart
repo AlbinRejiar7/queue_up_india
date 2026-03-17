@@ -23,15 +23,23 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     on<RegistrationCountryCodeChanged>(_onCountryCodeChanged);
     on<RegistrationSendOtpPressed>(_onSendOtpPressed);
     on<RegistrationVerifyOtpPressed>(_onVerifyOtpPressed);
+    on<RegistrationOtpCooldownTicked>(_onOtpCooldownTicked);
+    on<RegistrationOtpSessionRestored>(_onOtpSessionRestored);
     on<RegistrationGooglePressed>(_onGooglePressed);
     on<RegistrationNavigationConsumed>(_onNavigationConsumed);
     on<RegistrationResetRequested>(_onResetRequested);
     on<RegistrationModeChanged>(_onModeChanged);
     on<RegistrationLegalAcceptedChanged>(_onLegalAcceptedChanged);
+
+    unawaited(_restoreOtpSession());
   }
 
   final RegistrationViewModel _registrationViewModel;
   Timer? _usernameDebounce;
+  Timer? _otpCooldownTimer;
+
+  static const int _otpCooldownSeconds = 60;
+  static const Duration _otpSessionTtl = Duration(minutes: 10);
 
   void _onPhoneChanged(
     RegistrationPhoneChanged event,
@@ -39,12 +47,17 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   ) {
     final sanitized = event.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
     final resetOtp = sanitized != state.data.phoneNumber;
+    if (resetOtp) {
+      _stopOtpCooldown();
+      unawaited(AppPreferences.clearOtpSession());
+    }
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
           phoneNumber: sanitized,
           otp: resetOtp ? '' : state.data.otp,
           isOtpSent: resetOtp ? false : state.data.isOtpSent,
+          otpResendSeconds: resetOtp ? 0 : state.data.otpResendSeconds,
           didCompleteRegistration: false,
         ),
       ),
@@ -118,12 +131,15 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationCountryCodeChanged event,
     Emitter<RegistrationState> emit,
   ) {
+    _stopOtpCooldown();
+    unawaited(AppPreferences.clearOtpSession());
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
           selectedCountryCodeId: event.countryCodeId,
           isOtpSent: false,
           otp: '',
+          otpResendSeconds: 0,
           didCompleteRegistration: false,
         ),
       ),
@@ -183,6 +199,9 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationSendOtpPressed event,
     Emitter<RegistrationState> emit,
   ) async {
+    if (state.data.otpResendSeconds > 0) {
+      return;
+    }
     if (!state.data.canSendOtp) {
       final String message;
       if (state.data.isRegistration &&
@@ -239,11 +258,13 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         }
       }
       await _registrationViewModel.sendOtp(fullPhone);
+      _startOtpCooldown(_otpCooldownSeconds);
       emit(
         RegistrationSuccess(
           data: state.data.copyWith(
             isOtpSent: true,
             otp: '',
+            otpResendSeconds: _otpCooldownSeconds,
             didCompleteRegistration: false,
           ),
         ),
@@ -311,6 +332,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
             state.data.isRegistration ? state.data.username.trim() : null,
       );
       await AppPreferences.setLoggedIn(true);
+      _stopOtpCooldown();
       emit(
         RegistrationSuccess(
           data: state.data.copyWith(didCompleteRegistration: true),
@@ -373,6 +395,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     RegistrationResetRequested event,
     Emitter<RegistrationState> emit,
   ) {
+    _stopOtpCooldown();
+    unawaited(AppPreferences.clearOtpSession());
     emit(
       const RegistrationSuccess(data: RegistrationViewData.initial()),
     );
@@ -385,6 +409,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     if (state.data.mode == event.mode) {
       return;
     }
+    _stopOtpCooldown();
+    unawaited(AppPreferences.clearOtpSession());
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
@@ -393,6 +419,9 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
               ? UsernameCheckStatus.unknown
               : state.data.usernameStatus,
           isUsernameChecking: false,
+          isOtpSent: false,
+          otp: '',
+          otpResendSeconds: 0,
           didCompleteRegistration: false,
         ),
       ),
@@ -435,9 +464,128 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     return '+••••$tail';
   }
 
+  void _onOtpCooldownTicked(
+    RegistrationOtpCooldownTicked event,
+    Emitter<RegistrationState> emit,
+  ) {
+    if (event.secondsLeft <= 0) {
+      emit(
+        RegistrationSuccess(
+          data: state.data.copyWith(otpResendSeconds: 0),
+        ),
+      );
+      return;
+    }
+    emit(
+      RegistrationSuccess(
+        data: state.data.copyWith(otpResendSeconds: event.secondsLeft),
+      ),
+    );
+  }
+
+  void _onOtpSessionRestored(
+    RegistrationOtpSessionRestored event,
+    Emitter<RegistrationState> emit,
+  ) {
+    emit(
+      RegistrationSuccess(
+        data: state.data.copyWith(
+          phoneNumber: event.phoneNumber,
+          selectedCountryCodeId: event.countryCodeId,
+          isOtpSent: true,
+          otp: '',
+          otpResendSeconds: event.resendSeconds,
+          didCompleteRegistration: false,
+        ),
+      ),
+    );
+    if (event.resendSeconds > 0) {
+      _startOtpCooldown(event.resendSeconds);
+    }
+  }
+
+  Future<void> _restoreOtpSession() async {
+    final session = await AppPreferences.loadOtpSession();
+    if (session == null) {
+      return;
+    }
+    final age = DateTime.now().difference(session.sentAt);
+    if (age > _otpSessionTtl) {
+      await AppPreferences.clearOtpSession();
+      return;
+    }
+    final digits = session.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return;
+    }
+    final match = _matchCountryCode(digits);
+    final dialDigits = match == null
+        ? ''
+        : match.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+    final localNumber = dialDigits.isNotEmpty &&
+            digits.startsWith(dialDigits)
+        ? digits.substring(dialDigits.length)
+        : digits;
+    final elapsedSeconds = age.inSeconds;
+    final int resendSeconds = (_otpCooldownSeconds - elapsedSeconds)
+        .clamp(0, _otpCooldownSeconds)
+        .toInt();
+    add(
+      RegistrationOtpSessionRestored(
+        phoneNumber: localNumber,
+        countryCodeId: match?.id ?? state.data.selectedCountryCodeId,
+        resendSeconds: resendSeconds,
+      ),
+    );
+  }
+
+  CountryCodeOption? _matchCountryCode(String digits) {
+    CountryCodeOption? best;
+    for (final option in countryCodeOptions) {
+      final dialDigits =
+          option.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+      if (dialDigits.isEmpty) {
+        continue;
+      }
+      if (digits.startsWith(dialDigits)) {
+        if (best == null ||
+            dialDigits.length >
+                best!.dialCode.replaceAll(RegExp(r'[^0-9]'), '').length) {
+          best = option;
+        }
+      }
+    }
+    return best;
+  }
+
+  void _startOtpCooldown(int seconds) {
+    _otpCooldownTimer?.cancel();
+    if (seconds <= 0) {
+      return;
+    }
+    _otpCooldownTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        final remaining = seconds - timer.tick;
+        if (remaining <= 0) {
+          timer.cancel();
+          add(const RegistrationOtpCooldownTicked(secondsLeft: 0));
+        } else {
+          add(RegistrationOtpCooldownTicked(secondsLeft: remaining));
+        }
+      },
+    );
+  }
+
+  void _stopOtpCooldown() {
+    _otpCooldownTimer?.cancel();
+    _otpCooldownTimer = null;
+  }
+
   @override
   Future<void> close() {
     _usernameDebounce?.cancel();
+    _otpCooldownTimer?.cancel();
     return super.close();
   }
 }

@@ -6,10 +6,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../../core/utils/app_preferences.dart';
 import '../../models/user_model.dart';
 import 'auth_repository.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
+  static const Duration _otpSessionTtl = Duration(minutes: 10);
+  static const String _otpExpiredMessage =
+      'OTP session expired. Please request a new code.';
+
   FirebaseAuthRepository({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
@@ -32,6 +37,7 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendOtp({required String phoneNumber}) async {
     _verificationId = null;
+    await AppPreferences.clearOtpSession();
     final Completer<void> completer = Completer<void>();
     developer.log(
       'Firebase sendOtp start',
@@ -69,6 +75,12 @@ class FirebaseAuthRepository implements AuthRepository {
         );
         _verificationId = verificationId;
         _forceResendingToken = forceResendingToken;
+        AppPreferences.saveOtpSession(
+          verificationId: verificationId,
+          phoneNumber: phoneNumber,
+          sentAt: DateTime.now(),
+          forceResendingToken: forceResendingToken,
+        );
         if (!completer.isCompleted) {
           completer.complete();
         }
@@ -135,9 +147,21 @@ class FirebaseAuthRepository implements AuthRepository {
     String? avatarUrl,
     String? displayName,
   }) async {
-    final String? verificationId = _verificationId;
+    String? verificationId = _verificationId;
     if (verificationId == null) {
-      throw StateError('OTP session expired. Please request a new code.');
+      final session = await AppPreferences.loadOtpSession();
+      if (session != null &&
+          session.phoneNumber == phoneNumber &&
+          DateTime.now().difference(session.sentAt) <= _otpSessionTtl) {
+        verificationId = session.verificationId;
+        _verificationId = session.verificationId;
+        _forceResendingToken = session.forceResendingToken;
+      } else {
+        await AppPreferences.clearOtpSession();
+      }
+    }
+    if (verificationId == null) {
+      throw StateError(_otpExpiredMessage);
     }
 
     final PhoneAuthCredential credential = PhoneAuthProvider.credential(
@@ -145,12 +169,22 @@ class FirebaseAuthRepository implements AuthRepository {
       smsCode: otp,
     );
 
-    final UserCredential result =
-        await _auth.signInWithCredential(credential);
+    UserCredential result;
+    try {
+      result = await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'session-expired' || error.code == 'code-expired') {
+        await AppPreferences.clearOtpSession();
+      }
+      rethrow;
+    }
     final User? user = result.user;
     if (user == null) {
       throw StateError('Authentication failed. Please try again.');
     }
+    await AppPreferences.clearOtpSession();
+    _verificationId = null;
+    _forceResendingToken = null;
 
     final String? trimmedName = displayName?.trim();
     String? storedName;

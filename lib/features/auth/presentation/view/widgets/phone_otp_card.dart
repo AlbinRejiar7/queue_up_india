@@ -39,14 +39,18 @@ class PhoneOtpCard extends StatelessWidget {
         final data = state.data;
         final bool isLoading = state is RegistrationLoading;
         final bool canVerify = data.canVerifyOtp && !isLoading;
-        final String otpLabel = data.isOtpSent
-            ? AppStrings.resendOtp
-            : AppStrings.sendOtp;
+        final bool isCooldownActive = data.otpResendSeconds > 0;
+        final String otpLabel = isCooldownActive
+            ? AppStrings.resendOtpIn(
+                _formatSeconds(data.otpResendSeconds),
+              )
+            : (data.isOtpSent ? AppStrings.resendOtp : AppStrings.sendOtp);
         final bool needsUsername = data.isRegistration;
         final bool hasUsername = data.hasUsername;
         final selectedCountry =
             countryCodeOptionById(data.selectedCountryCodeId) ??
             countryCodeOptions.first;
+        final canRequestOtp = data.canSendOtp && !isCooldownActive;
 
         return GlassContainer(
           borderRadius: 28.r,
@@ -131,6 +135,15 @@ class PhoneOtpCard extends StatelessWidget {
                   onPressed: isLoading
                       ? null
                       : () {
+                          if (isCooldownActive) {
+                            AppSnackBar.showInfo(
+                              context,
+                              AppStrings.resendOtpWait(
+                                _formatSeconds(data.otpResendSeconds),
+                              ),
+                            );
+                            return;
+                          }
                           if (!data.canSendOtp) {
                             if (needsUsername && !data.acceptedLegal) {
                               AppSnackBar.showError(
@@ -157,7 +170,7 @@ class PhoneOtpCard extends StatelessWidget {
                           );
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: data.canSendOtp
+                    backgroundColor: canRequestOtp
                         ? AppColors.navSurface.withValues(alpha: 0.9)
                         : AppColors.navSurface.withValues(alpha: 0.35),
                     disabledBackgroundColor: AppColors.navSurface.withValues(
@@ -243,6 +256,14 @@ class PhoneOtpCard extends StatelessWidget {
       },
     );
   }
+}
+
+String _formatSeconds(int seconds) {
+  final minutes = seconds ~/ 60;
+  final remaining = seconds % 60;
+  final minutesText = minutes.toString().padLeft(2, '0');
+  final secondsText = remaining.toString().padLeft(2, '0');
+  return '$minutesText:$secondsText';
 }
 
 class _CountryCodeSheet extends StatefulWidget {

@@ -16,6 +16,7 @@ class RegistrationViewData extends Equatable {
     required this.isUsernameChecking,
     required this.selectedAvatarUrl,
     required this.selectedCountryCodeId,
+    required this.otpResendSeconds,
     required this.didCompleteRegistration,
     required this.acceptedLegal,
     required this.mode,
@@ -30,6 +31,7 @@ class RegistrationViewData extends Equatable {
       isUsernameChecking = false,
       selectedAvatarUrl = null,
       selectedCountryCodeId = defaultCountryCodeId,
+      otpResendSeconds = 0,
       didCompleteRegistration = false,
       acceptedLegal = false,
       mode = RegistrationMode.login;
@@ -42,6 +44,7 @@ class RegistrationViewData extends Equatable {
   final bool isUsernameChecking;
   final String? selectedAvatarUrl;
   final String selectedCountryCodeId;
+  final int otpResendSeconds;
   final bool didCompleteRegistration;
   final bool acceptedLegal;
   final RegistrationMode mode;
@@ -54,6 +57,9 @@ class RegistrationViewData extends Equatable {
       usernameStatus == UsernameCheckStatus.available;
 
   bool get canSendOtp {
+    if (otpResendSeconds > 0) {
+      return false;
+    }
     if (isRegistration && !hasUsername) {
       return false;
     }
@@ -100,6 +106,7 @@ class RegistrationViewData extends Equatable {
     String? selectedAvatarUrl,
     bool clearAvatar = false,
     String? selectedCountryCodeId,
+    int? otpResendSeconds,
     bool? didCompleteRegistration,
     bool? acceptedLegal,
     RegistrationMode? mode,
@@ -116,6 +123,7 @@ class RegistrationViewData extends Equatable {
           : selectedAvatarUrl ?? this.selectedAvatarUrl,
       selectedCountryCodeId:
           selectedCountryCodeId ?? this.selectedCountryCodeId,
+      otpResendSeconds: otpResendSeconds ?? this.otpResendSeconds,
       didCompleteRegistration:
           didCompleteRegistration ?? this.didCompleteRegistration,
       acceptedLegal: acceptedLegal ?? this.acceptedLegal,
@@ -133,6 +141,7 @@ class RegistrationViewData extends Equatable {
     isUsernameChecking,
     selectedAvatarUrl,
     selectedCountryCodeId,
+    otpResendSeconds,
     didCompleteRegistration,
     acceptedLegal,
     mode,

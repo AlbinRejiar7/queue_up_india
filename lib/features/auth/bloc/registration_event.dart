@@ -53,6 +53,34 @@ class RegistrationVerifyOtpPressed extends RegistrationEvent {
   const RegistrationVerifyOtpPressed();
 }
 
+class RegistrationOtpCooldownTicked extends RegistrationEvent {
+  const RegistrationOtpCooldownTicked({required this.secondsLeft});
+
+  final int secondsLeft;
+
+  @override
+  List<Object?> get props => <Object?>[secondsLeft];
+}
+
+class RegistrationOtpSessionRestored extends RegistrationEvent {
+  const RegistrationOtpSessionRestored({
+    required this.phoneNumber,
+    required this.countryCodeId,
+    required this.resendSeconds,
+  });
+
+  final String phoneNumber;
+  final String countryCodeId;
+  final int resendSeconds;
+
+  @override
+  List<Object?> get props => <Object?>[
+    phoneNumber,
+    countryCodeId,
+    resendSeconds,
+  ];
+}
+
 class RegistrationGooglePressed extends RegistrationEvent {
   const RegistrationGooglePressed();
 }

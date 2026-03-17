@@ -50,6 +50,9 @@ abstract final class AppStrings {
   static const String otpHint = '6-digit OTP';
   static const String verifyOtp = 'Verify OTP';
   static const String resendOtp = 'Resend OTP';
+  static String resendOtpIn(String time) => 'Resend in $time';
+  static String resendOtpWait(String time) =>
+      'Please wait $time before resending.';
   static const String sendOtpFirst = 'Send OTP first to continue.';
   static const String selectCountryCode = 'Select country code';
   static const String searchCountry = 'Search country';
