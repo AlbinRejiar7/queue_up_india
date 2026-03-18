@@ -7,6 +7,8 @@ class RegistrationViewModel {
 
   final AuthRepository _authRepository;
 
+  Stream<OtpLogEvent> get otpLogs => _authRepository.otpLogs;
+
   Future<void> sendOtp(String phoneNumber) {
     return _authRepository.sendOtp(phoneNumber: phoneNumber);
   }

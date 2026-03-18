@@ -14,8 +14,21 @@ import '../../../bloc/registration_bloc.dart';
 import '../../../bloc/registration_event.dart';
 import '../../../bloc/registration_state.dart';
 
-class PhoneOtpCard extends StatelessWidget {
+class PhoneOtpCard extends StatefulWidget {
   const PhoneOtpCard({super.key});
+
+  @override
+  State<PhoneOtpCard> createState() => _PhoneOtpCardState();
+}
+
+class _PhoneOtpCardState extends State<PhoneOtpCard> {
+  final FocusNode _otpFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _otpFocusNode.dispose();
+    super.dispose();
+  }
 
   Future<CountryCodeOption?> _showCountryCodeSheet(
     BuildContext context,
@@ -34,171 +47,179 @@ class PhoneOtpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<RegistrationBloc, RegistrationState>(
-      builder: (BuildContext context, RegistrationState state) {
-        final data = state.data;
-        final bool isLoading = state is RegistrationLoading;
-        final bool canVerify = data.canVerifyOtp && !isLoading;
-        final bool isCooldownActive = data.otpResendSeconds > 0;
-        final String otpLabel = isCooldownActive
-            ? AppStrings.resendOtpIn(
-                _formatSeconds(data.otpResendSeconds),
-              )
-            : (data.isOtpSent ? AppStrings.resendOtp : AppStrings.sendOtp);
-        final bool needsUsername = data.isRegistration;
-        final bool hasUsername = data.hasUsername;
-        final selectedCountry =
-            countryCodeOptionById(data.selectedCountryCodeId) ??
-            countryCodeOptions.first;
-        final canRequestOtp = data.canSendOtp && !isCooldownActive;
+    return BlocListener<RegistrationBloc, RegistrationState>(
+      listenWhen: (previous, current) =>
+          previous.data.isOtpSent != current.data.isOtpSent,
+      listener: (context, state) {
+        if (state.data.isOtpSent) {
+          FocusScope.of(context).requestFocus(_otpFocusNode);
+        }
+      },
+      child: BlocBuilder<RegistrationBloc, RegistrationState>(
+        builder: (BuildContext context, RegistrationState state) {
+          final data = state.data;
+          final bool isSendingOtp = data.isSendingOtp;
+          final bool isVerifyingOtp = data.isVerifyingOtp;
+          final bool canVerify = data.canVerifyOtp && !isVerifyingOtp;
+          final bool isCooldownActive = data.otpResendSeconds > 0;
+          final String otpLabel = isCooldownActive
+              ? AppStrings.resendOtpIn(
+                  _formatSeconds(data.otpResendSeconds),
+                )
+              : (data.isOtpSent ? AppStrings.resendOtp : AppStrings.sendOtp);
+          final bool needsUsername = data.isRegistration;
+          final bool hasUsername = data.hasUsername;
+          final selectedCountry =
+              countryCodeOptionById(data.selectedCountryCodeId) ??
+              countryCodeOptions.first;
+          final canRequestOtp = data.canSendOtp && !isCooldownActive;
 
-        return GlassContainer(
-          borderRadius: 28.r,
-          padding: EdgeInsets.all(16.r),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                AppStrings.phoneNumber,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textPrimary,
+          return GlassContainer(
+            borderRadius: 28.r,
+            padding: EdgeInsets.all(16.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  AppStrings.phoneNumber,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              SizedBox(height: 8.h),
-              Row(
-                children: <Widget>[
-                  SizedBox(
-                    width: 110.w,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18.r),
-                      onTap: () async {
-                        final option = await _showCountryCodeSheet(
-                          context,
-                          selectedCountry,
-                        );
-                        if (option == null) {
-                          return;
-                        }
-                        context.read<RegistrationBloc>().add(
-                          RegistrationCountryCodeChanged(
-                            countryCodeId: option.id,
-                          ),
-                        );
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(),
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                selectedCountry.dialCode,
-                                style: AppTextStyles.bodyMedium,
-                              ),
-                            ),
-                            Icon(
-                              Icons.expand_more,
-                              size: 18.sp,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: data.phoneNumber,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
-                      inputFormatters: <TextInputFormatter>[
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(15),
-                      ],
-                      decoration: const InputDecoration(
-                        hintText: AppStrings.phoneNumberHint,
-                      ),
-                      onChanged: (String value) {
-                        context.read<RegistrationBloc>().add(
-                          RegistrationPhoneChanged(phoneNumber: value),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 14.h),
-              SizedBox(
-                width: double.infinity,
-                height: 52.h,
-                child: ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          if (isCooldownActive) {
-                            AppSnackBar.showInfo(
-                              context,
-                              AppStrings.resendOtpWait(
-                                _formatSeconds(data.otpResendSeconds),
-                              ),
-                            );
-                            return;
-                          }
-                          if (!data.canSendOtp) {
-                            if (needsUsername && !data.acceptedLegal) {
-                              AppSnackBar.showError(
-                                context,
-                                AppStrings.acceptLegalRequired,
-                              );
-                              return;
-                            }
-                            if (needsUsername && !hasUsername) {
-                              AppSnackBar.showError(
-                                context,
-                                AppStrings.usernameRequired,
-                              );
-                              return;
-                            }
-                            AppSnackBar.showError(
-                              context,
-                              AppStrings.invalidPhoneNumber,
-                            );
+                SizedBox(height: 8.h),
+                Row(
+                  children: <Widget>[
+                    SizedBox(
+                      width: 110.w,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18.r),
+                        onTap: () async {
+                          final option = await _showCountryCodeSheet(
+                            context,
+                            selectedCountry,
+                          );
+                          if (option == null) {
                             return;
                           }
                           context.read<RegistrationBloc>().add(
-                            const RegistrationSendOtpPressed(
-                              userInitiated: true,
+                            RegistrationCountryCodeChanged(
+                              countryCodeId: option.id,
                             ),
                           );
                         },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: canRequestOtp
-                        ? AppColors.navSurface.withValues(alpha: 0.9)
-                        : AppColors.navSurface.withValues(alpha: 0.35),
-                    disabledBackgroundColor: AppColors.navSurface.withValues(
-                      alpha: 0.35,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                  ),
-                  child: isLoading
-                      ? SizedBox(
-                          width: 18.w,
-                          height: 18.w,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          otpLabel,
-                          style: AppTextStyles.buttonText.copyWith(
-                            fontSize: 14.sp,
+                        child: InputDecorator(
+                          decoration: const InputDecoration(),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(
+                                  selectedCountry.dialCode,
+                                  style: AppTextStyles.bodyMedium,
+                                ),
+                              ),
+                              Icon(
+                                Icons.expand_more,
+                                size: 18.sp,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
                           ),
                         ),
+                      ),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: data.phoneNumber,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(15),
+                        ],
+                        decoration: const InputDecoration(
+                          hintText: AppStrings.phoneNumberHint,
+                        ),
+                        onChanged: (String value) {
+                          context.read<RegistrationBloc>().add(
+                            RegistrationPhoneChanged(phoneNumber: value),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              if (data.isOtpSent) ...<Widget>[
+                SizedBox(height: 14.h),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52.h,
+                  child: ElevatedButton(
+                    onPressed: isSendingOtp
+                        ? null
+                        : () {
+                            if (isCooldownActive) {
+                              AppSnackBar.showInfo(
+                                context,
+                                AppStrings.resendOtpWait(
+                                  _formatSeconds(data.otpResendSeconds),
+                                ),
+                              );
+                              return;
+                            }
+                            if (!data.canSendOtp) {
+                              if (needsUsername && !data.acceptedLegal) {
+                                AppSnackBar.showError(
+                                  context,
+                                  AppStrings.acceptLegalRequired,
+                                );
+                                return;
+                              }
+                              if (needsUsername && !hasUsername) {
+                                AppSnackBar.showError(
+                                  context,
+                                  AppStrings.usernameRequired,
+                                );
+                                return;
+                              }
+                              AppSnackBar.showError(
+                                context,
+                                AppStrings.invalidPhoneNumber,
+                              );
+                              return;
+                            }
+                            context.read<RegistrationBloc>().add(
+                              const RegistrationSendOtpPressed(
+                                userInitiated: true,
+                              ),
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canRequestOtp
+                          ? AppColors.navSurface.withValues(alpha: 0.9)
+                          : AppColors.navSurface.withValues(alpha: 0.35),
+                      disabledBackgroundColor: AppColors.navSurface.withValues(
+                        alpha: 0.35,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                    ),
+                    child: isSendingOtp
+                        ? SizedBox(
+                            width: 18.w,
+                            height: 18.w,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            otpLabel,
+                            style: AppTextStyles.buttonText.copyWith(
+                              fontSize: 14.sp,
+                            ),
+                          ),
+                  ),
+                ),
                 SizedBox(height: 12.h),
                 Text(
                   AppStrings.enterOtp,
@@ -208,6 +229,8 @@ class PhoneOtpCard extends StatelessWidget {
                 ),
                 SizedBox(height: 8.h),
                 TextFormField(
+                  focusNode: _otpFocusNode,
+                  enabled: data.isOtpSent,
                   initialValue: data.otp,
                   keyboardType: TextInputType.number,
                   inputFormatters: <TextInputFormatter>[
@@ -226,7 +249,7 @@ class PhoneOtpCard extends StatelessWidget {
                 SizedBox(height: 14.h),
                 PrimaryButton(
                   label: AppStrings.verifyOtp,
-                  isLoading: isLoading,
+                  isLoading: isVerifyingOtp,
                   enabled: canVerify,
                   onDisabledPressed: () {
                     if (needsUsername && !data.acceptedLegal) {
@@ -252,10 +275,10 @@ class PhoneOtpCard extends StatelessWidget {
                   },
                 ),
               ],
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -14,9 +14,14 @@ class RegistrationViewData extends Equatable {
     required this.username,
     required this.usernameStatus,
     required this.isUsernameChecking,
+    required this.isSendingOtp,
+    required this.isVerifyingOtp,
     required this.selectedAvatarUrl,
     required this.selectedCountryCodeId,
     required this.otpResendSeconds,
+    required this.otpLogId,
+    required this.otpLogMessage,
+    required this.otpLogIsError,
     required this.didCompleteRegistration,
     required this.acceptedLegal,
     required this.mode,
@@ -29,9 +34,14 @@ class RegistrationViewData extends Equatable {
       username = '',
       usernameStatus = UsernameCheckStatus.unknown,
       isUsernameChecking = false,
+      isSendingOtp = false,
+      isVerifyingOtp = false,
       selectedAvatarUrl = null,
       selectedCountryCodeId = defaultCountryCodeId,
       otpResendSeconds = 0,
+      otpLogId = 0,
+      otpLogMessage = null,
+      otpLogIsError = false,
       didCompleteRegistration = false,
       acceptedLegal = false,
       mode = RegistrationMode.login;
@@ -42,9 +52,14 @@ class RegistrationViewData extends Equatable {
   final String username;
   final UsernameCheckStatus usernameStatus;
   final bool isUsernameChecking;
+  final bool isSendingOtp;
+  final bool isVerifyingOtp;
   final String? selectedAvatarUrl;
   final String selectedCountryCodeId;
   final int otpResendSeconds;
+  final int otpLogId;
+  final String? otpLogMessage;
+  final bool otpLogIsError;
   final bool didCompleteRegistration;
   final bool acceptedLegal;
   final RegistrationMode mode;
@@ -103,10 +118,15 @@ class RegistrationViewData extends Equatable {
     bool clearUsername = false,
     UsernameCheckStatus? usernameStatus,
     bool? isUsernameChecking,
+    bool? isSendingOtp,
+    bool? isVerifyingOtp,
     String? selectedAvatarUrl,
     bool clearAvatar = false,
     String? selectedCountryCodeId,
     int? otpResendSeconds,
+    int? otpLogId,
+    String? otpLogMessage,
+    bool? otpLogIsError,
     bool? didCompleteRegistration,
     bool? acceptedLegal,
     RegistrationMode? mode,
@@ -118,12 +138,17 @@ class RegistrationViewData extends Equatable {
       username: clearUsername ? '' : username ?? this.username,
       usernameStatus: usernameStatus ?? this.usernameStatus,
       isUsernameChecking: isUsernameChecking ?? this.isUsernameChecking,
+      isSendingOtp: isSendingOtp ?? this.isSendingOtp,
+      isVerifyingOtp: isVerifyingOtp ?? this.isVerifyingOtp,
       selectedAvatarUrl: clearAvatar
           ? null
           : selectedAvatarUrl ?? this.selectedAvatarUrl,
       selectedCountryCodeId:
           selectedCountryCodeId ?? this.selectedCountryCodeId,
       otpResendSeconds: otpResendSeconds ?? this.otpResendSeconds,
+      otpLogId: otpLogId ?? this.otpLogId,
+      otpLogMessage: otpLogMessage ?? this.otpLogMessage,
+      otpLogIsError: otpLogIsError ?? this.otpLogIsError,
       didCompleteRegistration:
           didCompleteRegistration ?? this.didCompleteRegistration,
       acceptedLegal: acceptedLegal ?? this.acceptedLegal,
@@ -139,9 +164,14 @@ class RegistrationViewData extends Equatable {
     username,
     usernameStatus,
     isUsernameChecking,
+    isSendingOtp,
+    isVerifyingOtp,
     selectedAvatarUrl,
     selectedCountryCodeId,
     otpResendSeconds,
+    otpLogId,
+    otpLogMessage,
+    otpLogIsError,
     didCompleteRegistration,
     acceptedLegal,
     mode,

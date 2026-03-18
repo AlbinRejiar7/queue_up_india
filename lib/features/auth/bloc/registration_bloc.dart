@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/country_codes.dart';
 import '../../../core/utils/app_preferences.dart';
 import '../../../core/utils/auth_error_mapper.dart';
+import '../data/repositories/auth_repository.dart';
 import '../viewmodel/registration_view_model.dart';
 import 'registration_event.dart';
 import 'registration_state.dart';
@@ -14,6 +16,7 @@ import 'registration_state.dart';
 class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   RegistrationBloc({required RegistrationViewModel registrationViewModel})
     : _registrationViewModel = registrationViewModel,
+      _auth = FirebaseAuth.instance,
       super(const RegistrationInitial()) {
     on<RegistrationPhoneChanged>(_onPhoneChanged);
     on<RegistrationUsernameChanged>(_onUsernameChanged);
@@ -25,18 +28,34 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     on<RegistrationVerifyOtpPressed>(_onVerifyOtpPressed);
     on<RegistrationOtpCooldownTicked>(_onOtpCooldownTicked);
     on<RegistrationOtpSessionRestored>(_onOtpSessionRestored);
+    on<RegistrationAutoVerified>(_onAutoVerified);
+    on<RegistrationOtpLogReceived>(_onOtpLogReceived);
     on<RegistrationGooglePressed>(_onGooglePressed);
     on<RegistrationNavigationConsumed>(_onNavigationConsumed);
     on<RegistrationResetRequested>(_onResetRequested);
     on<RegistrationModeChanged>(_onModeChanged);
     on<RegistrationLegalAcceptedChanged>(_onLegalAcceptedChanged);
 
+    _authSubscription = _auth.authStateChanges().listen(_handleAuthChange);
+    _otpLogSubscription = _registrationViewModel.otpLogs.listen(
+      (OtpLogEvent event) {
+        add(
+          RegistrationOtpLogReceived(
+            message: event.message,
+            isError: event.isError,
+          ),
+        );
+      },
+    );
     unawaited(_restoreOtpSession());
   }
 
   final RegistrationViewModel _registrationViewModel;
+  final FirebaseAuth _auth;
   Timer? _usernameDebounce;
   Timer? _otpCooldownTimer;
+  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<OtpLogEvent>? _otpLogSubscription;
 
   static const int _otpCooldownSeconds = 60;
   static const Duration _otpSessionTtl = Duration(minutes: 10);
@@ -50,6 +69,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     if (resetOtp) {
       _stopOtpCooldown();
       unawaited(AppPreferences.clearOtpSession());
+      unawaited(AppPreferences.clearOtpPendingProfile());
     }
     emit(
       RegistrationSuccess(
@@ -58,6 +78,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           otp: resetOtp ? '' : state.data.otp,
           isOtpSent: resetOtp ? false : state.data.isOtpSent,
           otpResendSeconds: resetOtp ? 0 : state.data.otpResendSeconds,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
           didCompleteRegistration: false,
         ),
       ),
@@ -103,6 +125,17 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     Emitter<RegistrationState> emit,
   ) {
     final sanitized = event.otp.replaceAll(RegExp(r'[^0-9]'), '');
+    if (sanitized.length == 6 && state.data.otp.length != 6) {
+      developer.log(
+        'OTP input reached 6 digits',
+        name: 'RegistrationBloc',
+      );
+    } else if (sanitized.isEmpty && state.data.otp.isNotEmpty) {
+      developer.log(
+        'OTP input cleared',
+        name: 'RegistrationBloc',
+      );
+    }
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
@@ -133,6 +166,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   ) {
     _stopOtpCooldown();
     unawaited(AppPreferences.clearOtpSession());
+    unawaited(AppPreferences.clearOtpPendingProfile());
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
@@ -140,6 +174,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           isOtpSent: false,
           otp: '',
           otpResendSeconds: 0,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
           didCompleteRegistration: false,
         ),
       ),
@@ -200,7 +236,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     Emitter<RegistrationState> emit,
   ) async {
     developer.log(
-      'OTP send pressed',
+      'OTP send pressed (mode=${state.data.mode}, isOtpSent=${state.data.isOtpSent}, otpLen=${state.data.otp.length}, resend=${state.data.otpResendSeconds}s, usernameStatus=${state.data.usernameStatus}, acceptedLegal=${state.data.acceptedLegal})',
       name: 'RegistrationBloc',
       error: _maskPhone(_fullPhoneNumber(state.data)),
     );
@@ -247,8 +283,24 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       return;
     }
 
-    emit(RegistrationLoading(data: state.data));
+    emit(
+      RegistrationLoading(
+        data: state.data.copyWith(
+          isSendingOtp: true,
+          isVerifyingOtp: false,
+        ),
+      ),
+    );
+    _emitOtpLog(emit, 'OTP send started');
     try {
+      await AppPreferences.saveOtpPendingProfile(
+        displayName:
+            state.data.isRegistration ? state.data.username.trim() : null,
+        avatarUrl: state.data.isRegistration
+            ? state.data.selectedAvatarUrl
+            : null,
+        isRegistration: state.data.isRegistration,
+      );
       final fullPhone = _fullPhoneNumber(state.data);
       developer.log(
         'OTP login send requested',
@@ -285,6 +337,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
             isOtpSent: true,
             otp: '',
             otpResendSeconds: _otpCooldownSeconds,
+            isSendingOtp: false,
+            isVerifyingOtp: false,
             didCompleteRegistration: false,
           ),
         ),
@@ -297,7 +351,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       if (error.toString().toLowerCase().contains('not registered')) {
         emit(
           RegistrationError(
-            data: state.data,
+            data: state.data.copyWith(
+              isSendingOtp: false,
+              isVerifyingOtp: false,
+            ),
             message: AppStrings.phoneNotRegistered,
           ),
         );
@@ -305,7 +362,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       }
       emit(
         RegistrationError(
-          data: state.data,
+          data: state.data.copyWith(
+            isSendingOtp: false,
+            isVerifyingOtp: false,
+          ),
           message: AuthErrorMapper.message(
             error,
             fallback: AppStrings.otpSendFailed,
@@ -320,7 +380,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     Emitter<RegistrationState> emit,
   ) async {
     developer.log(
-      'OTP verify pressed',
+      'OTP verify pressed (mode=${state.data.mode}, isOtpSent=${state.data.isOtpSent}, otpLen=${state.data.otp.length}, canVerify=${state.data.canVerifyOtp}, usernameStatus=${state.data.usernameStatus}, acceptedLegal=${state.data.acceptedLegal})',
       name: 'RegistrationBloc',
       error: _maskPhone(_fullPhoneNumber(state.data)),
     );
@@ -350,7 +410,15 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       return;
     }
 
-    emit(RegistrationLoading(data: state.data));
+    emit(
+      RegistrationLoading(
+        data: state.data.copyWith(
+          isSendingOtp: false,
+          isVerifyingOtp: true,
+        ),
+      ),
+    );
+    _emitOtpLog(emit, 'Verify OTP started');
     try {
       await _registrationViewModel.verifyOtp(
         phoneNumber: _fullPhoneNumber(state.data),
@@ -368,7 +436,14 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       _stopOtpCooldown();
       emit(
         RegistrationSuccess(
-          data: state.data.copyWith(didCompleteRegistration: true),
+          data: state.data.copyWith(
+            didCompleteRegistration: true,
+            isSendingOtp: false,
+            isVerifyingOtp: false,
+            otpLogId: state.data.otpLogId + 1,
+            otpLogMessage: 'Verify OTP success',
+            otpLogIsError: false,
+          ),
         ),
       );
     } catch (error) {
@@ -378,7 +453,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       );
       emit(
         RegistrationError(
-          data: state.data,
+          data: state.data.copyWith(
+            isSendingOtp: false,
+            isVerifyingOtp: false,
+          ),
           message: AuthErrorMapper.message(
             error,
             fallback: AppStrings.otpVerifyFailed,
@@ -388,11 +466,89 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     }
   }
 
+  void _handleAuthChange(User? user) {
+    if (user == null) {
+      return;
+    }
+    if (state.data.didCompleteRegistration) {
+      return;
+    }
+    if (!state.data.isOtpSent && !state.data.isSendingOtp) {
+      return;
+    }
+    add(const RegistrationAutoVerified());
+  }
+
+  void _onOtpLogReceived(
+    RegistrationOtpLogReceived event,
+    Emitter<RegistrationState> emit,
+  ) {
+    _emitOtpLog(
+      emit,
+      event.message,
+      isError: event.isError,
+    );
+  }
+
+  void _emitOtpLog(
+    Emitter<RegistrationState> emit,
+    String message, {
+    bool isError = false,
+  }) {
+    final updatedData = state.data.copyWith(
+      otpLogId: state.data.otpLogId + 1,
+      otpLogMessage: message,
+      otpLogIsError: isError,
+    );
+    if (state is RegistrationLoading) {
+      emit(RegistrationLoading(data: updatedData));
+    } else if (state is RegistrationError) {
+      emit(
+        RegistrationError(
+          data: updatedData,
+          message: (state as RegistrationError).message,
+        ),
+      );
+    } else {
+      emit(RegistrationSuccess(data: updatedData));
+    }
+  }
+
+  Future<void> _onAutoVerified(
+    RegistrationAutoVerified event,
+    Emitter<RegistrationState> emit,
+  ) async {
+    if (state.data.didCompleteRegistration) {
+      return;
+    }
+    await AppPreferences.setLoggedIn(true);
+    _stopOtpCooldown();
+    emit(
+      RegistrationSuccess(
+        data: state.data.copyWith(
+          didCompleteRegistration: true,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
+          otpLogId: state.data.otpLogId + 1,
+          otpLogMessage: 'Auto-verification success',
+          otpLogIsError: false,
+        ),
+      ),
+    );
+  }
+
   Future<void> _onGooglePressed(
     RegistrationGooglePressed event,
     Emitter<RegistrationState> emit,
   ) async {
-    emit(RegistrationLoading(data: state.data));
+    emit(
+      RegistrationLoading(
+        data: state.data.copyWith(
+          isSendingOtp: false,
+          isVerifyingOtp: false,
+        ),
+      ),
+    );
     try {
       await _registrationViewModel.continueWithGoogle(
         avatarUrl:
@@ -401,13 +557,20 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       await AppPreferences.setLoggedIn(true);
       emit(
         RegistrationSuccess(
-          data: state.data.copyWith(didCompleteRegistration: true),
+          data: state.data.copyWith(
+            didCompleteRegistration: true,
+            isSendingOtp: false,
+            isVerifyingOtp: false,
+          ),
         ),
       );
     } catch (error) {
       emit(
         RegistrationError(
-          data: state.data,
+          data: state.data.copyWith(
+            isSendingOtp: false,
+            isVerifyingOtp: false,
+          ),
           message: AuthErrorMapper.message(
             error,
             fallback: AppStrings.authFailed,
@@ -423,7 +586,11 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   ) {
     emit(
       RegistrationSuccess(
-        data: state.data.copyWith(didCompleteRegistration: false),
+        data: state.data.copyWith(
+          didCompleteRegistration: false,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
+        ),
       ),
     );
   }
@@ -434,6 +601,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   ) {
     _stopOtpCooldown();
     unawaited(AppPreferences.clearOtpSession());
+    unawaited(AppPreferences.clearOtpPendingProfile());
     emit(
       const RegistrationSuccess(data: RegistrationViewData.initial()),
     );
@@ -448,6 +616,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     }
     _stopOtpCooldown();
     unawaited(AppPreferences.clearOtpSession());
+    unawaited(AppPreferences.clearOtpPendingProfile());
     emit(
       RegistrationSuccess(
         data: state.data.copyWith(
@@ -459,6 +628,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           isOtpSent: false,
           otp: '',
           otpResendSeconds: 0,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
           didCompleteRegistration: false,
         ),
       ),
@@ -473,6 +644,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       RegistrationSuccess(
         data: state.data.copyWith(
           acceptedLegal: event.accepted,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
           didCompleteRegistration: false,
         ),
       ),
@@ -525,7 +698,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     Emitter<RegistrationState> emit,
   ) {
     developer.log(
-      'OTP session restored: resend=${event.resendSeconds}s',
+      'OTP session restored: resend=${event.resendSeconds}s, phoneLen=${event.phoneNumber.length}',
       name: 'RegistrationBloc',
     );
     emit(
@@ -536,6 +709,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           isOtpSent: true,
           otp: '',
           otpResendSeconds: event.resendSeconds,
+          isSendingOtp: false,
+          isVerifyingOtp: false,
           didCompleteRegistration: false,
         ),
       ),
@@ -563,6 +738,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       await AppPreferences.clearOtpSession();
       return;
     }
+    developer.log(
+      'Stored OTP session found (age=${age.inSeconds}s, phoneLen=${session.phoneNumber.length})',
+      name: 'RegistrationBloc',
+    );
     final digits = session.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) {
       return;
@@ -635,6 +814,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   Future<void> close() {
     _usernameDebounce?.cancel();
     _otpCooldownTimer?.cancel();
+    _authSubscription?.cancel();
+    _otpLogSubscription?.cancel();
     return super.close();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -24,20 +26,51 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: GlowBackground(
-        child: BlocListener<RegistrationBloc, RegistrationState>(
-          listener: (BuildContext context, RegistrationState state) {
-            if (state is RegistrationError) {
-              AppSnackBar.showError(context, state.message);
-            }
+        child: MultiBlocListener(
+          listeners: <BlocListener<RegistrationBloc, RegistrationState>>[
+            BlocListener<RegistrationBloc, RegistrationState>(
+              listenWhen: (previous, current) =>
+                  previous.data.otpLogId != current.data.otpLogId,
+              listener: (context, state) {
+                final message = state.data.otpLogMessage;
+                if (message == null || message.trim().isEmpty) {
+                  return;
+                }
+                if (state.data.otpLogIsError) {
+                  AppSnackBar.showError(context, message);
+                } else {
+                  AppSnackBar.showInfo(context, message);
+                }
+              },
+            ),
+            BlocListener<RegistrationBloc, RegistrationState>(
+              listenWhen: (previous, current) =>
+                  previous.data.didCompleteRegistration !=
+                      current.data.didCompleteRegistration ||
+                  (current is RegistrationError && previous != current),
+              listener: (BuildContext context, RegistrationState state) {
+                if (state is RegistrationError) {
+                  developer.log(
+                    'Login error shown: ${state.message}',
+                    name: 'LoginScreen',
+                  );
+                  AppSnackBar.showError(context, state.message);
+                }
 
-            if (state is RegistrationSuccess &&
-                state.data.didCompleteRegistration) {
-              context.go(AppRoutes.home);
-              context.read<RegistrationBloc>().add(
-                const RegistrationResetRequested(),
-              );
-            }
-          },
+                if (state is RegistrationSuccess &&
+                    state.data.didCompleteRegistration) {
+                  developer.log(
+                    'Login completed -> navigate home',
+                    name: 'LoginScreen',
+                  );
+                  context.go(AppRoutes.home);
+                  context.read<RegistrationBloc>().add(
+                    const RegistrationResetRequested(),
+                  );
+                }
+              },
+            ),
+          ],
           child: SafeArea(
             child: ResponsiveLayoutBuilder(
               builder:

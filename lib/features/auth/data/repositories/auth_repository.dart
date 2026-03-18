@@ -1,7 +1,19 @@
 import '../../models/user_model.dart';
 
+class OtpLogEvent {
+  const OtpLogEvent({
+    required this.message,
+    this.isError = false,
+  });
+
+  final String message;
+  final bool isError;
+}
+
 abstract class AuthRepository {
   Future<UserModel> signInWithGoogle();
+
+  Stream<OtpLogEvent> get otpLogs;
 
   Future<void> sendOtp({required String phoneNumber});
 

@@ -33,19 +33,26 @@ class FirebaseAuthRepository implements AuthRepository {
 
   String? _verificationId;
   int? _forceResendingToken;
+  int _otpRequestCounter = 0;
+  final StreamController<OtpLogEvent> _otpLogController =
+      StreamController<OtpLogEvent>.broadcast();
+
+  @override
+  Stream<OtpLogEvent> get otpLogs => _otpLogController.stream;
 
   @override
   Future<void> sendOtp({required String phoneNumber}) async {
+    final int requestId = ++_otpRequestCounter;
     _verificationId = null;
     await AppPreferences.clearOtpSession();
     developer.log(
-      'OTP session cleared before send',
+      'OTP session cleared before send (req=$requestId)',
       name: 'FirebaseAuthRepository',
       error: _maskPhone(phoneNumber),
     );
     final Completer<void> completer = Completer<void>();
     developer.log(
-      'Firebase sendOtp start',
+      'Firebase sendOtp start (req=$requestId)',
       name: 'FirebaseAuthRepository',
       error: _maskPhone(phoneNumber),
     );
@@ -56,11 +63,18 @@ class FirebaseAuthRepository implements AuthRepository {
       forceResendingToken: _forceResendingToken,
       verificationCompleted: (PhoneAuthCredential credential) async {
         developer.log(
-          'Firebase sendOtp verificationCompleted',
+          'Firebase sendOtp verificationCompleted (req=$requestId)',
           name: 'FirebaseAuthRepository',
         );
         try {
-          await _auth.signInWithCredential(credential);
+          final result = await _auth.signInWithCredential(credential);
+          final user = result.user;
+          if (user != null) {
+            await _finalizeAutoVerifiedSignIn(
+              user,
+              phoneNumber: phoneNumber,
+            );
+          }
         } catch (_) {
           // Ignore auto-verification sign-in failures.
         }
@@ -70,8 +84,12 @@ class FirebaseAuthRepository implements AuthRepository {
       },
       verificationFailed: (FirebaseAuthException error) {
         developer.log(
-          'Firebase sendOtp failed: ${error.code}',
+          'Firebase sendOtp failed (req=$requestId): ${error.code}',
           name: 'FirebaseAuthRepository',
+        );
+        _emitOtpLog(
+          'OTP send error: ${_formatAuthError(error)}',
+          isError: true,
         );
         if (!completer.isCompleted) {
           completer.completeError(error);
@@ -79,7 +97,7 @@ class FirebaseAuthRepository implements AuthRepository {
       },
       codeSent: (String verificationId, int? forceResendingToken) {
         developer.log(
-          'Firebase sendOtp codeSent',
+          'Firebase sendOtp codeSent (req=$requestId, vid=${_maskVerificationId(verificationId)})',
           name: 'FirebaseAuthRepository',
         );
         _verificationId = verificationId;
@@ -90,16 +108,22 @@ class FirebaseAuthRepository implements AuthRepository {
           sentAt: DateTime.now(),
           forceResendingToken: forceResendingToken,
         );
+        _emitOtpLog('OTP sent (codeSent)');
+        developer.log(
+          'OTP session saved (req=$requestId, resendToken=${forceResendingToken != null})',
+          name: 'FirebaseAuthRepository',
+        );
         if (!completer.isCompleted) {
           completer.complete();
         }
       },
       codeAutoRetrievalTimeout: (String verificationId) {
         developer.log(
-          'Firebase sendOtp autoRetrievalTimeout',
+          'Firebase sendOtp autoRetrievalTimeout (req=$requestId, vid=${_maskVerificationId(verificationId)})',
           name: 'FirebaseAuthRepository',
         );
         _verificationId = verificationId;
+        _emitOtpLog('OTP auto-retrieval timeout');
         if (!completer.isCompleted) {
           completer.complete();
         }
@@ -176,7 +200,7 @@ class FirebaseAuthRepository implements AuthRepository {
           session.phoneNumber == phoneNumber &&
           DateTime.now().difference(session.sentAt) <= _otpSessionTtl) {
         developer.log(
-          'OTP session restored from storage',
+          'OTP session restored from storage (vid=${_maskVerificationId(session.verificationId)}, hasResendToken=${session.forceResendingToken != null})',
           name: 'FirebaseAuthRepository',
         );
         verificationId = session.verificationId;
@@ -195,8 +219,16 @@ class FirebaseAuthRepository implements AuthRepository {
         'OTP verification failed: missing verificationId',
         name: 'FirebaseAuthRepository',
       );
+      _emitOtpLog(
+        'OTP verify failed: verificationId is null',
+        isError: true,
+      );
       throw StateError(_otpExpiredMessage);
     }
+    developer.log(
+      'OTP verification using vid=${_maskVerificationId(verificationId)}',
+      name: 'FirebaseAuthRepository',
+    );
 
     final PhoneAuthCredential credential = PhoneAuthProvider.credential(
       verificationId: verificationId,
@@ -214,6 +246,10 @@ class FirebaseAuthRepository implements AuthRepository {
       if (error.code == 'session-expired' || error.code == 'code-expired') {
         await AppPreferences.clearOtpSession();
       }
+      _emitOtpLog(
+        'OTP verify error: ${_formatAuthError(error)}',
+        isError: true,
+      );
       rethrow;
     }
     final User? user = result.user;
@@ -221,6 +257,7 @@ class FirebaseAuthRepository implements AuthRepository {
       throw StateError('Authentication failed. Please try again.');
     }
     await AppPreferences.clearOtpSession();
+    await AppPreferences.clearOtpPendingProfile();
     _verificationId = null;
     _forceResendingToken = null;
     developer.log(
@@ -376,6 +413,76 @@ class FirebaseAuthRepository implements AuthRepository {
     await docRef.set(data, SetOptions(merge: true));
   }
 
+  Future<void> _finalizeAutoVerifiedSignIn(
+    User user, {
+    required String phoneNumber,
+  }) async {
+    String? storedName;
+    String? storedAvatar;
+    try {
+      final snapshot = await _db.collection('users').doc(user.uid).get();
+      final data = snapshot.data();
+      storedName = (data?['displayName'] as String?)?.trim();
+      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
+    } catch (_) {}
+
+    final pending = await AppPreferences.loadOtpPendingProfile();
+    final pendingName = pending?.displayName?.trim();
+    final resolvedName =
+        pendingName != null && pendingName.isNotEmpty
+            ? pendingName
+            : (storedName != null && storedName.isNotEmpty
+                ? storedName
+                : (user.displayName ?? 'QueuePlayer'));
+    final resolvedAvatar =
+        pending?.avatarUrl ??
+        (storedAvatar != null && storedAvatar.isNotEmpty
+            ? storedAvatar
+            : user.photoURL);
+
+    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
+      try {
+        await user.updateDisplayName(resolvedName);
+      } catch (_) {}
+    }
+
+    await user.reload();
+    final User? refreshed = _auth.currentUser;
+    await _upsertUserProfile(
+      refreshed ?? user,
+      displayName: resolvedName,
+      avatarUrl: resolvedAvatar,
+    );
+
+    if (pending?.isRegistration == true &&
+        pendingName != null &&
+        pendingName.isNotEmpty) {
+      try {
+        await _claimUsername(pendingName, user.uid);
+      } catch (_) {}
+    }
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('private')
+        .doc('profile')
+        .set(
+          <String, dynamic>{
+            'phoneNumber': phoneNumber,
+            'phoneNumberDigits': _normalizePhoneDigits(phoneNumber),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+
+    await AppPreferences.setLoggedIn(true);
+    await AppPreferences.clearOtpSession();
+    await AppPreferences.clearOtpPendingProfile();
+    _verificationId = null;
+    _forceResendingToken = null;
+  }
+
   Future<void> _claimUsername(String username, String uid) async {
     final normalized = _normalizeUsername(username);
     if (normalized.isEmpty) {
@@ -403,6 +510,23 @@ class FirebaseAuthRepository implements AuthRepository {
     });
   }
 
+  void _emitOtpLog(String message, {bool isError = false}) {
+    _otpLogController.add(
+      OtpLogEvent(
+        message: message,
+        isError: isError,
+      ),
+    );
+  }
+
+  String _formatAuthError(FirebaseAuthException error) {
+    final details = error.message?.trim();
+    if (details == null || details.isEmpty) {
+      return error.code;
+    }
+    return '${error.code}: $details';
+  }
+
   String _normalizeUsername(String username) {
     final trimmed = username.trim().toLowerCase();
     if (trimmed.isEmpty) {
@@ -424,5 +548,16 @@ class FirebaseAuthRepository implements AuthRepository {
     }
     final tail = digits.substring(digits.length - 4);
     return '+••••$tail';
+  }
+
+  String _maskVerificationId(String? verificationId) {
+    if (verificationId == null || verificationId.isEmpty) {
+      return 'null';
+    }
+    if (verificationId.length <= 6) {
+      return 'len=${verificationId.length}';
+    }
+    final tail = verificationId.substring(verificationId.length - 6);
+    return 'len=${verificationId.length}...$tail';
   }
 }

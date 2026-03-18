@@ -86,6 +86,23 @@ class RegistrationOtpSessionRestored extends RegistrationEvent {
   ];
 }
 
+class RegistrationAutoVerified extends RegistrationEvent {
+  const RegistrationAutoVerified();
+}
+
+class RegistrationOtpLogReceived extends RegistrationEvent {
+  const RegistrationOtpLogReceived({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  List<Object?> get props => <Object?>[message, isError];
+}
+
 class RegistrationGooglePressed extends RegistrationEvent {
   const RegistrationGooglePressed();
 }

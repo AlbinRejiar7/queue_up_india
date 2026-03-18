@@ -5,6 +5,10 @@ import 'auth_repository.dart';
 
 class MockAuthRepository implements AuthRepository {
   @override
+  Stream<OtpLogEvent> get otpLogs =>
+      const Stream<OtpLogEvent>.empty();
+
+  @override
   Future<void> sendOtp({required String phoneNumber}) async {
     // TODO: Implement FirebaseAuth here
     await Future<void>.delayed(const Duration(milliseconds: 650));
