@@ -118,7 +118,7 @@ abstract final class AppStrings {
       'Go available and let nearby players know you are ready to squad up.';
   static const String availabilityPreferences = 'Availability Preferences';
   static const String availabilityOn = 'AVAILABLE';
-  static const String availabilityOff = 'GO AVAILABLE';
+  static const String availabilityOff = 'GO SOLO';
   static const String availabilityHintOn =
       'Players can now discover your queue';
   static const String availabilityHintOff =
@@ -132,6 +132,52 @@ abstract final class AppStrings {
       'Select game, language, and rank to go available';
   static const String seeAvailablePlayers = 'See Available Players';
   static const String seeAvailableSoloPlayers = 'See Available Solo Players';
+  static const String findSquadTitle = 'Find Squad';
+  static const String findSquadAction = 'Find Squad';
+  static const String findSquadSetupTitle = 'Queue Into A Solo Squad';
+  static const String findSquadSetupBody =
+      'Choose your rank and language, then we will match you with three players from the same game bucket.';
+  static const String findSquadSetupSubtitle =
+      'Set your queue preferences and jump into live matchmaking.';
+  static const String findSquadSearchingTitle = 'Searching For Teammates';
+  static const String findSquadSearchingBody =
+      'We are looking for three players with a similar queue profile.';
+  static const String matchmakingSetupSubtitle =
+      'Pick your preferences and queue into live squad matchmaking.';
+  static const String matchmakingSearchingSubtitle =
+      'Stay on this screen while we look for the best solo squad.';
+  static const String matchmakingSquadFoundSubtitle =
+      'A squad is ready. Accept quickly to lock it in.';
+  static const String matchmakingLobbySubtitle =
+      'Your squad is confirmed and ready to play.';
+  static const String playersFoundLabel = 'Players Found';
+  static const String estimatedTimeLabel = 'Estimated Time';
+  static const String cancelSearchAction = 'Cancel Search';
+  static const String keepWaitingAction = 'Keep Waiting';
+  static const String browsePartiesAction = 'Browse Parties';
+  static const String matchmakingCancelled = 'Matchmaking cancelled.';
+  static const String matchmakingAlreadyActive =
+      'You already have an active matchmaking session.';
+  static const String matchmakingPartyConflict =
+      'Leave your current party before starting matchmaking.';
+  static const String lowQueueFallbackTitle = 'Still Looking For Players';
+  static const String lowQueueFallbackBody =
+      'Not enough players yet. Try available solo players or open parties.';
+  static const String soloPlayersAvailableLabel = 'Solo Players Available';
+  static const String openPartiesLabel = 'Open Parties';
+  static const String peakTimeHint = 'Most active between 7 PM - 11 PM';
+  static const String squadFoundTitle = 'Squad Found';
+  static const String squadFoundBody =
+      'Everyone has a few seconds to accept before the squad unlocks.';
+  static const String acceptMatchAction = 'Accept Match';
+  static const String declineMatchAction = 'Decline Match';
+  static const String waitingForOthersAction = 'Waiting For Others';
+  static const String acceptedShortLabel = 'Accepted';
+  static const String pendingLabel = 'Pending';
+  static const String squadReadyTitle = 'Squad Ready';
+  static const String squadReadyBody =
+      'All players accepted. Use this roster to jump into your game together.';
+  static const String doneAction = 'Done';
   static const String availablePlayersTitle = 'Available Solo Players';
   static const String availablePlayersSubtitle =
       'Players currently looking for a squad';

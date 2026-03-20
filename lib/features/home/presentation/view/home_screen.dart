@@ -11,8 +11,10 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/activity_pulse_panel.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../game_selection/bloc/game_bloc.dart';
@@ -394,6 +396,73 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context.read<HomeAvailabilityBloc>().add(
                                       HomeAvailabilityRankChanged(rank: value),
                                     );
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              contentPadding.left,
+                              0,
+                              contentPadding.right,
+                              10.h,
+                            ),
+                            child: ActivityPulsePanel(
+                              gameId:
+                                  state.selectedGameId ?? AppOptions.valorantId,
+                              onSoloPlayersTap: () {
+                                final gameId =
+                                    state.selectedGameId ??
+                                    AppOptions.valorantId;
+                                context.push(
+                                  '${AppRoutes.availablePlayers}?gameId=$gameId',
+                                );
+                              },
+                              onOpenPartiesTap: () {
+                                final gameId =
+                                    state.selectedGameId ??
+                                    AppOptions.valorantId;
+                                context.push(AppRoutes.partyListPath(gameId));
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              contentPadding.left,
+                              0,
+                              contentPadding.right,
+                              10.h,
+                            ),
+                            child: PrimaryButton(
+                              label: AppStrings.findSquadAction,
+                              icon: Icons.bolt_rounded,
+                              enabled: state.canToggleAvailability,
+                              onDisabledPressed: () {
+                                AppSnackBar.showInfo(
+                                  context,
+                                  AppStrings.completeAvailabilitySelection,
+                                );
+                              },
+                              onPressed: () {
+                                final gameId =
+                                    state.selectedGameId ??
+                                    AppOptions.valorantId;
+                                final rank = state.selectedRank;
+                                final language = state.selectedLanguage;
+                                if (rank == null || language == null) {
+                                  AppSnackBar.showInfo(
+                                    context,
+                                    AppStrings.completeAvailabilitySelection,
+                                  );
+                                  return;
+                                }
+                                context.push(
+                                  AppRoutes.soloMatchmakingPath(
+                                    gameId: gameId,
+                                    rank: rank,
+                                    language: language,
+                                    autoStart: true,
+                                  ),
+                                );
                               },
                             ),
                           ),

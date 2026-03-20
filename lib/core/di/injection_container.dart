@@ -21,6 +21,10 @@ import '../../features/home/data/repositories/availability_repository.dart';
 import '../../features/home/data/repositories/firestore_availability_repository.dart';
 import '../../features/home/viewmodel/availability_view_model.dart';
 import '../../features/home/viewmodel/available_players_view_model.dart';
+import '../../features/matchmaking/bloc/matchmaking_bloc.dart';
+import '../../features/matchmaking/data/repositories/firestore_matchmaking_repository.dart';
+import '../../features/matchmaking/data/repositories/matchmaking_repository.dart';
+import '../../features/matchmaking/viewmodel/matchmaking_view_model.dart';
 import '../../features/notifications/bloc/notifications_bloc.dart';
 import '../../features/notifications/data/repositories/firestore_notifications_repository.dart';
 import '../../features/notifications/data/repositories/notifications_repository.dart';
@@ -37,6 +41,7 @@ import '../../features/settings/viewmodel/language_view_model.dart';
 import '../../features/settings/viewmodel/profile_view_model.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/app_router.dart';
+import '../services/activity_pulse_service.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -60,6 +65,10 @@ void _registerRepositories() {
   sl.registerLazySingleton<NotificationsRepository>(
     FirestoreNotificationsRepository.new,
   );
+  sl.registerLazySingleton<MatchmakingRepository>(
+    FirestoreMatchmakingRepository.new,
+  );
+  sl.registerLazySingleton<ActivityPulseService>(ActivityPulseService.new);
 }
 
 void _registerViewModels() {
@@ -93,6 +102,9 @@ void _registerViewModels() {
   sl.registerFactory<NotificationsViewModel>(
     () =>
         NotificationsViewModel(repository: sl<NotificationsRepository>()),
+  );
+  sl.registerFactory<MatchmakingViewModel>(
+    () => MatchmakingViewModel(repository: sl<MatchmakingRepository>()),
   );
 }
 
@@ -139,5 +151,8 @@ void _registerBlocs() {
   );
   sl.registerFactory<ChatBadgeBloc>(
     () => ChatBadgeBloc(chatViewModel: sl<ChatViewModel>()),
+  );
+  sl.registerFactory<MatchmakingBloc>(
+    () => MatchmakingBloc(matchmakingViewModel: sl<MatchmakingViewModel>()),
   );
 }

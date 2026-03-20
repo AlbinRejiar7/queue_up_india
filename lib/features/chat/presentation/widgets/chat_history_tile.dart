@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/constants/app_images.dart';
+import '../../../../core/utils/chat_time_formatter.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../models/chat_thread.dart';
 
@@ -84,7 +85,7 @@ class ChatHistoryTile extends StatelessWidget {
             ),
             SizedBox(width: 8.w),
             Text(
-              _formatTime(context, thread.lastMessageAt),
+              formatChatListTime(context, thread.lastMessageAt),
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -104,15 +105,4 @@ ImageProvider _avatarProvider(String url) {
     return NetworkImage(url);
   }
   return AssetImage(url);
-}
-
-String _formatTime(BuildContext context, DateTime value) {
-  final now = DateTime.now();
-  final isSameDay = now.year == value.year &&
-      now.month == value.month &&
-      now.day == value.day;
-  if (isSameDay) {
-    return TimeOfDay.fromDateTime(value).format(context);
-  }
-  return '${value.day}/${value.month}';
 }

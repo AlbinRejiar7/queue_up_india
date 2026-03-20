@@ -23,6 +23,19 @@ class PartyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final playerDerivedHostName = party.players
+        .where((player) => player.isHost)
+        .map((player) => player.name)
+        .cast<String?>()
+        .firstWhere(
+          (name) => name != null && name.trim().isNotEmpty,
+          orElse: () =>
+              party.players.isNotEmpty ? party.players.first.name : null,
+        );
+    final hostName = (party.hostDisplayName?.trim().isNotEmpty == true)
+        ? party.hostDisplayName
+        : playerDerivedHostName;
+
     return GlassContainer(
       borderRadius: 30.r,
       padding: EdgeInsets.all(10.r),
@@ -51,13 +64,26 @@ class PartyCard extends StatelessWidget {
                   Positioned(
                     top: 10.h,
                     left: 10.w,
-                    child: RankTagChip(
-                      rankName: party.rank,
-                      gameId: party.gameId,
-                      backgroundColor:
-                          AppColors.navSurface.withValues(alpha: 0.9),
-                      textColor: AppColors.textPrimary,
-                      compact: true,
+                    child: Wrap(
+                      spacing: 8.w,
+                      runSpacing: 8.h,
+                      children: <Widget>[
+                        RankTagChip(
+                          rankName: party.rank,
+                          gameId: party.gameId,
+                          backgroundColor:
+                              AppColors.navSurface.withValues(alpha: 0.9),
+                          textColor: AppColors.textPrimary,
+                          compact: true,
+                        ),
+                        TagChip(
+                          label: party.language,
+                          compact: true,
+                          backgroundColor:
+                              AppColors.navSurface.withValues(alpha: 0.9),
+                          textColor: AppColors.textPrimary,
+                        ),
+                      ],
                     ),
                   ),
                   Positioned(
@@ -83,40 +109,50 @@ class PartyCard extends StatelessWidget {
                   ),
                 ],
               ),
-        ),
-      ),
-      SizedBox(height: 12.h),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  party.name,
-                  style: AppTextStyles.pageTitle.copyWith(
-                    fontSize: 24.sp / 1.4,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  _createdLabel(party.createdAt),
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Wrap(
-                  spacing: 8.w,
-                  runSpacing: 8.h,
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    TagChip(label: party.language, compact: true),
-                        ...party.tags.map(
-                          (tag) => TagChip(label: tag, compact: true),
-                        ),
-                      ],
+                    Text(
+                      party.name,
+                      style: AppTextStyles.pageTitle.copyWith(
+                        fontSize: 24.sp / 1.4,
+                      ),
                     ),
+                    if (hostName != null && hostName.trim().isNotEmpty) ...<
+                      Widget
+                    >[
+                      SizedBox(height: 4.h),
+                      Text(
+                        'Created by $hostName',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: 4.h),
+                    Text(
+                      _createdLabel(party.createdAt),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (party.tags.isNotEmpty) ...<Widget>[
+                      SizedBox(height: 8.h),
+                      Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: party.tags
+                            .map((tag) => TagChip(label: tag, compact: true))
+                            .toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/chat_time_formatter.dart';
 import '../../models/chat_message.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -25,7 +26,11 @@ class ChatBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: align,
         children: <Widget>[
-          Text(message.senderName, style: AppTextStyles.caption),
+          Text(
+            message.senderName,
+            textAlign: message.isMe ? TextAlign.right : TextAlign.left,
+            style: AppTextStyles.caption,
+          ),
           SizedBox(height: 4.h),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
@@ -34,9 +39,25 @@ class ChatBubble extends StatelessWidget {
               color: bubbleColor,
               borderRadius: BorderRadius.circular(18.r),
             ),
-            child: Text(
-              message.message,
-              style: AppTextStyles.bodyMedium.copyWith(color: textColor),
+            child: Column(
+              crossAxisAlignment: align,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  message.message,
+                  textAlign: message.isMe ? TextAlign.right : TextAlign.left,
+                  style: AppTextStyles.bodyMedium.copyWith(color: textColor),
+                ),
+                SizedBox(height: 6.h),
+                Text(
+                  formatChatListTime(context, message.timestamp),
+                  textAlign: message.isMe ? TextAlign.right : TextAlign.left,
+                  style: AppTextStyles.caption.copyWith(
+                    color: textColor.withValues(alpha: 0.72),
+                    fontSize: 11.sp,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

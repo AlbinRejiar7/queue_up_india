@@ -13,6 +13,188 @@ const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
 const NOTIFICATION_CHANNEL_ID = "queueup_alerts_default_v1";
+const SOLO_MATCH_REQUIRED_PLAYERS = 4;
+const SOLO_MATCH_READY_SECONDS = 20;
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeRankToSkillLevel(gameId, rankId) {
+  const normalizedGame = String(gameId || "").trim().toLowerCase();
+  const normalizedRank = String(rankId || "").trim().toLowerCase();
+
+  if (normalizedGame === "pubg") {
+    if (normalizedRank.startsWith("bronze")) return 2;
+    if (normalizedRank.startsWith("silver")) return 3;
+    if (normalizedRank.startsWith("gold")) return 4;
+    if (normalizedRank.startsWith("platinum")) return 5;
+    if (normalizedRank.startsWith("diamond")) return 6;
+    if (normalizedRank.startsWith("crown")) return 7;
+    if (normalizedRank.startsWith("ace")) return 8;
+    if (normalizedRank.startsWith("conqueror")) return 10;
+    return 4;
+  }
+
+  if (normalizedGame === "freefire") {
+    if (normalizedRank.startsWith("bronze")) return 2;
+    if (normalizedRank.startsWith("silver")) return 3;
+    if (normalizedRank.startsWith("gold")) return 4;
+    if (normalizedRank.startsWith("platinum")) return 5;
+    if (normalizedRank.startsWith("diamond")) return 6;
+    if (normalizedRank.startsWith("heroic")) return 8;
+    if (normalizedRank.startsWith("grandmaster")) return 10;
+    return 4;
+  }
+
+  if (normalizedRank.startsWith("iron")) return 1;
+  if (normalizedRank.startsWith("bronze")) return 2;
+  if (normalizedRank.startsWith("silver")) return 3;
+  if (normalizedRank.startsWith("gold")) return 5;
+  if (normalizedRank.startsWith("platinum")) return 6;
+  if (normalizedRank.startsWith("diamond")) return 7;
+  if (normalizedRank.startsWith("ascendant")) return 8;
+  if (normalizedRank.startsWith("immortal")) return 9;
+  if (normalizedRank.startsWith("radiant")) return 10;
+  return 4;
+}
+
+function skillGroupForLevel(skillLevel) {
+  if (skillLevel <= 3) {
+    return "beginner";
+  }
+  if (skillLevel <= 6) {
+    return "intermediate";
+  }
+  return "pro";
+}
+
+function buildBucketId({ gameId, languageId, skillLevel }) {
+  return `${slugify(gameId)}_${slugify(languageId)}_${skillGroupForLevel(skillLevel)}`;
+}
+
+function estimateQueueSeconds(queueSize) {
+  if (queueSize >= SOLO_MATCH_REQUIRED_PLAYERS) {
+    return 5;
+  }
+  if (queueSize === 3) {
+    return 12;
+  }
+  if (queueSize === 2) {
+    return 20;
+  }
+  return 35;
+}
+
+function userMatchmakingRef(uid) {
+  return db.collection("users").doc(uid).collection("private").doc("solo_matchmaking");
+}
+
+function queueMetadataRef(bucketId) {
+  return db.collection("match_pool").doc(bucketId).collection("metadata").doc("stats");
+}
+
+async function resolveUserProfile(uid) {
+  const [userDoc, authUser] = await Promise.all([
+    db.collection("users").doc(uid).get(),
+    getAuth().getUser(uid),
+  ]);
+  const data = userDoc.exists ? userDoc.data() : {};
+  return {
+    displayName:
+      data.displayName ||
+      authUser.displayName ||
+      "QueuePlayer",
+    avatarUrl:
+      data.avatarUrl ||
+      authUser.photoURL ||
+      null,
+  };
+}
+
+async function attemptSoloMatchmakingForBucket(bucketId) {
+  while (true) {
+    const matched = await db.runTransaction(async (tx) => {
+      const bucketRef = db.collection("match_pool").doc(bucketId);
+      const ticketQuery = bucketRef.collection("tickets").orderBy("joinedAt").limit(SOLO_MATCH_REQUIRED_PLAYERS);
+      const ticketsSnap = await tx.get(ticketQuery);
+      if (ticketsSnap.size < SOLO_MATCH_REQUIRED_PLAYERS) {
+        return false;
+      }
+
+      const participants = ticketsSnap.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          uid: doc.id,
+          displayName: data.displayName || "QueuePlayer",
+          avatarUrl: data.avatarUrl || null,
+          gameId: data.gameId || "",
+          rankId: data.rankId || "",
+          languageId: data.languageId || "",
+          skillLevel: data.skillLevel || 1,
+        };
+      });
+      const first = participants[0];
+      const squadRef = db.collection("solo_squads").doc();
+      const playerIds = participants.map((player) => player.uid);
+
+      tx.set(squadRef, {
+        bucketId,
+        gameId: first.gameId,
+        languageId: first.languageId,
+        requiredPlayers: SOLO_MATCH_REQUIRED_PLAYERS,
+        retryCount: 0,
+        participants,
+        playerIds,
+        acceptedPlayerIds: [],
+        status: "waiting",
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        acceptDeadlineAt: Timestamp.fromMillis(Date.now() + SOLO_MATCH_READY_SECONDS * 1000),
+      });
+
+      ticketsSnap.docs.forEach((doc) => tx.delete(doc.ref));
+      tx.set(
+        queueMetadataRef(bucketId),
+        {
+          activeUsers: FieldValue.increment(-SOLO_MATCH_REQUIRED_PLAYERS),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      participants.forEach((participant) => {
+        tx.set(
+          userMatchmakingRef(participant.uid),
+          {
+            status: "waiting",
+            bucketId,
+            ticketId: participant.uid,
+            squadId: squadRef.id,
+            gameId: participant.gameId,
+            rankId: participant.rankId,
+            languageId: participant.languageId,
+            skillLevel: participant.skillLevel,
+            queueSize: SOLO_MATCH_REQUIRED_PLAYERS,
+            estimatedSeconds: 0,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      return true;
+    });
+
+    if (!matched) {
+      break;
+    }
+  }
+}
 
 function normalizeData(data) {
   const payload = {};
@@ -144,6 +326,56 @@ async function sendPushToUser(uid, payload) {
     failureCount: response.failureCount
   });
   await pruneInvalidTokens(uid, tokens, response);
+}
+
+function clearSoloMatchmakingSession(tx, participant) {
+  tx.set(
+    userMatchmakingRef(participant.uid),
+    {
+      status: "idle",
+      squadId: null,
+      bucketId: null,
+      ticketId: null,
+      queueSize: 0,
+      estimatedSeconds: 0,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+function queueSoloParticipant(tx, participant, bucketId, queueSize) {
+  tx.set(
+    db.collection("match_pool").doc(bucketId).collection("tickets").doc(participant.uid),
+    {
+      uid: participant.uid,
+      displayName: participant.displayName || "QueuePlayer",
+      avatarUrl: participant.avatarUrl || null,
+      gameId: participant.gameId || "",
+      rankId: participant.rankId || "",
+      languageId: participant.languageId || "",
+      skillLevel: participant.skillLevel || 1,
+      joinedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+  );
+  tx.set(
+    userMatchmakingRef(participant.uid),
+    {
+      status: "searching",
+      bucketId,
+      ticketId: participant.uid,
+      squadId: null,
+      gameId: participant.gameId || "",
+      rankId: participant.rankId || "",
+      languageId: participant.languageId || "",
+      skillLevel: participant.skillLevel || 1,
+      queueSize,
+      estimatedSeconds: estimateQueueSeconds(queueSize),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
@@ -315,6 +547,337 @@ exports.createParty = onCall({ region, invoker: "public" }, async (request) => {
   return { partyId: partyRef.id };
 });
 
+exports.startSoloMatchmaking = onCall({ region, invoker: "public" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const { gameId, rankId, languageId } = request.data || {};
+  if (!gameId || !rankId || !languageId) {
+    throw new HttpsError("invalid-argument", "Game, rank, and language are required.");
+  }
+
+  const skillLevel = normalizeRankToSkillLevel(gameId, rankId);
+  const bucketId = buildBucketId({ gameId, languageId, skillLevel });
+  const profile = await resolveUserProfile(uid);
+
+  await db.runTransaction(async (tx) => {
+    const sessionRef = userMatchmakingRef(uid);
+    const sessionSnap = await tx.get(sessionRef);
+    if (sessionSnap.exists) {
+      const sessionData = sessionSnap.data() || {};
+      const currentStatus = sessionData.status || "idle";
+      if (["searching", "waiting", "accepted_waiting", "confirmed"].includes(currentStatus)) {
+        throw new HttpsError("failed-precondition", "You already have an active squad.");
+      }
+    }
+
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    if (userData?.currentPartyId) {
+      throw new HttpsError("failed-precondition", "You are already in a party.");
+    }
+
+    const metadataRef = queueMetadataRef(bucketId);
+    const metadataSnap = await tx.get(metadataRef);
+    const activeUsers = metadataSnap.exists ? metadataSnap.data().activeUsers || 0 : 0;
+    const nextQueueSize = Number(activeUsers || 0) + 1;
+
+    tx.set(
+      db.collection("match_pool").doc(bucketId).collection("tickets").doc(uid),
+      {
+        uid,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        gameId,
+        rankId,
+        languageId,
+        skillLevel,
+        joinedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }
+    );
+
+    tx.set(
+      sessionRef,
+      {
+        status: "searching",
+        bucketId,
+        ticketId: uid,
+        squadId: null,
+        gameId,
+        rankId,
+        languageId,
+        skillLevel,
+        queueSize: nextQueueSize,
+        estimatedSeconds: estimateQueueSeconds(nextQueueSize),
+        joinedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    tx.set(
+      metadataRef,
+      {
+        activeUsers: FieldValue.increment(1),
+        recentJoins: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  await attemptSoloMatchmakingForBucket(bucketId);
+  return { ok: true, bucketId };
+});
+
+exports.cancelSoloMatchmaking = onCall({ region, invoker: "public" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  let bucketToRetry = null;
+  await db.runTransaction(async (tx) => {
+    const sessionRef = userMatchmakingRef(uid);
+    const sessionSnap = await tx.get(sessionRef);
+    if (!sessionSnap.exists) {
+      return;
+    }
+    const session = sessionSnap.data() || {};
+    const status = session.status || "idle";
+    const bucketId = session.bucketId || null;
+
+    if (status === "searching" && bucketId) {
+      tx.delete(db.collection("match_pool").doc(bucketId).collection("tickets").doc(uid));
+      tx.set(
+        queueMetadataRef(bucketId),
+        {
+          activeUsers: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      tx.set(
+        sessionRef,
+        {
+          status: "idle",
+          bucketId: null,
+          ticketId: null,
+          squadId: null,
+          queueSize: 0,
+          estimatedSeconds: 0,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    if (!bucketId || !session.squadId) {
+      tx.set(
+        sessionRef,
+        {
+          status: "idle",
+          bucketId: null,
+          ticketId: null,
+          squadId: null,
+          queueSize: 0,
+          estimatedSeconds: 0,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const squadRef = db.collection("solo_squads").doc(session.squadId);
+    const squadSnap = await tx.get(squadRef);
+    if (!squadSnap.exists) {
+      tx.set(
+        sessionRef,
+        {
+          status: "idle",
+          bucketId: null,
+          ticketId: null,
+          squadId: null,
+          queueSize: 0,
+          estimatedSeconds: 0,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const squad = squadSnap.data() || {};
+    const participants = squad.participants || [];
+    const queueSize = 1;
+    participants.forEach((participant) => {
+      if (!participant?.uid) {
+        return;
+      }
+      if (participant.uid === uid) {
+        clearSoloMatchmakingSession(tx, participant);
+        return;
+      }
+      queueSoloParticipant(tx, participant, bucketId, queueSize);
+      tx.set(
+        queueMetadataRef(bucketId),
+        {
+          activeUsers: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+    tx.update(squadRef, {
+      status: "cancelled",
+      rejectedBy: uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    bucketToRetry = bucketId;
+  });
+
+  if (bucketToRetry) {
+    await attemptSoloMatchmakingForBucket(bucketToRetry);
+  }
+  return { ok: true };
+});
+
+exports.acceptSoloMatchmaking = onCall({ region, invoker: "public" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const { squadId } = request.data || {};
+  if (!squadId) {
+    throw new HttpsError("invalid-argument", "Squad ID is required.");
+  }
+
+  await db.runTransaction(async (tx) => {
+    const squadRef = db.collection("solo_squads").doc(squadId);
+    const squadSnap = await tx.get(squadRef);
+    if (!squadSnap.exists) {
+      throw new HttpsError("not-found", "Squad not found.");
+    }
+    const squad = squadSnap.data() || {};
+    if (!Array.isArray(squad.playerIds) || !squad.playerIds.includes(uid)) {
+      throw new HttpsError("permission-denied", "You are not part of this squad.");
+    }
+    if (squad.status === "confirmed") {
+      return;
+    }
+    if (squad.status !== "waiting") {
+      throw new HttpsError("failed-precondition", "This squad is no longer waiting.");
+    }
+    const deadline = squad.acceptDeadlineAt?.toMillis ? squad.acceptDeadlineAt.toMillis() : null;
+    if (deadline && deadline < Date.now()) {
+      throw new HttpsError("deadline-exceeded", "Match accept window expired.");
+    }
+
+    const acceptedIds = new Set(squad.acceptedPlayerIds || []);
+    acceptedIds.add(uid);
+    const acceptedPlayerIds = Array.from(acceptedIds);
+    const participants = squad.participants || [];
+
+    tx.update(squadRef, {
+      acceptedPlayerIds,
+      status: acceptedPlayerIds.length >= SOLO_MATCH_REQUIRED_PLAYERS ? "confirmed" : "waiting",
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(acceptedPlayerIds.length >= SOLO_MATCH_REQUIRED_PLAYERS
+        ? { confirmedAt: FieldValue.serverTimestamp() }
+        : {}),
+    });
+
+    participants.forEach((participant) => {
+      if (!participant?.uid) {
+        return;
+      }
+      tx.set(
+        userMatchmakingRef(participant.uid),
+        {
+          status: acceptedPlayerIds.length >= SOLO_MATCH_REQUIRED_PLAYERS
+            ? "confirmed"
+            : participant.uid === uid
+              ? "accepted_waiting"
+              : "waiting",
+          squadId,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+  });
+
+  return { ok: true };
+});
+
+exports.rejectSoloMatchmaking = onCall({ region, invoker: "public" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const { squadId } = request.data || {};
+  if (!squadId) {
+    throw new HttpsError("invalid-argument", "Squad ID is required.");
+  }
+
+  let bucketToRetry = null;
+  await db.runTransaction(async (tx) => {
+    const squadRef = db.collection("solo_squads").doc(squadId);
+    const squadSnap = await tx.get(squadRef);
+    if (!squadSnap.exists) {
+      throw new HttpsError("not-found", "Squad not found.");
+    }
+
+    const squad = squadSnap.data() || {};
+    if (!Array.isArray(squad.playerIds) || !squad.playerIds.includes(uid)) {
+      throw new HttpsError("permission-denied", "You are not part of this squad.");
+    }
+    const bucketId = squad.bucketId || null;
+    const participants = squad.participants || [];
+    let requeueCount = 0;
+
+    participants.forEach((participant) => {
+      if (!participant?.uid) {
+        return;
+      }
+      if (participant.uid === uid || !bucketId) {
+        clearSoloMatchmakingSession(tx, participant);
+        return;
+      }
+      requeueCount += 1;
+      queueSoloParticipant(tx, participant, bucketId, requeueCount);
+      tx.set(
+        queueMetadataRef(bucketId),
+        {
+          activeUsers: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+
+    tx.update(squadRef, {
+      status: "cancelled",
+      rejectedBy: uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    bucketToRetry = bucketId;
+  });
+
+  if (bucketToRetry) {
+    await attemptSoloMatchmakingForBucket(bucketToRetry);
+  }
+  return { ok: true };
+});
+
 exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -369,7 +932,8 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
     const isHost = party.hostId === uid || memberSnap.data().role === "host";
     if (isHost) {
       const randomIndex = Math.floor(Math.random() * remainingMembers.length);
-      const newHostId = remainingMembers[randomIndex].id;
+      const newHost = remainingMembers[randomIndex];
+      const newHostId = newHost.id;
       const newHostRoomRef = db
         .collection("users")
         .doc(newHostId)
@@ -378,6 +942,7 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
 
       tx.update(partyRef, {
         hostId: newHostId,
+        hostDisplayName: newHost.data.displayName || "QueuePlayer",
         currentPlayers: nextCount,
         status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open",
         updatedAt: FieldValue.serverTimestamp()
@@ -573,6 +1138,88 @@ exports.cleanupAvailability = onSchedule(
       const batch = db.batch();
       snapshot.docs.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
+      lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    }
+  }
+);
+
+exports.cleanupSoloMatchmaking = onSchedule(
+  { schedule: "every 1 minutes", region },
+  async () => {
+    const cutoff = Timestamp.fromMillis(Date.now());
+    let lastDoc = null;
+
+    while (true) {
+      let query = db
+        .collection("solo_squads")
+        .orderBy("acceptDeadlineAt")
+        .endAt(cutoff)
+        .limit(50);
+
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
+
+      const snapshot = await query.get();
+      if (snapshot.empty) {
+        break;
+      }
+
+      for (const doc of snapshot.docs) {
+        let bucketToRetry = null;
+        await db.runTransaction(async (tx) => {
+          const freshSnap = await tx.get(doc.ref);
+          if (!freshSnap.exists) {
+            return;
+          }
+          const squad = freshSnap.data() || {};
+          if (squad.status !== "waiting") {
+            return;
+          }
+          const deadline = squad.acceptDeadlineAt?.toMillis
+            ? squad.acceptDeadlineAt.toMillis()
+            : null;
+          if (deadline && deadline > Date.now()) {
+            return;
+          }
+
+          const bucketId = squad.bucketId || null;
+          const participants = squad.participants || [];
+          const acceptedIds = new Set(squad.acceptedPlayerIds || []);
+          let requeueCount = 0;
+
+          participants.forEach((participant) => {
+            if (!participant?.uid) {
+              return;
+            }
+            if (acceptedIds.has(participant.uid) && bucketId) {
+              requeueCount += 1;
+              queueSoloParticipant(tx, participant, bucketId, requeueCount);
+              tx.set(
+                queueMetadataRef(bucketId),
+                {
+                  activeUsers: FieldValue.increment(1),
+                  updatedAt: FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+              );
+            } else {
+              clearSoloMatchmakingSession(tx, participant);
+            }
+          });
+
+          tx.update(doc.ref, {
+            status: "expired",
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          bucketToRetry = bucketId;
+        });
+
+        if (bucketToRetry) {
+          await attemptSoloMatchmakingForBucket(bucketToRetry);
+        }
+      }
+
       lastDoc = snapshot.docs[snapshot.docs.length - 1];
     }
   }

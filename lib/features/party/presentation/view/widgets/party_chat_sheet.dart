@@ -6,6 +6,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/services/push_notification_service.dart';
 import '../../../../../core/theme/app_text_styles.dart';
+import '../../../../../core/utils/chat_time_formatter.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../chat/bloc/chat_bloc.dart';
 import '../../../../chat/bloc/chat_event.dart';
@@ -108,6 +109,12 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                           final previewText = lastMessage == null
                               ? AppStrings.chatTapToOpen
                               : '${lastMessage.senderName}: ${lastMessage.message}';
+                          final previewTime = lastMessage == null
+                              ? null
+                              : formatChatListTime(
+                                  context,
+                                  lastMessage.timestamp,
+                                );
 
                           final items = <Widget>[
                             GestureDetector(
@@ -148,6 +155,20 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                                                         ),
                                                       ),
                                                     ),
+                                                    if (previewTime != null) ...<
+                                                      Widget
+                                                    >[
+                                                      Text(
+                                                        previewTime,
+                                                        style: AppTextStyles
+                                                            .caption
+                                                            .copyWith(
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                        ),
+                                                      ),
+                                                      SizedBox(width: 8.w),
+                                                    ],
                                                     Stack(
                                                       clipBehavior: Clip.none,
                                                       children: <Widget>[

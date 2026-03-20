@@ -61,6 +61,20 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
+    match /match_pool/{bucketId}/metadata/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /match_pool/{bucketId}/tickets/{ticketId} {
+      allow read, write: if false;
+    }
+
+    match /solo_squads/{squadId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.playerIds;
+      allow write: if false;
+    }
+
     match /reports/{reportId} {
       allow create: if isSignedIn() &&
         request.resource.data.reporterId == request.auth.uid;

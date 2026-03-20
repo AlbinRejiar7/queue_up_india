@@ -58,10 +58,11 @@ class FirestorePartyRepository implements PartyRepository {
     }
 
     final snapshot = await query.get();
-    final parties = snapshot.docs.map((doc) {
+    final baseParties = snapshot.docs.map((doc) {
       final data = doc.data();
       return _mapPartyDoc(doc.id, data);
     }).toList();
+    final parties = await _enrichHostNames(baseParties);
 
     final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
     final hasMore = snapshot.docs.length == limit;
@@ -86,11 +87,12 @@ class FirestorePartyRepository implements PartyRepository {
       languageFilter: languageFilter,
     ).limit(limit);
 
-    return query.snapshots().map((snapshot) {
-      final parties = snapshot.docs.map((doc) {
+    return query.snapshots().asyncMap((snapshot) async {
+      final baseParties = snapshot.docs.map((doc) {
         final data = doc.data();
         return _mapPartyDoc(doc.id, data);
       }).toList();
+      final parties = await _enrichHostNames(baseParties);
       final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
       final hasMore = snapshot.docs.length == limit;
 
@@ -216,6 +218,7 @@ class FirestorePartyRepository implements PartyRepository {
       tx.set(partyRef, <String, dynamic>{
         'name': form.partyName.trim(),
         'hostId': uid,
+        'hostDisplayName': displayName,
         'gameId': resolvedGameId,
         'rankId': form.rank,
         'languageId': form.language,
@@ -373,7 +376,7 @@ class FirestorePartyRepository implements PartyRepository {
     }).toList();
 
     final results = await Future.wait(futures);
-    return results.whereType<PartyModel>().toList();
+    return _enrichHostNames(results.whereType<PartyModel>().toList());
   }
 
   PartyModel _mapPartyDoc(String id, Map<String, dynamic> data) {
@@ -400,9 +403,57 @@ class FirestorePartyRepository implements PartyRepository {
           : DateTime.now(),
       coverImageUrl: _logoForGame(gameId),
       hostId: (data['hostId'] as String?) ?? '',
+      hostDisplayName: data['hostDisplayName'] as String?,
       logoImageUrl: _logoForGame(gameId),
       tags: const <String>[],
     );
+  }
+
+  Future<List<PartyModel>> _enrichHostNames(List<PartyModel> parties) async {
+    final missingHostIds = parties
+        .where(
+          (party) =>
+              (party.hostDisplayName == null ||
+                  party.hostDisplayName!.trim().isEmpty) &&
+              party.hostId.trim().isNotEmpty,
+        )
+        .map((party) => party.hostId)
+        .toSet()
+        .toList();
+
+    if (missingHostIds.isEmpty) {
+      return parties;
+    }
+
+    final hostNames = <String, String>{};
+    for (final chunk in _chunk(missingHostIds, 10)) {
+      final snapshot = await _db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snapshot.docs) {
+        final displayName = (doc.data()['displayName'] as String?)?.trim();
+        if (displayName != null && displayName.isNotEmpty) {
+          hostNames[doc.id] = displayName;
+        }
+      }
+    }
+
+    return parties.map((party) {
+      final resolvedHostName = party.hostDisplayName?.trim().isNotEmpty == true
+          ? party.hostDisplayName
+          : hostNames[party.hostId];
+      return party.copyWith(hostDisplayName: resolvedHostName);
+    }).toList();
+  }
+
+  List<List<String>> _chunk(List<String> values, int size) {
+    final chunks = <List<String>>[];
+    for (var index = 0; index < values.length; index += size) {
+      final end = (index + size) > values.length ? values.length : index + size;
+      chunks.add(values.sublist(index, end));
+    }
+    return chunks;
   }
 
   Query<Map<String, dynamic>> _basePartyQuery({

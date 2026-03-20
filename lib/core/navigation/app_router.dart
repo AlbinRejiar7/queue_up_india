@@ -7,6 +7,8 @@ import '../../features/chat/presentation/view/chat_history_screen.dart';
 import '../../features/chat/presentation/view/player_chat_screen.dart';
 import '../../features/home/presentation/view/available_players_screen.dart';
 import '../../features/home/models/available_player_model.dart';
+import '../../features/matchmaking/bloc/matchmaking_bloc.dart';
+import '../../features/matchmaking/presentation/view/solo_matchmaking_screen.dart';
 import '../../features/notifications/presentation/view/notification_center_screen.dart';
 import '../../features/party/presentation/view/party_details_screen.dart';
 import '../../features/party/presentation/view/party_list_screen.dart';
@@ -14,8 +16,10 @@ import '../../features/settings/presentation/view/language_selection_screen.dart
 import '../constants/app_options.dart';
 import '../constants/app_images.dart';
 import '../constants/app_routes.dart';
+import '../di/injection_container.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'main_tab_shell_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 abstract final class AppRouter {
   static GoRouter createRouter() {
@@ -120,6 +124,26 @@ abstract final class AppRouter {
           builder: (_, GoRouterState state) {
             return PartyDetailsScreen(
               partyId: state.pathParameters['partyId'] ?? '',
+            );
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.soloMatchmaking,
+          builder: (_, GoRouterState state) {
+            final gameId =
+                state.uri.queryParameters['gameId'] ?? AppOptions.valorantId;
+            final rank = state.uri.queryParameters['rank'];
+            final language = state.uri.queryParameters['language'];
+            final autoStart =
+                state.uri.queryParameters['autoStart'] == 'true';
+            return BlocProvider<MatchmakingBloc>(
+              create: (_) => sl<MatchmakingBloc>(),
+              child: SoloMatchmakingScreen(
+                gameId: gameId,
+                initialRank: rank,
+                initialLanguage: language,
+                autoStart: autoStart,
+              ),
             );
           },
         ),

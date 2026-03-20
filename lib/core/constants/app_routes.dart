@@ -13,6 +13,7 @@ abstract final class AppRoutes {
   static const String partyList = '/party-list';
   static const String createParty = '/create-party';
   static const String partyDetails = '/party-details';
+  static const String soloMatchmaking = '/solo-matchmaking';
   static const String profile = '/profile';
 
   static String partyListPath(String gameId) => '$partyList/$gameId';
@@ -20,4 +21,20 @@ abstract final class AppRoutes {
   static String partyDetailsPath(String partyId) => '$partyDetails/$partyId';
 
   static String playerChatPath(String playerId) => '$playerChat/$playerId';
+
+  static String soloMatchmakingPath({
+    required String gameId,
+    String? rank,
+    String? language,
+    bool autoStart = false,
+  }) {
+    final params = <String, String>{
+      'gameId': gameId,
+      if (rank != null && rank.isNotEmpty) 'rank': rank,
+      if (language != null && language.isNotEmpty) 'language': language,
+      if (autoStart) 'autoStart': 'true',
+    };
+    final query = Uri(queryParameters: params).query;
+    return '$soloMatchmaking${query.isEmpty ? '' : '?$query'}';
+  }
 }
