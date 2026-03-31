@@ -9,6 +9,8 @@ class ProfileViewData extends Equatable {
     required this.preferredLanguageCode,
     required this.avatarUrl,
     this.showSavedNotice = false,
+    this.showBugReportNotice = false,
+    this.isSubmittingBugReport = false,
     this.didLogout = false,
     this.didDeleteAccount = false,
   });
@@ -19,6 +21,8 @@ class ProfileViewData extends Equatable {
       preferredLanguageCode = '',
       avatarUrl = '',
       showSavedNotice = false,
+      showBugReportNotice = false,
+      isSubmittingBugReport = false,
       didLogout = false,
       didDeleteAccount = false;
 
@@ -27,6 +31,8 @@ class ProfileViewData extends Equatable {
   final String preferredLanguageCode;
   final String avatarUrl;
   final bool showSavedNotice;
+  final bool showBugReportNotice;
+  final bool isSubmittingBugReport;
   final bool didLogout;
   final bool didDeleteAccount;
 
@@ -39,6 +45,8 @@ class ProfileViewData extends Equatable {
     String? preferredLanguageCode,
     String? avatarUrl,
     bool? showSavedNotice,
+    bool? showBugReportNotice,
+    bool? isSubmittingBugReport,
     bool? didLogout,
     bool? didDeleteAccount,
   }) {
@@ -49,6 +57,9 @@ class ProfileViewData extends Equatable {
           preferredLanguageCode ?? this.preferredLanguageCode,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       showSavedNotice: showSavedNotice ?? this.showSavedNotice,
+      showBugReportNotice: showBugReportNotice ?? this.showBugReportNotice,
+      isSubmittingBugReport:
+          isSubmittingBugReport ?? this.isSubmittingBugReport,
       didLogout: didLogout ?? this.didLogout,
       didDeleteAccount: didDeleteAccount ?? this.didDeleteAccount,
     );
@@ -61,6 +72,8 @@ class ProfileViewData extends Equatable {
     preferredLanguageCode,
     avatarUrl,
     showSavedNotice,
+    showBugReportNotice,
+    isSubmittingBugReport,
     didLogout,
     didDeleteAccount,
   ];

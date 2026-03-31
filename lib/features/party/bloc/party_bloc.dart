@@ -123,11 +123,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       return;
     }
 
-    emit(
-      PartySuccess(
-        data: state.data.copyWith(isLoadingMoreParties: true),
-      ),
-    );
+    emit(PartySuccess(data: state.data.copyWith(isLoadingMoreParties: true)));
 
     try {
       final page = await _partyViewModel.loadPartiesPage(
@@ -140,10 +136,10 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       emit(
         PartySuccess(
           data: state.data.copyWith(
-            parties: _mergeParties(
-              _liveParties,
-              <PartyModel>[..._olderParties, ...page.items],
-            ),
+            parties: _mergeParties(_liveParties, <PartyModel>[
+              ..._olderParties,
+              ...page.items,
+            ]),
             partiesCursor: page.nextCursor,
             hasMoreParties: page.hasMore,
             isLoadingMoreParties: false,
@@ -193,14 +189,16 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
 
     if (_liveParties.isNotEmpty && _olderParties.isNotEmpty) {
       final liveIds = _liveParties.map((party) => party.id).toSet();
-      _olderParties =
-          _olderParties.where((party) => !liveIds.contains(party.id)).toList();
+      _olderParties = _olderParties
+          .where((party) => !liveIds.contains(party.id))
+          .toList();
     }
 
     final combined = _mergeParties(_liveParties, _olderParties);
     final effectiveCursor = _olderParties.isEmpty ? _liveCursor : _olderCursor;
-    final effectiveHasMore =
-        _olderParties.isEmpty ? _liveHasMore : _olderHasMore;
+    final effectiveHasMore = _olderParties.isEmpty
+        ? _liveHasMore
+        : _olderHasMore;
 
     emit(
       PartySuccess(
@@ -222,13 +220,11 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
 
     try {
       final createdParties = await _partyViewModel.loadCreatedParties();
-      final joinedParties = await _partyViewModel.loadJoinedParties();
 
       emit(
         PartySuccess(
           data: state.data.copyWith(
             createdParties: createdParties,
-            joinedParties: joinedParties,
             clearNavigationPartyId: true,
             didLeaveParty: false,
             isCreateCompleted: false,
@@ -252,10 +248,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         .watchPartyMembers(event.partyId)
         .listen((players) {
           add(
-            PartyMembersLiveUpdated(
-              partyId: event.partyId,
-              players: players,
-            ),
+            PartyMembersLiveUpdated(partyId: event.partyId, players: players),
           );
         });
 
@@ -312,10 +305,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     Emitter<PartyState> emit,
   ) async {
     final rollbackData = state.data;
-    final optimisticParty = _findPartyById(
-      state.data.parties,
-      event.partyId,
-    );
+    final optimisticParty = _findPartyById(state.data.parties, event.partyId);
     if (optimisticParty != null) {
       emit(
         PartySuccess(
@@ -358,10 +348,9 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         partyId: event.partyId,
         user: UserModel(
           id: authUser.uid,
-          displayName:
-              authUser.displayName?.trim().isNotEmpty == true
-                  ? authUser.displayName!.trim()
-                  : 'QueuePlayer',
+          displayName: authUser.displayName?.trim().isNotEmpty == true
+              ? authUser.displayName!.trim()
+              : 'QueuePlayer',
           avatarUrl: authUser.photoURL,
         ),
       );
@@ -369,10 +358,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         state.data.parties,
         joinedParty,
       );
-      final updatedJoined = _upsertParty(
-        state.data.joinedParties,
-        joinedParty,
-      );
+      final updatedJoined = _upsertParty(state.data.joinedParties, joinedParty);
       final updatedCreated = _replacePartyInList(
         state.data.createdParties,
         joinedParty,
@@ -399,12 +385,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     } catch (e, s) {
       debugPrint('[PartyBloc] Party load failed in join request: $e');
       debugPrintStack(stackTrace: s);
-      emit(
-        PartyError(
-          message: AppStrings.partyLoadFailed,
-          data: rollbackData,
-        ),
-      );
+      emit(PartyError(message: AppStrings.partyLoadFailed, data: rollbackData));
     }
   }
 
@@ -637,8 +618,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         gameId: resolvedGameId,
         form: form,
       );
-      final updatedCreatedParties =
-          await _partyViewModel.loadCreatedParties();
+      final updatedCreatedParties = await _partyViewModel.loadCreatedParties();
       final joinedParties = await _partyViewModel.loadJoinedParties();
 
       emit(
@@ -692,20 +672,11 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       await _partyViewModel.leaveParty(event.partyId);
       await _partyMembersSubscription?.cancel();
       _partyMembersSubscription = null;
-      emit(
-        PartySuccess(
-          data: optimisticData.copyWith(didLeaveParty: true),
-        ),
-      );
+      emit(PartySuccess(data: optimisticData.copyWith(didLeaveParty: true)));
     } catch (e, s) {
       debugPrint('[PartyBloc] Party load failed in leave request: $e');
       debugPrintStack(stackTrace: s);
-      emit(
-        PartyError(
-          message: AppStrings.partyLoadFailed,
-          data: previousData,
-        ),
-      );
+      emit(PartyError(message: AppStrings.partyLoadFailed, data: previousData));
     }
   }
 
@@ -827,10 +798,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         .toList();
   }
 
-  List<PartyModel> _upsertParty(
-    List<PartyModel> list,
-    PartyModel party,
-  ) {
+  List<PartyModel> _upsertParty(List<PartyModel> list, PartyModel party) {
     if (list.isEmpty) {
       return <PartyModel>[party];
     }

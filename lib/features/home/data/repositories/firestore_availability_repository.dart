@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/constants/app_images.dart';
+import '../../../../core/constants/app_timeouts.dart';
 import '../../models/available_player_model.dart';
 import 'availability_repository.dart';
 import '../../../../core/utils/paged_result.dart';
@@ -10,8 +11,8 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
   FirestoreAvailabilityRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
@@ -59,21 +60,13 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
         .where('isAvailable', isEqualTo: true)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return AvailablePlayerModel(
-              id: doc.id,
-              name: (data['displayName'] as String?) ?? 'QueuePlayer',
-              avatarUrl:
-                  (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
-              gameId: (data['gameId'] as String?) ?? '',
-              rank: (data['rankId'] as String?) ?? '',
-              language: (data['languageId'] as String?) ?? '',
-              availableSince: _resolveAvailableSince(data),
-            );
-          }).toList(),
-        );
+        .map((snapshot) {
+          final now = DateTime.now();
+          return snapshot.docs
+              .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
+              .where((player) => player.isFresh(now))
+              .toList();
+        });
   }
 
   @override
@@ -101,21 +94,16 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     }
 
     return query.snapshots().map((snapshot) {
-      final players = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return AvailablePlayerModel(
-          id: doc.id,
-          name: (data['displayName'] as String?) ?? 'QueuePlayer',
-          avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
-          gameId: (data['gameId'] as String?) ?? '',
-          rank: (data['rankId'] as String?) ?? '',
-          language: (data['languageId'] as String?) ?? '',
-          availableSince: _resolveAvailableSince(data),
-        );
-      }).toList();
-
-      final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-      final hasMore = snapshot.docs.length == limit;
+      final now = DateTime.now();
+      final players = snapshot.docs
+          .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
+          .where((player) => player.isFresh(now))
+          .toList();
+      final hitStaleBoundary = players.length != snapshot.docs.length;
+      final hasMore = snapshot.docs.length == limit && !hitStaleBoundary;
+      final nextCursor = hasMore && snapshot.docs.isNotEmpty
+          ? snapshot.docs.last
+          : null;
 
       return PagedResult<AvailablePlayerModel>(
         items: players,
@@ -141,16 +129,12 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     if (!isAvailable) {
       return null;
     }
-
-    return AvailablePlayerModel(
-      id: doc.id,
-      name: (data['displayName'] as String?) ?? 'QueuePlayer',
-      avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
-      gameId: (data['gameId'] as String?) ?? '',
-      rank: (data['rankId'] as String?) ?? '',
-      language: (data['languageId'] as String?) ?? '',
-      availableSince: _resolveAvailableSince(data),
-    );
+    final player = _mapAvailablePlayer(doc.id, data);
+    if (!player.isFresh()) {
+      await doc.reference.delete();
+      return null;
+    }
+    return player;
   }
 
   @override
@@ -169,16 +153,8 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     if (!isAvailable) {
       return null;
     }
-
-    return AvailablePlayerModel(
-      id: doc.id,
-      name: (data['displayName'] as String?) ?? 'QueuePlayer',
-      avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
-      gameId: (data['gameId'] as String?) ?? '',
-      rank: (data['rankId'] as String?) ?? '',
-      language: (data['languageId'] as String?) ?? '',
-      availableSince: _resolveAvailableSince(data),
-    );
+    final player = _mapAvailablePlayer(doc.id, data);
+    return player.isFresh() ? player : null;
   }
 
   @override
@@ -210,21 +186,16 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     }
 
     final snapshot = await query.get();
-    final players = snapshot.docs.map((doc) {
-      final data = doc.data();
-      return AvailablePlayerModel(
-        id: doc.id,
-        name: (data['displayName'] as String?) ?? 'QueuePlayer',
-        avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
-        gameId: (data['gameId'] as String?) ?? '',
-        rank: (data['rankId'] as String?) ?? '',
-        language: (data['languageId'] as String?) ?? '',
-        availableSince: _resolveAvailableSince(data),
-      );
-    }).toList();
-
-    final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-    final hasMore = snapshot.docs.length == limit;
+    final now = DateTime.now();
+    final players = snapshot.docs
+        .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
+        .where((player) => player.isFresh(now))
+        .toList();
+    final hitStaleBoundary = players.length != snapshot.docs.length;
+    final hasMore = snapshot.docs.length == limit && !hitStaleBoundary;
+    final nextCursor = hasMore && snapshot.docs.isNotEmpty
+        ? snapshot.docs.last
+        : null;
 
     return PagedResult<AvailablePlayerModel>(
       items: players,
@@ -269,6 +240,22 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     return AppImages.avatarHost;
   }
 
+  AvailablePlayerModel _mapAvailablePlayer(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    return AvailablePlayerModel(
+      id: id,
+      name: (data['displayName'] as String?) ?? 'QueuePlayer',
+      avatarUrl: (data['avatarUrl'] as String?) ?? AppImages.avatarHost,
+      gameId: (data['gameId'] as String?) ?? '',
+      rank: (data['rankId'] as String?) ?? '',
+      language: (data['languageId'] as String?) ?? '',
+      availableSince: _resolveAvailableSince(data),
+      updatedAt: _resolveUpdatedAt(data),
+    );
+  }
+
   DateTime _resolveAvailableSince(Map<String, dynamic> data) {
     final availableSince = data['availableSince'];
     if (availableSince is Timestamp) {
@@ -285,5 +272,23 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       return updatedAt;
     }
     return DateTime.now();
+  }
+
+  DateTime _resolveUpdatedAt(Map<String, dynamic> data) {
+    final updatedAt = data['updatedAt'];
+    if (updatedAt is Timestamp) {
+      return updatedAt.toDate();
+    }
+    if (updatedAt is DateTime) {
+      return updatedAt;
+    }
+    final availableSince = data['availableSince'];
+    if (availableSince is Timestamp) {
+      return availableSince.toDate();
+    }
+    if (availableSince is DateTime) {
+      return availableSince;
+    }
+    return DateTime.now().subtract(AppTimeouts.availabilityTtl);
   }
 }

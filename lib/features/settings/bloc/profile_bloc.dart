@@ -24,6 +24,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileLogoutConsumed>(_onProfileLogoutConsumed);
     on<ProfileDeleteRequested>(_onProfileDeleteRequested);
     on<ProfileDeleteConsumed>(_onProfileDeleteConsumed);
+    on<ProfileBugReportRequested>(_onProfileBugReportRequested);
+    on<ProfileBugReportNoticeConsumed>(_onProfileBugReportNoticeConsumed);
   }
 
   final ProfileViewModel _profileViewModel;
@@ -49,6 +51,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             preferredLanguageCode: prefs.preferredLanguageCode,
             avatarUrl: prefs.avatarUrl,
             showSavedNotice: false,
+            showBugReportNotice: false,
+            isSubmittingBugReport: false,
             didLogout: false,
             didDeleteAccount: false,
           ),
@@ -70,6 +74,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         data: state.data.copyWith(
           queueName: event.queueName,
           showSavedNotice: false,
+          showBugReportNotice: false,
           didLogout: false,
           didDeleteAccount: false,
         ),
@@ -86,6 +91,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         data: state.data.copyWith(
           preferredLanguageCode: event.languageCode,
           showSavedNotice: false,
+          showBugReportNotice: false,
           didLogout: false,
           didDeleteAccount: false,
         ),
@@ -102,6 +108,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         data: state.data.copyWith(
           avatarUrl: event.avatarUrl,
           showSavedNotice: false,
+          showBugReportNotice: false,
           didLogout: false,
           didDeleteAccount: false,
         ),
@@ -130,6 +137,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         ProfileSuccess(
           data: state.data.copyWith(
             showSavedNotice: true,
+            showBugReportNotice: false,
             didDeleteAccount: false,
           ),
         ),
@@ -149,6 +157,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       ProfileSuccess(
         data: state.data.copyWith(
           showSavedNotice: false,
+          showBugReportNotice: false,
           didLogout: false,
           didDeleteAccount: false,
         ),
@@ -167,7 +176,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     await AppPreferences.setLoggedIn(false);
     emit(
       ProfileSuccess(
-        data: state.data.copyWith(didLogout: true, didDeleteAccount: false),
+        data: state.data.copyWith(
+          didLogout: true,
+          didDeleteAccount: false,
+          showBugReportNotice: false,
+          isSubmittingBugReport: false,
+        ),
       ),
     );
   }
@@ -178,7 +192,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) {
     emit(
       ProfileSuccess(
-        data: state.data.copyWith(didLogout: false, didDeleteAccount: false),
+        data: state.data.copyWith(
+          didLogout: false,
+          didDeleteAccount: false,
+          showBugReportNotice: false,
+          isSubmittingBugReport: false,
+        ),
       ),
     );
   }
@@ -193,15 +212,15 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     } catch (_) {}
 
     try {
-      await _profileViewModel.deleteAccount(
-        displayName: state.data.queueName,
-      );
+      await _profileViewModel.deleteAccount(displayName: state.data.queueName);
       await AppPreferences.setLoggedIn(false);
       emit(
         ProfileSuccess(
           data: state.data.copyWith(
             didDeleteAccount: true,
             didLogout: false,
+            showBugReportNotice: false,
+            isSubmittingBugReport: false,
           ),
         ),
       );
@@ -223,7 +242,81 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) {
     emit(
       ProfileSuccess(
-        data: state.data.copyWith(didDeleteAccount: false, didLogout: false),
+        data: state.data.copyWith(
+          didDeleteAccount: false,
+          didLogout: false,
+          showBugReportNotice: false,
+          isSubmittingBugReport: false,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onProfileBugReportRequested(
+    ProfileBugReportRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final details = event.details.trim();
+    if (details.isEmpty) {
+      emit(
+        ProfileError(
+          message: AppStrings.bugReportDetailsRequired,
+          data: state.data.copyWith(isSubmittingBugReport: false),
+        ),
+      );
+      return;
+    }
+
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(
+          showBugReportNotice: false,
+          isSubmittingBugReport: true,
+          didLogout: false,
+          didDeleteAccount: false,
+        ),
+      ),
+    );
+
+    try {
+      await _profileViewModel.submitBugReport(details: details);
+      emit(
+        ProfileSuccess(
+          data: state.data.copyWith(
+            showBugReportNotice: true,
+            isSubmittingBugReport: false,
+            didLogout: false,
+            didDeleteAccount: false,
+          ),
+        ),
+      );
+    } catch (_) {
+      emit(
+        ProfileError(
+          message: AppStrings.bugReportSubmitFailed,
+          data: state.data.copyWith(
+            showBugReportNotice: false,
+            isSubmittingBugReport: false,
+            didLogout: false,
+            didDeleteAccount: false,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _onProfileBugReportNoticeConsumed(
+    ProfileBugReportNoticeConsumed event,
+    Emitter<ProfileState> emit,
+  ) {
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(
+          showBugReportNotice: false,
+          isSubmittingBugReport: false,
+          didLogout: false,
+          didDeleteAccount: false,
+        ),
       ),
     );
   }

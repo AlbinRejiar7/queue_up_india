@@ -20,6 +20,10 @@ class ProfileViewModel {
     return _settingsRepository.saveProfilePreferences(preferences);
   }
 
+  Future<void> submitBugReport({required String details}) {
+    return _settingsRepository.submitBugReport(details: details);
+  }
+
   Future<void> deleteAccount({required String displayName}) {
     return _settingsRepository.deleteAccount(displayName: displayName);
   }

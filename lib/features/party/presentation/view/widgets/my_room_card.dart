@@ -11,6 +11,8 @@ import '../../../../../core/widgets/tag_chip.dart';
 import '../../../models/party_model.dart';
 
 class MyRoomCard extends StatelessWidget {
+  static const Duration _partyLifetime = Duration(hours: 24);
+
   const MyRoomCard({
     required this.party,
     required this.isCreatedRoom,
@@ -32,6 +34,11 @@ class MyRoomCard extends StatelessWidget {
     final statusColor = isCreatedRoom
         ? AppColors.electricBlue
         : AppColors.softPurple;
+    final expiryLabel = isCreatedRoom
+        ? AppStrings.partyAutoDeletesIn(
+            _formatTimeLeft(_timeLeftUntilExpiry(party.createdAt)),
+          )
+        : null;
 
     return GlassContainer(
       borderRadius: 26.r,
@@ -79,6 +86,27 @@ class MyRoomCard extends StatelessWidget {
               TagChip(label: party.language, compact: true),
             ],
           ),
+          if (expiryLabel != null) ...<Widget>[
+            SizedBox(height: 10.h),
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.schedule_rounded,
+                  color: AppColors.textSecondary,
+                  size: 16.sp,
+                ),
+                SizedBox(width: 6.w),
+                Expanded(
+                  child: Text(
+                    expiryLabel,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           SizedBox(height: 14.h),
           Row(
             children: <Widget>[
@@ -142,4 +170,28 @@ class MyRoomCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Duration _timeLeftUntilExpiry(DateTime createdAt) {
+  final expiresAt = createdAt.add(MyRoomCard._partyLifetime);
+  final difference = expiresAt.difference(DateTime.now());
+  if (difference.isNegative) {
+    return Duration.zero;
+  }
+  return difference;
+}
+
+String _formatTimeLeft(Duration duration) {
+  if (duration.inMinutes <= 0) {
+    return '< 1m';
+  }
+  if (duration.inHours >= 1) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${minutes}m';
+  }
+  return '${duration.inMinutes}m';
 }

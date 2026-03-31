@@ -16,7 +16,7 @@ class AvailabilityWaveButton extends StatefulWidget {
     super.key,
   });
 
-  static const double waveScale = 1.72;
+  static const double waveScale = 1.58;
 
   final bool isAvailable;
   final bool enabled;
@@ -124,7 +124,7 @@ class _AvailabilityWaveButtonState extends State<AvailabilityWaveButton>
                       : AppStrings.availabilityOff,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.buttonText.copyWith(
-                    fontSize: 16.sp,
+                    fontSize: 17.sp,
                     letterSpacing: 1.2,
                     color: widget.enabled
                         ? Colors.white

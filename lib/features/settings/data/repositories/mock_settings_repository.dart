@@ -198,6 +198,11 @@ class MockSettingsRepository implements SettingsRepository {
   }
 
   @override
+  Future<void> submitBugReport({required String details}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+  }
+
+  @override
   Future<void> deleteAccount({required String displayName}) async {
     await Future<void>.delayed(const Duration(milliseconds: 180));
     _preferences = const ProfilePreferencesModel(

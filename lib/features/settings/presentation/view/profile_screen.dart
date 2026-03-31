@@ -23,10 +23,7 @@ import '../../bloc/profile_state.dart';
 import '../../../../core/widgets/avatar_selection_grid.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({
-    super.key,
-    this.showBackButton = true,
-  });
+  const ProfileScreen({super.key, this.showBackButton = true});
 
   final bool showBackButton;
 
@@ -53,6 +50,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _queueNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _promptBugReport() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => const _BugReportSheet(),
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    context.read<ProfileBloc>().add(ProfileBugReportRequested(details: result));
   }
 
   @override
@@ -94,6 +106,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         );
                       }
 
+                      if (state is ProfileSuccess &&
+                          state.data.showBugReportNotice) {
+                        AppSnackBar.showSuccess(
+                          context,
+                          AppStrings.bugReportSubmitted,
+                        );
+                        context.read<ProfileBloc>().add(
+                          const ProfileBugReportNoticeConsumed(),
+                        );
+                      }
+
                       if (state is ProfileSuccess && state.data.didLogout) {
                         context.read<RegistrationBloc>().add(
                           const RegistrationResetRequested(),
@@ -122,6 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     builder: (BuildContext context, ProfileState state) {
                       final data = state.data;
                       final isLoading = state is ProfileLoading;
+                      final isSubmittingBugReport = data.isSubmittingBugReport;
 
                       return Column(
                         children: <Widget>[
@@ -167,8 +191,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         radius: 44.r,
                                         backgroundColor: AppColors.electricBlue
                                             .withValues(alpha: 0.2),
-                                        backgroundImage:
-                                            _avatarProvider(data.avatarUrl),
+                                        backgroundImage: _avatarProvider(
+                                          data.avatarUrl,
+                                        ),
                                         child: data.avatarUrl.isEmpty
                                             ? Icon(
                                                 Icons.person,
@@ -306,19 +331,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         spacing: 8.w,
                                         children: <Widget>[
                                           TextButton(
-                                            onPressed: () =>
-                                                _openExternalLink(
-                                                  AppStrings.privacyPolicyUrl,
-                                                ),
+                                            onPressed: () => _openExternalLink(
+                                              AppStrings.privacyPolicyUrl,
+                                            ),
                                             child: Text(
                                               AppStrings.privacyPolicy,
                                             ),
                                           ),
                                           TextButton(
-                                            onPressed: () =>
-                                                _openExternalLink(
-                                                  AppStrings.termsUrl,
-                                                ),
+                                            onPressed: () => _openExternalLink(
+                                              AppStrings.termsUrl,
+                                            ),
                                             child: Text(
                                               AppStrings.termsOfService,
                                             ),
@@ -330,23 +353,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 SizedBox(height: 12.h),
                                 PrimaryButton(
+                                  label: AppStrings.reportBug,
+                                  icon: Icons.bug_report_outlined,
+                                  isLoading: isSubmittingBugReport,
+                                  enabled: !isLoading && !isSubmittingBugReport,
+                                  onPressed: _promptBugReport,
+                                ),
+                                SizedBox(height: 12.h),
+                                PrimaryButton(
                                   label: AppStrings.logout,
                                   isDanger: true,
                                   enabled: !isLoading,
                                   onPressed: () async {
+                                    final profileBloc = context
+                                        .read<ProfileBloc>();
                                     final shouldLogout =
                                         await AppDialog.showConfirm(
-                                      context,
-                                      title: AppStrings.confirmLogoutTitle,
-                                      message: AppStrings.confirmLogoutMessage,
-                                      confirmLabel: AppStrings.logout,
-                                      cancelLabel: AppStrings.cancelAction,
-                                      confirmIsDestructive: true,
-                                    );
+                                          context,
+                                          title: AppStrings.confirmLogoutTitle,
+                                          message:
+                                              AppStrings.confirmLogoutMessage,
+                                          confirmLabel: AppStrings.logout,
+                                          cancelLabel: AppStrings.cancelAction,
+                                          confirmIsDestructive: true,
+                                        );
                                     if (!shouldLogout) {
                                       return;
                                     }
-                                    context.read<ProfileBloc>().add(
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    profileBloc.add(
                                       const ProfileLogoutRequested(),
                                     );
                                   },
@@ -357,22 +394,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   isDanger: true,
                                   enabled: !isLoading,
                                   onPressed: () async {
+                                    final profileBloc = context
+                                        .read<ProfileBloc>();
                                     final shouldDelete =
                                         await AppDialog.showConfirm(
-                                      context,
-                                      title:
-                                          AppStrings.confirmDeleteAccountTitle,
-                                      message:
-                                          AppStrings.confirmDeleteAccountMessage,
-                                      confirmLabel:
-                                          AppStrings.deleteAccountConfirmAction,
-                                      cancelLabel: AppStrings.cancelAction,
-                                      confirmIsDestructive: true,
-                                    );
+                                          context,
+                                          title: AppStrings
+                                              .confirmDeleteAccountTitle,
+                                          message: AppStrings
+                                              .confirmDeleteAccountMessage,
+                                          confirmLabel: AppStrings
+                                              .deleteAccountConfirmAction,
+                                          cancelLabel: AppStrings.cancelAction,
+                                          confirmIsDestructive: true,
+                                        );
                                     if (!shouldDelete) {
                                       return;
                                     }
-                                    context.read<ProfileBloc>().add(
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    profileBloc.add(
                                       const ProfileDeleteRequested(),
                                     );
                                   },
@@ -385,6 +427,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   );
                 },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BugReportSheet extends StatefulWidget {
+  const _BugReportSheet();
+
+  @override
+  State<_BugReportSheet> createState() => _BugReportSheetState();
+}
+
+class _BugReportSheetState extends State<_BugReportSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, bottomInset + 16.h),
+        child: GlassContainer(
+          borderRadius: 24.r,
+          padding: EdgeInsets.all(16.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                AppStrings.reportBugTitle,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(AppStrings.reportBugHint, style: AppTextStyles.caption),
+              SizedBox(height: 10.h),
+              TextField(
+                controller: _controller,
+                maxLines: 5,
+                minLines: 4,
+                maxLength: 1000,
+                style: AppTextStyles.bodyMedium,
+                decoration: InputDecoration(
+                  hintText: AppStrings.reportBugFieldHint,
+                  hintStyle: AppTextStyles.caption,
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.06),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 12.h,
+                  ),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(AppStrings.cancelAction),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(_controller.text.trim());
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.electricBlueBright,
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                      child: Text(AppStrings.reportBugSubmit),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

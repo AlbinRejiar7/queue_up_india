@@ -189,13 +189,10 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
           .doc(uid)
           .collection('private')
           .doc('blocks')
-          .set(
-        <String, dynamic>{
-          'blockedUserIds': FieldValue.arrayUnion(<String>[_player.id]),
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        },
-        SetOptions(merge: true),
-      );
+          .set(<String, dynamic>{
+            'blockedUserIds': FieldValue.arrayUnion(<String>[_player.id]),
+            'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          }, SetOptions(merge: true));
       if (!mounted) {
         return;
       }
@@ -243,13 +240,10 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
           .doc(uid)
           .collection('private')
           .doc('blocks')
-          .set(
-        <String, dynamic>{
-          'blockedUserIds': FieldValue.arrayRemove(<String>[_player.id]),
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        },
-        SetOptions(merge: true),
-      );
+          .set(<String, dynamic>{
+            'blockedUserIds': FieldValue.arrayRemove(<String>[_player.id]),
+            'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          }, SetOptions(merge: true));
       if (!mounted) {
         return;
       }
@@ -337,12 +331,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
         final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
         return SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16.w,
-              16.h,
-              16.w,
-              bottomInset + 16.h,
-            ),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, bottomInset + 16.h),
             child: GlassContainer(
               borderRadius: 24.r,
               padding: EdgeInsets.all(16.r),
@@ -453,12 +442,6 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     AppSnackBar.showSuccess(context, AppStrings.quickMessageAdded);
   }
 
-  bool _isCustomQuickMessage(String message) {
-    return _customQuickMessages.any(
-      (item) => item.toLowerCase() == message.toLowerCase(),
-    );
-  }
-
   Future<void> _editCustomQuickMessage({
     required String original,
     required String updatedMessage,
@@ -483,9 +466,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
     final updated = _customQuickMessages
         .map(
-          (item) => item.toLowerCase() == original.toLowerCase()
-              ? trimmed
-              : item,
+          (item) =>
+              item.toLowerCase() == original.toLowerCase() ? trimmed : item,
         )
         .toList();
     await AppPreferences.saveCustomQuickMessages(updated);
@@ -500,9 +482,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
   Future<void> _removeCustomQuickMessage(String message) async {
     final updated = _customQuickMessages
-        .where(
-          (item) => item.toLowerCase() != message.toLowerCase(),
-        )
+        .where((item) => item.toLowerCase() != message.toLowerCase())
         .toList();
     await AppPreferences.saveCustomQuickMessages(updated);
     if (!mounted) {
@@ -524,12 +504,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
         final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
         return SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16.w,
-              16.h,
-              16.w,
-              bottomInset + 16.h,
-            ),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, bottomInset + 16.h),
             child: GlassContainer(
               borderRadius: 24.r,
               padding: EdgeInsets.all(16.r),
@@ -605,10 +580,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     if (result == null || result.trim().isEmpty || !mounted) {
       return;
     }
-    await _editCustomQuickMessage(
-      original: message,
-      updatedMessage: result,
-    );
+    await _editCustomQuickMessage(original: message, updatedMessage: result);
   }
 
   Future<void> _promptQuickMessageActions(String message) async {
@@ -628,14 +600,16 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                   ListTile(
                     leading: const Icon(Icons.edit),
                     title: Text(AppStrings.editQuickMessage),
-                    onTap: () => Navigator.of(sheetContext)
-                        .pop(_QuickMessageAction.edit),
+                    onTap: () => Navigator.of(
+                      sheetContext,
+                    ).pop(_QuickMessageAction.edit),
                   ),
                   ListTile(
                     leading: const Icon(Icons.delete_outline),
                     title: Text(AppStrings.removeQuickMessage),
-                    onTap: () => Navigator.of(sheetContext)
-                        .pop(_QuickMessageAction.remove),
+                    onTap: () => Navigator.of(
+                      sheetContext,
+                    ).pop(_QuickMessageAction.remove),
                   ),
                 ],
               ),
@@ -678,12 +652,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
         final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
         return SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16.w,
-              16.h,
-              16.w,
-              bottomInset + 16.h,
-            ),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, bottomInset + 16.h),
             child: GlassContainer(
               borderRadius: 24.r,
               padding: EdgeInsets.all(16.r),
@@ -780,25 +749,19 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
       ),
       backgroundColor:
           (isCustom ? AppColors.softPurple : AppColors.electricBlue).withValues(
-        alpha: isCustom ? 0.22 : 0.15,
-      ),
+            alpha: isCustom ? 0.22 : 0.15,
+          ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.r),
         side: BorderSide(
-          color: (isCustom
-                  ? AppColors.softPurple
-                  : AppColors.electricBlueBright)
-              .withValues(
-            alpha: isCustom ? 0.5 : 0.3,
-          ),
+          color:
+              (isCustom ? AppColors.softPurple : AppColors.electricBlueBright)
+                  .withValues(alpha: isCustom ? 0.5 : 0.3),
         ),
       ),
       onPressed: () {
         if (_isBlocked) {
-          AppSnackBar.showInfo(
-            context,
-            AppStrings.blockedChatDisabled,
-          );
+          AppSnackBar.showInfo(context, AppStrings.blockedChatDisabled);
           return;
         }
         _stickToBottom = true;
@@ -822,9 +785,11 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
               : _player.avatarUrl,
           gameId: updated.gameId.isNotEmpty ? updated.gameId : _player.gameId,
           rank: updated.rank.isNotEmpty ? updated.rank : _player.rank,
-          language:
-              updated.language.isNotEmpty ? updated.language : _player.language,
+          language: updated.language.isNotEmpty
+              ? updated.language
+              : _player.language,
           availableSince: updated.availableSince,
+          updatedAt: updated.updatedAt,
         );
       });
     } catch (_) {
@@ -847,12 +812,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
         final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
         return SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16.w,
-              16.h,
-              16.w,
-              bottomInset + 16.h,
-            ),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, bottomInset + 16.h),
             child: GlassContainer(
               borderRadius: 24.r,
               padding: EdgeInsets.all(16.r),
@@ -938,16 +898,15 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   Widget build(BuildContext context) {
     final player = _player;
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final availableHeight =
-        MediaQuery.of(context).size.height - viewInsets;
-    final maxBottomSectionHeight =
-        min(availableHeight * 0.45, 340.h);
+    final availableHeight = MediaQuery.of(context).size.height - viewInsets;
+    final maxBottomSectionHeight = min(availableHeight * 0.45, 340.h);
     final allCustomMessages = _customQuickMessages;
     final allDefaultMessages = _quickMessages;
     final totalQuickCount =
         allCustomMessages.length + allDefaultMessages.length;
-    int remaining =
-        _showAllQuickMessages ? totalQuickCount : min(5, totalQuickCount);
+    int remaining = _showAllQuickMessages
+        ? totalQuickCount
+        : min(5, totalQuickCount);
     final visibleCustomMessages = allCustomMessages.take(remaining).toList();
     remaining -= visibleCustomMessages.length;
     final visibleDefaultMessages = remaining > 0
@@ -979,79 +938,83 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                           child: Column(
                             children: <Widget>[
                               SizedBox(height: 6.h),
-                                Row(
-                                  children: <Widget>[
-                                    const SafeBackButton(
-                                      fallbackRoute: AppRoutes.availablePlayers,
+                              Row(
+                                children: <Widget>[
+                                  const SafeBackButton(
+                                    fallbackRoute: AppRoutes.availablePlayers,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '${AppStrings.chatWith} ${player.name}',
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.pageTitle,
                                     ),
-                                    Expanded(
-                                      child: Text(
-                                        '${AppStrings.chatWith} ${player.name}',
-                                        textAlign: TextAlign.center,
-                                        style: AppTextStyles.pageTitle,
+                                  ),
+                                  SizedBox(
+                                    width: 48.w,
+                                    child: PopupMenuButton<_ChatAction>(
+                                      tooltip: '',
+                                      onSelected: _handleChatAction,
+                                      itemBuilder: (context) =>
+                                          <PopupMenuEntry<_ChatAction>>[
+                                            PopupMenuItem<_ChatAction>(
+                                              value: _isBlocked
+                                                  ? _ChatAction.unblock
+                                                  : _ChatAction.block,
+                                              child: Row(
+                                                children: <Widget>[
+                                                  Icon(
+                                                    _isBlocked
+                                                        ? Icons
+                                                              .lock_open_rounded
+                                                        : Icons.block,
+                                                    size: 18.sp,
+                                                    color: _isBlocked
+                                                        ? AppColors.success
+                                                        : AppColors.danger,
+                                                  ),
+                                                  SizedBox(width: 8.w),
+                                                  Text(
+                                                    _isBlocked
+                                                        ? AppStrings
+                                                              .unblockPlayer
+                                                        : AppStrings
+                                                              .blockPlayer,
+                                                    style: AppTextStyles
+                                                        .bodyMedium,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem<_ChatAction>(
+                                              value: _ChatAction.report,
+                                              child: Row(
+                                                children: <Widget>[
+                                                  Icon(
+                                                    Icons.flag_outlined,
+                                                    size: 18.sp,
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
+                                                  SizedBox(width: 8.w),
+                                                  Text(
+                                                    AppStrings.reportPlayer,
+                                                    style: AppTextStyles
+                                                        .bodyMedium,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        size: 22.sp,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
-                                    SizedBox(
-                                      width: 48.w,
-                                      child: PopupMenuButton<_ChatAction>(
-                                        tooltip: '',
-                                        onSelected: _handleChatAction,
-                                        itemBuilder: (context) =>
-                                            <PopupMenuEntry<_ChatAction>>[
-                                          PopupMenuItem<_ChatAction>(
-                                            value: _isBlocked
-                                                ? _ChatAction.unblock
-                                                : _ChatAction.block,
-                                            child: Row(
-                                              children: <Widget>[
-                                                Icon(
-                                                  _isBlocked
-                                                      ? Icons.lock_open_rounded
-                                                      : Icons.block,
-                                                  size: 18.sp,
-                                                  color: _isBlocked
-                                                      ? AppColors.success
-                                                      : AppColors.danger,
-                                                ),
-                                                SizedBox(width: 8.w),
-                                                Text(
-                                                  _isBlocked
-                                                      ? AppStrings.unblockPlayer
-                                                      : AppStrings.blockPlayer,
-                                                  style:
-                                                      AppTextStyles.bodyMedium,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          PopupMenuItem<_ChatAction>(
-                                            value: _ChatAction.report,
-                                            child: Row(
-                                              children: <Widget>[
-                                                Icon(
-                                                  Icons.flag_outlined,
-                                                  size: 18.sp,
-                                                  color: AppColors.textPrimary,
-                                                ),
-                                                SizedBox(width: 8.w),
-                                                Text(
-                                                  AppStrings.reportPlayer,
-                                                  style:
-                                                      AppTextStyles.bodyMedium,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                        icon: Icon(
-                                          Icons.more_vert,
-                                          size: 22.sp,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
+                              ),
                               SizedBox(height: 12.h),
                               GlassContainer(
                                 borderRadius: 24.r,
@@ -1060,10 +1023,12 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                   children: <Widget>[
                                     CircleAvatar(
                                       radius: 22.r,
-                                      backgroundColor:
-                                          Colors.white.withValues(alpha: 0.08),
-                                      backgroundImage:
-                                          _avatarProvider(player.avatarUrl),
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      backgroundImage: _avatarProvider(
+                                        player.avatarUrl,
+                                      ),
                                     ),
                                     SizedBox(width: 12.w),
                                     Expanded(
@@ -1073,11 +1038,11 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                         children: <Widget>[
                                           Text(
                                             gameName,
-                                            style:
-                                                AppTextStyles.bodyMedium.copyWith(
-                                              color: Colors.white,
-                                              fontSize: 14.sp,
-                                            ),
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontSize: 14.sp,
+                                                ),
                                           ),
                                           SizedBox(height: 4.h),
                                           Text(
@@ -1114,75 +1079,78 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                             ),
                             child: Column(
                               children: <Widget>[
-                                  Expanded(
-                                    child: BlocListener<ChatBloc, ChatState>(
-                                      listenWhen: (previous, current) =>
-                                          previous.messages.length !=
-                                          current.messages.length,
-                                      listener: (context, state) {
-                                        if (_stickToBottom &&
-                                            !state.isLoadingMore) {
-                                          _scrollToBottom();
-                                        }
-                                      },
-                                      child: BlocBuilder<ChatBloc, ChatState>(
-                                        builder: (context, state) {
-                                          final messages = state.messages;
-                                          final itemCount = messages.length +
-                                              (state.isLoadingMore ? 1 : 0);
+                                Expanded(
+                                  child: BlocListener<ChatBloc, ChatState>(
+                                    listenWhen: (previous, current) =>
+                                        previous.messages.length !=
+                                        current.messages.length,
+                                    listener: (context, state) {
+                                      if (_stickToBottom &&
+                                          !state.isLoadingMore) {
+                                        _scrollToBottom();
+                                      }
+                                    },
+                                    child: BlocBuilder<ChatBloc, ChatState>(
+                                      builder: (context, state) {
+                                        final messages = state.messages;
+                                        final itemCount =
+                                            messages.length +
+                                            (state.isLoadingMore ? 1 : 0);
 
-                                          return NotificationListener<
-                                              ScrollNotification>(
-                                            onNotification: (notification) {
-                                              final metrics =
-                                                  notification.metrics;
-                                              final distanceToBottom =
-                                                  metrics.maxScrollExtent -
-                                                      metrics.pixels;
-                                              _stickToBottom =
-                                                  distanceToBottom <= 120.h;
+                                        return NotificationListener<
+                                          ScrollNotification
+                                        >(
+                                          onNotification: (notification) {
+                                            final metrics =
+                                                notification.metrics;
+                                            final distanceToBottom =
+                                                metrics.maxScrollExtent -
+                                                metrics.pixels;
+                                            _stickToBottom =
+                                                distanceToBottom <= 120.h;
 
-                                              if (metrics.pixels <= 120.h) {
-                                                context
-                                                    .read<ChatBloc>()
-                                                    .add(
-                                                      const ChatLoadOlderRequested(),
+                                            if (metrics.pixels <= 120.h) {
+                                              context.read<ChatBloc>().add(
+                                                const ChatLoadOlderRequested(),
+                                              );
+                                            }
+                                            return false;
+                                          },
+                                          child: ListView.builder(
+                                            controller: _scrollController,
+                                            itemCount: itemCount,
+                                            itemBuilder:
+                                                (
+                                                  BuildContext context,
+                                                  int index,
+                                                ) {
+                                                  if (state.isLoadingMore &&
+                                                      index == 0) {
+                                                    return Padding(
+                                                      padding: EdgeInsets.only(
+                                                        bottom: 8.h,
+                                                      ),
+                                                      child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
                                                     );
-                                              }
-                                              return false;
-                                            },
-                                            child: ListView.builder(
-                                              controller: _scrollController,
-                                              itemCount: itemCount,
-                                              itemBuilder:
-                                                  (BuildContext context, int index) {
-                                                if (state.isLoadingMore &&
-                                                    index == 0) {
-                                                  return Padding(
-                                                    padding: EdgeInsets.only(
-                                                      bottom: 8.h,
-                                                    ),
-                                                    child: const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    ),
+                                                  }
+                                                  final messageIndex =
+                                                      state.isLoadingMore
+                                                      ? index - 1
+                                                      : index;
+                                                  return ChatBubble(
+                                                    message:
+                                                        messages[messageIndex],
                                                   );
-                                                }
-                                                final messageIndex =
-                                                    state.isLoadingMore
-                                                        ? index - 1
-                                                        : index;
-                                                return ChatBubble(
-                                                  message:
-                                                      messages[messageIndex],
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        },
-                                      ),
+                                                },
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
+                                ),
                                 SizedBox(height: 10.h),
                                 ConstrainedBox(
                                   constraints: BoxConstraints(
@@ -1195,25 +1163,26 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                         Row(
                                           children: <Widget>[
                                             Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: () {
-                                              if (_isBlocked) {
-                                                AppSnackBar.showInfo(
-                                                  context,
-                                                  AppStrings.blockedChatDisabled,
-                                                );
-                                                return;
-                                              }
-                                              _promptAndSend(
-                                                context: context,
-                                                title: AppStrings.sharePlayerId,
-                                                hint: AppStrings
-                                                    .enterPlayerIdHint,
+                                              child: OutlinedButton(
+                                                onPressed: () {
+                                                  if (_isBlocked) {
+                                                    AppSnackBar.showInfo(
+                                                      context,
+                                                      AppStrings
+                                                          .blockedChatDisabled,
+                                                    );
+                                                    return;
+                                                  }
+                                                  _promptAndSend(
+                                                    context: context,
+                                                    title: AppStrings
+                                                        .sharePlayerId,
+                                                    hint: AppStrings
+                                                        .enterPlayerIdHint,
                                                     formatter: (value) =>
-                                                        AppStrings
-                                                            .playerIdMessage(
-                                                      value,
-                                                    ),
+                                                        AppStrings.playerIdMessage(
+                                                          value,
+                                                        ),
                                                   );
                                                 },
                                                 style: OutlinedButton.styleFrom(
@@ -1226,8 +1195,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                   shape: RoundedRectangleBorder(
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                      14.r,
-                                                    ),
+                                                          14.r,
+                                                        ),
                                                   ),
                                                 ),
                                                 child: Text(
@@ -1238,30 +1207,29 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                             ),
                                             SizedBox(width: 10.w),
                                             Expanded(
-                                          child: ElevatedButton(
-                                            onPressed: () {
-                                              if (_isBlocked) {
-                                                AppSnackBar.showInfo(
-                                                  context,
-                                                  AppStrings.blockedChatDisabled,
-                                                );
-                                                return;
-                                              }
-                                              _promptAndSend(
-                                                context: context,
-                                                title: AppStrings
-                                                    .sharePartyCode,
-                                                hint: AppStrings
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  if (_isBlocked) {
+                                                    AppSnackBar.showInfo(
+                                                      context,
+                                                      AppStrings
+                                                          .blockedChatDisabled,
+                                                    );
+                                                    return;
+                                                  }
+                                                  _promptAndSend(
+                                                    context: context,
+                                                    title: AppStrings
+                                                        .sharePartyCode,
+                                                    hint: AppStrings
                                                         .enterPartyCodeHint,
                                                     formatter: (value) =>
-                                                        AppStrings
-                                                            .partyCodeMessage(
-                                                      value,
-                                                    ),
+                                                        AppStrings.partyCodeMessage(
+                                                          value,
+                                                        ),
                                                   );
                                                 },
-                                                style:
-                                                    ElevatedButton.styleFrom(
+                                                style: ElevatedButton.styleFrom(
                                                   backgroundColor: AppColors
                                                       .electricBlueBright,
                                                   foregroundColor:
@@ -1269,8 +1237,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                   shape: RoundedRectangleBorder(
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                      14.r,
-                                                    ),
+                                                          14.r,
+                                                        ),
                                                   ),
                                                 ),
                                                 child: Text(
@@ -1297,18 +1265,18 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                     style: AppTextStyles
                                                         .bodyMedium
                                                         .copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
                                                   ),
                                                   const Spacer(),
                                                   TextButton(
                                                     onPressed:
                                                         _customQuickMessages
-                                                                    .length >=
-                                                                _maxCustomQuickMessages
-                                                            ? null
-                                                            : _promptAddQuickMessage,
+                                                                .length >=
+                                                            _maxCustomQuickMessages
+                                                        ? null
+                                                        : _promptAddQuickMessage,
                                                     child: Text(
                                                       AppStrings.addAction,
                                                     ),
@@ -1324,9 +1292,10 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                       child: Text(
                                                         _showAllQuickMessages
                                                             ? AppStrings.seeLess
-                                                            : AppStrings.seeMore,
+                                                            : AppStrings
+                                                                  .seeMore,
                                                       ),
-                                                  ),
+                                                    ),
                                                 ],
                                               ),
                                               SizedBox(height: 4.h),
@@ -1334,9 +1303,9 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                 AppStrings.quickMessagesHint,
                                                 style: AppTextStyles.caption
                                                     .copyWith(
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
                                               ),
                                               SizedBox(height: 8.h),
                                               AnimatedSize(
@@ -1360,35 +1329,35 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                         style: AppTextStyles
                                                             .caption
                                                             .copyWith(
-                                                          color: AppColors
-                                                              .textSecondary,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
+                                                              color: AppColors
+                                                                  .textSecondary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
                                                       ),
                                                       SizedBox(height: 8.h),
                                                       Wrap(
                                                         spacing: 8.w,
                                                         runSpacing: 8.h,
-                                                        children:
-                                                            visibleCustomMessages
-                                                                .map(
-                                                          (message) {
-                                                            return GestureDetector(
-                                                              onLongPress: () {
-                                                                _promptQuickMessageActions(
-                                                                  message,
-                                                                );
-                                                              },
-                                                              child:
-                                                                  _buildQuickChip(
-                                                                context,
+                                                        children: visibleCustomMessages.map((
+                                                          message,
+                                                        ) {
+                                                          return GestureDetector(
+                                                            onLongPress: () {
+                                                              _promptQuickMessageActions(
                                                                 message,
-                                                                isCustom: true,
-                                                              ),
-                                                            );
-                                                          },
-                                                        ).toList(),
+                                                              );
+                                                            },
+                                                            child:
+                                                                _buildQuickChip(
+                                                                  context,
+                                                                  message,
+                                                                  isCustom:
+                                                                      true,
+                                                                ),
+                                                          );
+                                                        }).toList(),
                                                       ),
                                                     ],
                                                     if (visibleCustomMessages
@@ -1400,8 +1369,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                       SizedBox(height: 12.h),
                                                       Divider(
                                                         height: 1,
-                                                        color:
-                                                            AppColors.navSurface,
+                                                        color: AppColors
+                                                            .navSurface,
                                                       ),
                                                       SizedBox(height: 12.h),
                                                     ],
@@ -1415,11 +1384,12 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                         style: AppTextStyles
                                                             .caption
                                                             .copyWith(
-                                                          color: AppColors
-                                                              .textSecondary,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
+                                                              color: AppColors
+                                                                  .textSecondary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
                                                       ),
                                                       SizedBox(height: 8.h),
                                                       Wrap(
@@ -1427,15 +1397,15 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                         runSpacing: 8.h,
                                                         children:
                                                             visibleDefaultMessages
-                                                                .map(
-                                                          (message) {
-                                                            return _buildQuickChip(
-                                                              context,
-                                                              message,
-                                                              isCustom: false,
-                                                            );
-                                                          },
-                                                        ).toList(),
+                                                                .map((message) {
+                                                                  return _buildQuickChip(
+                                                                    context,
+                                                                    message,
+                                                                    isCustom:
+                                                                        false,
+                                                                  );
+                                                                })
+                                                                .toList(),
                                                       ),
                                                     ],
                                                   ],

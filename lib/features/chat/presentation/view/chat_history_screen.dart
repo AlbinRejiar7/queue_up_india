@@ -126,143 +126,146 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                                         ),
                                         children: const <Widget>[
                                           Center(
-                                            child:
-                                                CircularProgressIndicator(),
+                                            child: CircularProgressIndicator(),
                                           ),
                                         ],
                                       )
                                     : threads.isEmpty
-                                        ? ListView(
-                                            physics:
-                                                const AlwaysScrollableScrollPhysics(),
-                                            padding: EdgeInsets.fromLTRB(
-                                              contentPadding.left,
-                                              120.h,
-                                              contentPadding.right,
-                                              20.h,
+                                    ? ListView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          120.h,
+                                          contentPadding.right,
+                                          20.h,
+                                        ),
+                                        children: <Widget>[
+                                          Center(
+                                            child: Text(
+                                              AppStrings.noChatsYet,
+                                              style: AppTextStyles.bodyMedium,
+                                              textAlign: TextAlign.center,
                                             ),
-                                            children: <Widget>[
-                                              Center(
-                                                child: Text(
-                                                  AppStrings.noChatsYet,
-                                                  style:
-                                                      AppTextStyles.bodyMedium,
-                                                  textAlign: TextAlign.center,
-                                                ),
+                                          ),
+                                        ],
+                                      )
+                                    : (isTablet
+                                          ? GridView.builder(
+                                              controller: _scrollController,
+                                              physics:
+                                                  const AlwaysScrollableScrollPhysics(),
+                                              padding: EdgeInsets.fromLTRB(
+                                                contentPadding.left,
+                                                16.h,
+                                                contentPadding.right,
+                                                20.h,
                                               ),
-                                            ],
-                                          )
-                                        : (isTablet
-                                            ? GridView.builder(
-                                                controller: _scrollController,
-                                                physics:
-                                                    const AlwaysScrollableScrollPhysics(),
-                                                padding: EdgeInsets.fromLTRB(
-                                                  contentPadding.left,
-                                                  16.h,
-                                                  contentPadding.right,
-                                                  20.h,
-                                                ),
-                                                itemCount: threads.length +
-                                                    (state.isLoadingMore
-                                                        ? 1
-                                                        : 0),
-                                                gridDelegate:
-                                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                                  crossAxisCount: 2,
-                                                  mainAxisExtent: 96.h,
-                                                  mainAxisSpacing: 10.h,
-                                                  crossAxisSpacing: 12.w,
-                                                ),
-                                                itemBuilder:
-                                                    (BuildContext context,
-                                                        int index) {
-                                                  if (index >= threads.length) {
-                                                    return const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    );
-                                                  }
-                                                  final thread = threads[index];
-                                                  final subtitle = thread
-                                                          .lastMessage
-                                                          .trim()
-                                                          .isEmpty
-                                                      ? AppStrings.chatTapToOpen
-                                                      : thread.lastMessage;
-                                                  return ChatHistoryTile(
-                                                    thread: thread,
-                                                    subtitle: subtitle,
-                                                    onTap: () {
-                                                      context.push(
-                                                        AppRoutes
-                                                            .playerChatPath(
-                                                          thread.peerId,
-                                                        ),
-                                                        extra: _toPlayer(
-                                                          thread,
-                                                        ),
-                                                      );
-                                                    },
-                                                  );
-                                                },
-                                              )
-                                            : ListView.separated(
-                                                controller: _scrollController,
-                                                physics:
-                                                    const AlwaysScrollableScrollPhysics(),
-                                                padding: EdgeInsets.fromLTRB(
-                                                  contentPadding.left,
-                                                  16.h,
-                                                  contentPadding.right,
-                                                  20.h,
-                                                ),
-                                                itemCount: threads.length +
-                                                    (state.isLoadingMore
-                                                        ? 1
-                                                        : 0),
-                                                separatorBuilder: (_, __) =>
-                                                    SizedBox(height: 10.h),
-                                                itemBuilder: (
-                                                  BuildContext context,
-                                                  int index,
-                                                ) {
-                                                  if (index >= threads.length) {
-                                                    return Padding(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                        vertical: 8.h,
-                                                      ),
-                                                      child: const Center(
+                                              itemCount:
+                                                  threads.length +
+                                                  (state.isLoadingMore ? 1 : 0),
+                                              gridDelegate:
+                                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                                    crossAxisCount: 2,
+                                                    mainAxisExtent: 96.h,
+                                                    mainAxisSpacing: 10.h,
+                                                    crossAxisSpacing: 12.w,
+                                                  ),
+                                              itemBuilder:
+                                                  (
+                                                    BuildContext context,
+                                                    int index,
+                                                  ) {
+                                                    if (index >=
+                                                        threads.length) {
+                                                      return const Center(
                                                         child:
                                                             CircularProgressIndicator(),
-                                                      ),
+                                                      );
+                                                    }
+                                                    final thread =
+                                                        threads[index];
+                                                    final subtitle =
+                                                        thread.lastMessage
+                                                            .trim()
+                                                            .isEmpty
+                                                        ? AppStrings
+                                                              .chatTapToOpen
+                                                        : thread.lastMessage;
+                                                    return ChatHistoryTile(
+                                                      thread: thread,
+                                                      subtitle: subtitle,
+                                                      onTap: () {
+                                                        context.push(
+                                                          AppRoutes.playerChatPath(
+                                                            thread.peerId,
+                                                          ),
+                                                          extra: _toPlayer(
+                                                            thread,
+                                                          ),
+                                                        );
+                                                      },
                                                     );
-                                                  }
-                                                  final thread = threads[index];
-                                                  final subtitle = thread
-                                                          .lastMessage
-                                                          .trim()
-                                                          .isEmpty
-                                                      ? AppStrings.chatTapToOpen
-                                                      : thread.lastMessage;
-                                                  return ChatHistoryTile(
-                                                    thread: thread,
-                                                    subtitle: subtitle,
-                                                    onTap: () {
-                                                      context.push(
-                                                        AppRoutes
-                                                            .playerChatPath(
-                                                          thread.peerId,
-                                                        ),
-                                                        extra: _toPlayer(
-                                                          thread,
+                                                  },
+                                            )
+                                          : ListView.separated(
+                                              controller: _scrollController,
+                                              physics:
+                                                  const AlwaysScrollableScrollPhysics(),
+                                              padding: EdgeInsets.fromLTRB(
+                                                contentPadding.left,
+                                                16.h,
+                                                contentPadding.right,
+                                                20.h,
+                                              ),
+                                              itemCount:
+                                                  threads.length +
+                                                  (state.isLoadingMore ? 1 : 0),
+                                              separatorBuilder: (_, _) =>
+                                                  SizedBox(height: 10.h),
+                                              itemBuilder:
+                                                  (
+                                                    BuildContext context,
+                                                    int index,
+                                                  ) {
+                                                    if (index >=
+                                                        threads.length) {
+                                                      return Padding(
+                                                        padding:
+                                                            EdgeInsets.symmetric(
+                                                              vertical: 8.h,
+                                                            ),
+                                                        child: const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
                                                         ),
                                                       );
-                                                    },
-                                                  );
-                                                },
-                                              )),
+                                                    }
+                                                    final thread =
+                                                        threads[index];
+                                                    final subtitle =
+                                                        thread.lastMessage
+                                                            .trim()
+                                                            .isEmpty
+                                                        ? AppStrings
+                                                              .chatTapToOpen
+                                                        : thread.lastMessage;
+                                                    return ChatHistoryTile(
+                                                      thread: thread,
+                                                      subtitle: subtitle,
+                                                      onTap: () {
+                                                        context.push(
+                                                          AppRoutes.playerChatPath(
+                                                            thread.peerId,
+                                                          ),
+                                                          extra: _toPlayer(
+                                                            thread,
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                            )),
                               ),
                             ),
                           ],
@@ -287,5 +290,6 @@ AvailablePlayerModel _toPlayer(ChatThread thread) {
     rank: AppOptions.valorantRankOptions.first.name,
     language: AppOptions.languageOptions.first,
     availableSince: DateTime.now(),
+    updatedAt: DateTime.now(),
   );
 }

@@ -61,3 +61,16 @@ class ProfileDeleteRequested extends ProfileEvent {
 class ProfileDeleteConsumed extends ProfileEvent {
   const ProfileDeleteConsumed();
 }
+
+class ProfileBugReportRequested extends ProfileEvent {
+  const ProfileBugReportRequested({required this.details});
+
+  final String details;
+
+  @override
+  List<Object?> get props => <Object?>[details];
+}
+
+class ProfileBugReportNoticeConsumed extends ProfileEvent {
+  const ProfileBugReportNoticeConsumed();
+}

@@ -15,6 +15,7 @@ class AvailabilityFiltersCard extends StatelessWidget {
     required this.onGameChanged,
     required this.onLanguageChanged,
     required this.onRankChanged,
+    this.compact = false,
     super.key,
   });
 
@@ -24,6 +25,7 @@ class AvailabilityFiltersCard extends StatelessWidget {
   final ValueChanged<String?> onGameChanged;
   final ValueChanged<String?> onLanguageChanged;
   final ValueChanged<String?> onRankChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -43,34 +45,47 @@ class AvailabilityFiltersCard extends StatelessWidget {
       selectedLanguage,
       AppOptions.languageOptions,
     );
+    final horizontalPadding = compact ? 10.w : 12.w;
+    final verticalPadding = compact ? 8.h : 10.h;
+    final sectionSpacing = compact ? 6.h : 8.h;
+    final fieldSpacing = compact ? 6.w : 8.w;
+    final runSpacing = compact ? 6.h : 8.h;
 
     return GlassContainer(
       borderRadius: 22.r,
-      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 10.h),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        verticalPadding,
+        horizontalPadding,
+        verticalPadding,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            AppStrings.availabilityPreferences,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 13.sp,
-              color: AppColors.textPrimary,
-              letterSpacing: 0.2,
+          if (!compact) ...<Widget>[
+            Text(
+              AppStrings.availabilityPreferences,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 13.sp,
+                color: AppColors.textPrimary,
+                letterSpacing: 0.2,
+              ),
             ),
-          ),
-          SizedBox(height: 8.h),
+            SizedBox(height: sectionSpacing),
+          ],
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final fullWidth = constraints.maxWidth;
-              final itemWidth = (fullWidth - 8.w) / 2;
+              final itemWidth = (fullWidth - fieldSpacing) / 2;
 
               return Wrap(
-                spacing: 8.w,
-                runSpacing: 8.h,
+                spacing: fieldSpacing,
+                runSpacing: runSpacing,
                 children: <Widget>[
                   SizedBox(
                     width: itemWidth,
                     child: _DropdownField(
+                      compact: compact,
                       label: AppStrings.game,
                       initialValue: resolvedGameId,
                       options: AppOptions.gameOptions
@@ -93,6 +108,7 @@ class AvailabilityFiltersCard extends StatelessWidget {
                   SizedBox(
                     width: itemWidth,
                     child: _DropdownField(
+                      compact: compact,
                       label: AppStrings.filterRank,
                       initialValue: resolvedRank,
                       options: rankOptions
@@ -121,6 +137,7 @@ class AvailabilityFiltersCard extends StatelessWidget {
                   SizedBox(
                     width: fullWidth,
                     child: _DropdownField(
+                      compact: compact,
                       label: AppStrings.filterLanguage,
                       initialValue: resolvedLanguage,
                       options: AppOptions.languageOptions
@@ -152,6 +169,7 @@ class _DropdownField extends StatelessWidget {
     required this.options,
     required this.selectedTextOptions,
     required this.onChanged,
+    required this.compact,
     this.selectedWidgets,
   });
 
@@ -161,6 +179,7 @@ class _DropdownField extends StatelessWidget {
   final List<String> selectedTextOptions;
   final ValueChanged<String?>? onChanged;
   final List<Widget>? selectedWidgets;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -172,9 +191,10 @@ class _DropdownField extends StatelessWidget {
           style: AppTextStyles.caption.copyWith(
             color: AppColors.textSecondary,
             letterSpacing: 0.4,
+            fontSize: compact ? 10.sp : null,
           ),
         ),
-        SizedBox(height: 4.h),
+        SizedBox(height: compact ? 3.h : 4.h),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final selectedRowMaxWidth =
@@ -219,8 +239,8 @@ class _DropdownField extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12.w,
-                  vertical: 10.h,
+                  horizontal: compact ? 10.w : 12.w,
+                  vertical: compact ? 8.h : 10.h,
                 ),
               ),
               borderRadius: BorderRadius.circular(18.r),
@@ -273,6 +293,7 @@ class _ImageLabelRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textPrimary,
+              fontSize: 13.sp,
             ),
           ),
         ),

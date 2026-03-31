@@ -269,14 +269,14 @@ class _SetupSection extends StatelessWidget {
           SizedBox(height: 8.h),
           _DropdownField<String>(
             value: state.selectedGameId,
-            items:
-                AppOptions.gameOptions.map((game) => game.id).toList(),
+            items: AppOptions.gameOptions.map((game) => game.id).toList(),
             itemBuilder: (gameId) {
               final game = AppOptions.gameOptions.firstWhere(
                 (option) => option.id == gameId,
                 orElse: () => AppOptions.gameOptions.first,
               );
               return Row(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.r),
@@ -288,11 +288,10 @@ class _SetupSection extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 10.w),
-                  Expanded(
-                    child: Text(
-                      game.name,
-                      style: AppTextStyles.buttonText.copyWith(fontSize: 18.sp),
-                    ),
+                  Text(
+                    game.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.buttonText.copyWith(fontSize: 18.sp),
                   ),
                 ],
               );
@@ -308,11 +307,11 @@ class _SetupSection extends StatelessWidget {
             itemBuilder: (rankName) {
               final rank = rankOptions.firstWhere(
                 (option) => option.name == rankName,
-                orElse: () => AppOptions.defaultRankForGame(
-                  state.selectedGameId,
-                ),
+                orElse: () =>
+                    AppOptions.defaultRankForGame(state.selectedGameId),
               );
               return Row(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Image.asset(
                     rank.imageUrl,
@@ -326,11 +325,10 @@ class _SetupSection extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 10.w),
-                  Expanded(
-                    child: Text(
-                      rank.name,
-                      style: AppTextStyles.buttonText.copyWith(fontSize: 18.sp),
-                    ),
+                  Text(
+                    rank.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.buttonText.copyWith(fontSize: 18.sp),
                   ),
                 ],
               );
@@ -797,6 +795,7 @@ class _DropdownField<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
       initialValue: value,
+      isExpanded: true,
       items: items
           .map(
             (item) => DropdownMenuItem<T>(

@@ -16,5 +16,7 @@ abstract class SettingsRepository {
 
   Future<void> saveProfilePreferences(ProfilePreferencesModel preferences);
 
+  Future<void> submitBugReport({required String details});
+
   Future<void> deleteAccount({required String displayName});
 }

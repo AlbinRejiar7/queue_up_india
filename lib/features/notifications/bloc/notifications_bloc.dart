@@ -16,9 +16,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   NotificationsBloc({
     required NotificationsViewModel notificationsViewModel,
     required ChatViewModel chatViewModel,
-  })  : _notificationsViewModel = notificationsViewModel,
-        _chatViewModel = chatViewModel,
-        super(const NotificationsState()) {
+  }) : _notificationsViewModel = notificationsViewModel,
+       _chatViewModel = chatViewModel,
+       super(const NotificationsState()) {
     on<NotificationsStarted>(_onStarted);
     on<NotificationsStopped>(_onStopped);
     on<NotificationsRefreshRequested>(_onRefresh);
@@ -40,11 +40,11 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     NotificationsStarted event,
     Emitter<NotificationsState> emit,
   ) {
-    _subscription ??= _notificationsViewModel
-        .watchNotifications()
-        .listen((notifications) {
-          add(NotificationsUpdated(notifications: notifications));
-        });
+    _subscription ??= _notificationsViewModel.watchNotifications().listen((
+      notifications,
+    ) {
+      add(NotificationsUpdated(notifications: notifications));
+    });
   }
 
   Future<void> _onStopped(
@@ -68,23 +68,18 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     await _subscription?.cancel();
     _subscription = null;
     emit(state.copyWith(isLoading: true));
-    _subscription = _notificationsViewModel
-        .watchNotifications()
-        .listen((notifications) {
-          add(NotificationsUpdated(notifications: notifications));
-        });
+    _subscription = _notificationsViewModel.watchNotifications().listen((
+      notifications,
+    ) {
+      add(NotificationsUpdated(notifications: notifications));
+    });
   }
 
   void _onUpdated(
     NotificationsUpdated event,
     Emitter<NotificationsState> emit,
   ) {
-    emit(
-      state.copyWith(
-        notifications: event.notifications,
-        isLoading: false,
-      ),
-    );
+    emit(state.copyWith(notifications: event.notifications, isLoading: false));
   }
 
   Future<void> _onReadRequested(
@@ -145,6 +140,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       rank: notification.rank ?? AppOptions.valorantRankOptions.first.name,
       language: notification.language ?? AppOptions.languageOptions.first,
       availableSince: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     try {

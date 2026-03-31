@@ -100,8 +100,7 @@ void _registerViewModels() {
     () => ChatViewModel(repository: sl<ChatRepository>()),
   );
   sl.registerFactory<NotificationsViewModel>(
-    () =>
-        NotificationsViewModel(repository: sl<NotificationsRepository>()),
+    () => NotificationsViewModel(repository: sl<NotificationsRepository>()),
   );
   sl.registerFactory<MatchmakingViewModel>(
     () => MatchmakingViewModel(repository: sl<MatchmakingRepository>()),
@@ -127,9 +126,7 @@ void _registerBlocs() {
     () => AuthBloc(authViewModel: sl<AuthViewModel>()),
   );
   sl.registerFactory<RegistrationBloc>(
-    () => RegistrationBloc(
-      registrationViewModel: sl<RegistrationViewModel>(),
-    ),
+    () => RegistrationBloc(registrationViewModel: sl<RegistrationViewModel>()),
   );
   sl.registerFactory<GameBloc>(
     () => GameBloc(gameViewModel: sl<GameViewModel>()),
@@ -153,6 +150,9 @@ void _registerBlocs() {
     () => ChatBadgeBloc(chatViewModel: sl<ChatViewModel>()),
   );
   sl.registerFactory<MatchmakingBloc>(
-    () => MatchmakingBloc(matchmakingViewModel: sl<MatchmakingViewModel>()),
+    () => MatchmakingBloc(
+      matchmakingViewModel: sl<MatchmakingViewModel>(),
+      partyViewModel: sl<PartyViewModel>(),
+    ),
   );
 }

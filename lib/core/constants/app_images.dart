@@ -1,6 +1,5 @@
 abstract final class AppImages {
-  static const String splashHero =
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAFclrxmPqLoG2UZJa96FCu0lsbqnTay6IssmMwDBkRL1JP08o4kA67Iv7rrx_QKQRQd8RljCIS2sc3U0OgGO_XYLUdtUzfIptjeb1j1BygNy2w8qvS_J3HyTnqM5MbE-4xkgazqiOvinwIYE9AePhPFN6Pa5uQPD_CnWNWxpVktqtXqqZZeXIxdQP6ORHiOjfbTuuNs7ajwTgisb1VQGqTnvfvtggbxX1fduSrvlQXxx5Mtt2EKb2zj1cf1cl9xasWstGCndB9hwQ';
+  static const String splashHero = 'assets/logos/splash_hero.png';
 
   static const String valorant = 'assets/logos/valorant.png';
 

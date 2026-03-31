@@ -23,20 +23,27 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   static const Duration _transitionDuration = Duration(milliseconds: 2400);
   static const Duration _navigationDelay = Duration(milliseconds: 2600);
+  static const AssetImage _splashHeroProvider = AssetImage(
+    AppImages.splashHero,
+  );
 
   late final AnimationController _controller;
   late final Animation<double> _progress;
   bool _hasNavigated = false;
   String _versionLabel = '';
+  bool _didPrecacheHero = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: _transitionDuration)
-      ..forward();
-    _progress = Tween<double>(begin: 0.18, end: 0.86).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _controller = AnimationController(
+      vsync: this,
+      duration: _transitionDuration,
+    )..forward();
+    _progress = Tween<double>(
+      begin: 0.18,
+      end: 0.86,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     Future<void>.delayed(_navigationDelay, _navigateNext);
     _loadVersion();
@@ -46,6 +53,16 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didPrecacheHero) {
+      return;
+    }
+    _didPrecacheHero = true;
+    precacheImage(_splashHeroProvider, context);
   }
 
   Future<void> _loadVersion() async {
@@ -161,7 +178,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ],
                                 image: const DecorationImage(
-                                  image: NetworkImage(AppImages.splashHero),
+                                  image: _splashHeroProvider,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -213,8 +230,8 @@ class _SplashScreenState extends State<SplashScreen>
                                 AnimatedBuilder(
                                   animation: _progress,
                                   builder: (context, child) {
-                                    final percent =
-                                        (_progress.value * 100).round();
+                                    final percent = (_progress.value * 100)
+                                        .round();
                                     return Text(
                                       '$percent%',
                                       style: AppTextStyles.bodyMedium.copyWith(

@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
@@ -33,11 +33,18 @@ class MyRoomsScreen extends StatefulWidget {
   State<MyRoomsScreen> createState() => _MyRoomsScreenState();
 }
 
-class _MyRoomsScreenState extends State<MyRoomsScreen> {
+class _MyRoomsScreenState extends State<MyRoomsScreen>
+    with AutomaticKeepAliveClientMixin<MyRoomsScreen> {
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
-    context.read<PartyBloc>().add(const PartyRoomsRequested());
+    final bloc = context.read<PartyBloc>();
+    if (bloc.state.data.createdParties.isEmpty) {
+      bloc.add(const PartyRoomsRequested());
+    }
   }
 
   Future<void> _handleRefresh() async {
@@ -49,6 +56,7 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       body: GlowBackground(
         child: SafeArea(
@@ -69,9 +77,8 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                     },
                     builder: (BuildContext context, PartyState state) {
                       final created = state.data.createdParties;
-                      final isLoading = state is PartyLoading && created.isEmpty;
-                      final selectedGameId =
-                          widget.selectedGameId ?? AppOptions.valorantId;
+                      final isLoading =
+                          state is PartyLoading && created.isEmpty;
                       final bool isTablet = constraints.maxWidth >= 600;
 
                       return Column(
@@ -124,8 +131,7 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                       ),
                                       children: const <Widget>[
                                         Center(
-                                          child:
-                                              CircularProgressIndicator(),
+                                          child: CircularProgressIndicator(),
                                         ),
                                       ],
                                     )
@@ -139,10 +145,33 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                         22.h,
                                       ),
                                       children: <Widget>[
+                                        GlassContainer(
+                                          padding: EdgeInsets.all(14.w),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Icon(
+                                                Icons.info_outline_rounded,
+                                                size: 20.sp,
+                                                color: Colors.white70,
+                                              ),
+                                              SizedBox(width: 10.w),
+                                              Expanded(
+                                                child: Text(
+                                                  AppStrings
+                                                      .partyAutoDeleteInfo,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 14.h),
                                         if (created.isEmpty)
                                           const EmptyRoomsCard(
-                                            message:
-                                                AppStrings.noCreatedRooms,
+                                            message: AppStrings.noCreatedRooms,
                                           )
                                         else if (isTablet)
                                           Column(
@@ -153,9 +182,7 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                                 AppStrings.createdRooms,
                                                 style: AppTextStyles
                                                     .sectionTitle
-                                                    .copyWith(
-                                                  fontSize: 21.sp,
-                                                ),
+                                                    .copyWith(fontSize: 21.sp),
                                               ),
                                               SizedBox(height: 10.h),
                                               GridView.builder(
@@ -165,53 +192,53 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                                 itemCount: created.length,
                                                 gridDelegate:
                                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                                  crossAxisCount: 2,
-                                                  mainAxisExtent: 190.h,
-                                                  mainAxisSpacing: 12.h,
-                                                  crossAxisSpacing: 12.w,
-                                                ),
-                                                itemBuilder:
-                                                    (BuildContext context,
-                                                        int index) {
+                                                      crossAxisCount: 2,
+                                                      mainAxisExtent: 190.h,
+                                                      mainAxisSpacing: 12.h,
+                                                      crossAxisSpacing: 12.w,
+                                                    ),
+                                                itemBuilder: (BuildContext context, int index) {
                                                   final party = created[index];
                                                   return MyRoomCard(
                                                     party: party,
                                                     isCreatedRoom: true,
                                                     onOpen: () {
                                                       context.push(
-                                                        AppRoutes
-                                                            .partyDetailsPath(
+                                                        AppRoutes.partyDetailsPath(
                                                           party.id,
                                                         ),
                                                       );
                                                     },
                                                     onDelete: () async {
+                                                      final partyBloc = context
+                                                          .read<PartyBloc>();
                                                       final shouldDelete =
-                                                          await AppDialog
-                                                              .showConfirm(
-                                                        context,
-                                                        title: AppStrings
-                                                            .confirmDeletePartyTitle,
-                                                        message: AppStrings
-                                                            .confirmDeletePartyMessage,
-                                                        confirmLabel: AppStrings
-                                                            .deleteParty,
-                                                        cancelLabel: AppStrings
-                                                            .cancelAction,
-                                                        confirmIsDestructive:
-                                                            true,
-                                                      );
+                                                          await AppDialog.showConfirm(
+                                                            context,
+                                                            title: AppStrings
+                                                                .confirmDeletePartyTitle,
+                                                            message: AppStrings
+                                                                .confirmDeletePartyMessage,
+                                                            confirmLabel:
+                                                                AppStrings
+                                                                    .deleteParty,
+                                                            cancelLabel:
+                                                                AppStrings
+                                                                    .cancelAction,
+                                                            confirmIsDestructive:
+                                                                true,
+                                                          );
                                                       if (!shouldDelete) {
                                                         return;
                                                       }
-                                                      context
-                                                          .read<PartyBloc>()
-                                                          .add(
-                                                            PartyLeaveRequested(
-                                                              partyId:
-                                                                  party.id,
-                                                            ),
-                                                          );
+                                                      if (!context.mounted) {
+                                                        return;
+                                                      }
+                                                      partyBloc.add(
+                                                        PartyLeaveRequested(
+                                                          partyId: party.id,
+                                                        ),
+                                                      );
                                                     },
                                                   );
                                                 },
@@ -224,23 +251,28 @@ class _MyRoomsScreenState extends State<MyRoomsScreen> {
                                             parties: created,
                                             isCreatedSection: true,
                                             onDelete: (party) async {
+                                              final partyBloc = context
+                                                  .read<PartyBloc>();
                                               final shouldDelete =
                                                   await AppDialog.showConfirm(
-                                                context,
-                                                title: AppStrings
-                                                    .confirmDeletePartyTitle,
-                                                message: AppStrings
-                                                    .confirmDeletePartyMessage,
-                                                confirmLabel:
-                                                    AppStrings.deleteParty,
-                                                cancelLabel:
-                                                    AppStrings.cancelAction,
-                                                confirmIsDestructive: true,
-                                              );
+                                                    context,
+                                                    title: AppStrings
+                                                        .confirmDeletePartyTitle,
+                                                    message: AppStrings
+                                                        .confirmDeletePartyMessage,
+                                                    confirmLabel:
+                                                        AppStrings.deleteParty,
+                                                    cancelLabel:
+                                                        AppStrings.cancelAction,
+                                                    confirmIsDestructive: true,
+                                                  );
                                               if (!shouldDelete) {
                                                 return;
                                               }
-                                              context.read<PartyBloc>().add(
+                                              if (!context.mounted) {
+                                                return;
+                                              }
+                                              partyBloc.add(
                                                 PartyLeaveRequested(
                                                   partyId: party.id,
                                                 ),

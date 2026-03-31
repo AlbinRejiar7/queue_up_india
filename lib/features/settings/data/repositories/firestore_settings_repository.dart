@@ -1,5 +1,8 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_images.dart';
@@ -11,8 +14,8 @@ class FirestoreSettingsRepository implements SettingsRepository {
   FirestoreSettingsRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   static const String _selectedLanguageKey = 'selected_language_code';
   static const String _firstLaunchKey = 'is_first_launch';
@@ -57,13 +60,10 @@ class FirestoreSettingsRepository implements SettingsRepository {
 
     final user = _auth.currentUser;
     if (user != null) {
-      await _db.collection('users').doc(user.uid).set(
-        <String, dynamic>{
-          'preferredLanguageId': code,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await _db.collection('users').doc(user.uid).set(<String, dynamic>{
+        'preferredLanguageId': code,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
   }
 
@@ -94,8 +94,7 @@ class FirestoreSettingsRepository implements SettingsRepository {
         (data['preferredLanguageId'] as String?) ??
         await fetchSelectedLanguageCode() ??
         'en';
-    final avatarUrl =
-        (data['avatarUrl'] as String?) ?? AppImages.avatarHost;
+    final avatarUrl = (data['avatarUrl'] as String?) ?? AppImages.avatarHost;
 
     return ProfilePreferencesModel(
       queueName: queueName,
@@ -113,15 +112,12 @@ class FirestoreSettingsRepository implements SettingsRepository {
       return;
     }
 
-    await _db.collection('users').doc(user.uid).set(
-      <String, dynamic>{
-        'displayName': preferences.queueName,
-        'preferredLanguageId': preferences.preferredLanguageCode,
-        'avatarUrl': preferences.avatarUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _db.collection('users').doc(user.uid).set(<String, dynamic>{
+      'displayName': preferences.queueName,
+      'preferredLanguageId': preferences.preferredLanguageCode,
+      'avatarUrl': preferences.avatarUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     final trimmedName = preferences.queueName.trim();
     if (trimmedName.isNotEmpty &&
@@ -131,6 +127,41 @@ class FirestoreSettingsRepository implements SettingsRepository {
         await user.reload();
       } catch (_) {}
     }
+  }
+
+  @override
+  Future<void> submitBugReport({required String details}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user');
+    }
+
+    final trimmedDetails = details.trim();
+    if (trimmedDetails.isEmpty) {
+      throw ArgumentError('Bug report details are required');
+    }
+
+    final userSnapshot = await _db.collection('users').doc(user.uid).get();
+    final userData = userSnapshot.data() ?? <String, dynamic>{};
+    final packageInfo = await PackageInfo.fromPlatform();
+    final deviceInfo = await _buildDeviceInfo();
+
+    await _db.collection('bug_reports').add(<String, dynamic>{
+      'reporterId': user.uid,
+      'reporterEmail': user.email,
+      'reporterName':
+          (userData['displayName'] as String?) ?? user.displayName ?? '',
+      'details': trimmedDetails,
+      'status': 'open',
+      'source': 'profile_screen',
+      'createdAt': FieldValue.serverTimestamp(),
+      'app': <String, dynamic>{
+        'packageName': packageInfo.packageName,
+        'version': packageInfo.version,
+        'buildNumber': packageInfo.buildNumber,
+      },
+      'device': deviceInfo,
+    });
   }
 
   @override
@@ -189,6 +220,49 @@ class FirestoreSettingsRepository implements SettingsRepository {
       preferredLanguageCode: 'en',
       avatarUrl: AppImages.avatarHost,
     );
+  }
+
+  Future<Map<String, dynamic>> _buildDeviceInfo() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    if (kIsWeb) {
+      final info = await deviceInfo.webBrowserInfo;
+      return <String, dynamic>{
+        'platform': 'web',
+        'browserName': info.browserName.name,
+        'platformName': info.platform ?? '',
+        'userAgent': info.userAgent ?? '',
+        'vendor': info.vendor ?? '',
+      };
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        final info = await deviceInfo.androidInfo;
+        return <String, dynamic>{
+          'platform': 'android',
+          'brand': info.brand,
+          'manufacturer': info.manufacturer,
+          'model': info.model,
+          'device': info.device,
+          'product': info.product,
+          'androidVersion': info.version.release,
+          'sdkInt': info.version.sdkInt,
+        };
+      case TargetPlatform.iOS:
+        final info = await deviceInfo.iosInfo;
+        return <String, dynamic>{
+          'platform': 'ios',
+          'name': info.name,
+          'model': info.model,
+          'systemName': info.systemName,
+          'systemVersion': info.systemVersion,
+          'localizedModel': info.localizedModel,
+          'identifierForVendor': info.identifierForVendor ?? '',
+        };
+      default:
+        return <String, dynamic>{'platform': defaultTargetPlatform.name};
+    }
   }
 
   static const List<LanguageModel> _fallbackLanguages = <LanguageModel>[

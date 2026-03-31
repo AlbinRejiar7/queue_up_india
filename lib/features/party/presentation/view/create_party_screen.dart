@@ -83,7 +83,7 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                       if (state is PartySuccess &&
                           state.data.isCreateCompleted &&
                           state.data.navigationPartyId != null) {
-                        context.go(
+                        context.push(
                           AppRoutes.partyDetailsPath(
                             state.data.navigationPartyId!,
                           ),

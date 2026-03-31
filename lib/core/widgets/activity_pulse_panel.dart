@@ -17,11 +17,15 @@ class ActivityPulsePanel extends StatefulWidget {
     super.key,
     this.onSoloPlayersTap,
     this.onOpenPartiesTap,
+    this.compact = false,
+    this.showHint = true,
   });
 
   final String gameId;
   final VoidCallback? onSoloPlayersTap;
   final VoidCallback? onOpenPartiesTap;
+  final bool compact;
+  final bool showHint;
 
   @override
   State<ActivityPulsePanel> createState() => _ActivityPulsePanelState();
@@ -81,15 +85,17 @@ class _ActivityPulsePanelState extends State<ActivityPulsePanel> {
               children: <Widget>[
                 Expanded(
                   child: _PulseStatCard(
+                    compact: widget.compact,
                     count: pulse.availableSoloPlayers,
                     label: AppStrings.soloPlayersAvailableLabel,
                     color: AppColors.success,
                     onTap: widget.onSoloPlayersTap,
                   ),
                 ),
-                SizedBox(width: 10.w),
+                SizedBox(width: widget.compact ? 8.w : 10.w),
                 Expanded(
                   child: _PulseStatCard(
+                    compact: widget.compact,
                     count: pulse.openParties,
                     label: AppStrings.openPartiesLabel,
                     color: AppColors.electricBlue,
@@ -98,14 +104,16 @@ class _ActivityPulsePanelState extends State<ActivityPulsePanel> {
                 ),
               ],
             ),
-            SizedBox(height: 8.h),
-            Text(
-              AppStrings.peakTimeHint,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
+            if (widget.showHint) ...<Widget>[
+              SizedBox(height: widget.compact ? 6.h : 8.h),
+              Text(
+                AppStrings.peakTimeHint,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
+            ],
           ],
         );
       },
@@ -118,18 +126,23 @@ class _PulseStatCard extends StatelessWidget {
     required this.count,
     required this.label,
     required this.color,
+    required this.compact,
     this.onTap,
   });
 
   final int count;
   final String label;
   final Color color;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final card = GlassContainer(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12.w : 14.w,
+        vertical: compact ? 10.h : 14.h,
+      ),
       backgroundColor: Colors.white.withValues(alpha: 0.03),
       child: Row(
         children: <Widget>[
@@ -140,14 +153,16 @@ class _PulseStatCard extends StatelessWidget {
                 Text(
                   '$count',
                   style: AppTextStyles.sectionTitle.copyWith(
-                    fontSize: 20.sp,
+                    fontSize: compact ? 18.sp : 20.sp,
                     color: color,
                   ),
                 ),
-                SizedBox(height: 4.h),
+                SizedBox(height: compact ? 2.h : 4.h),
                 Text(
                   label,
-                  style: AppTextStyles.caption,
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: compact ? 11.sp : null,
+                  ),
                 ),
               ],
             ),

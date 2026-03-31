@@ -24,6 +24,7 @@ class PushNotificationService {
   PushNotificationService._();
 
   static final PushNotificationService instance = PushNotificationService._();
+  static const bool _registerBackgroundHandlerInDebug = false;
 
   static const String _backgroundChannelId = 'queueup_alerts_default_v1';
   static const String _backgroundChannelName = 'QueueUp Alerts';
@@ -56,7 +57,9 @@ class PushNotificationService {
     }
     _initialized = true;
 
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    if (!kDebugMode || _registerBackgroundHandlerInDebug) {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    }
 
     await _initLocalNotifications();
     await _requestPermissions();
@@ -370,7 +373,8 @@ class PushNotificationService {
 
   void _navigateToRoute(String route) {
     final router = sl<GoRouter>();
-    final currentLocation = router.routeInformationProvider.value.location;
+    final currentLocation = router.routeInformationProvider.value.uri
+        .toString();
     if (currentLocation == route) {
       return;
     }
@@ -389,8 +393,3 @@ class PushNotificationService {
     });
   }
 }
-
-
-
-
-

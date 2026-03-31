@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/constants/app_timeouts.dart';
 import '../../../core/constants/app_options.dart';
 import '../../settings/viewmodel/profile_view_model.dart';
 import '../models/available_player_model.dart';
@@ -12,38 +15,37 @@ class HomeAvailabilityBloc
   HomeAvailabilityBloc({
     required AvailabilityViewModel availabilityViewModel,
     required ProfileViewModel profileViewModel,
-  })  : _availabilityViewModel = availabilityViewModel,
-        _profileViewModel = profileViewModel,
-      super(const HomeAvailabilityState.initial()) {
+  }) : _availabilityViewModel = availabilityViewModel,
+       _profileViewModel = profileViewModel,
+       super(const HomeAvailabilityState.initial()) {
     on<HomeAvailabilityInitialized>(_onInitialized);
     on<HomeAvailabilityGameChanged>(_onGameChanged);
     on<HomeAvailabilityLanguageChanged>(_onLanguageChanged);
     on<HomeAvailabilityRankChanged>(_onRankChanged);
     on<HomeAvailabilityToggled>(_onToggled);
+    on<HomeAvailabilityExpired>(_onExpired);
   }
 
   final AvailabilityViewModel _availabilityViewModel;
   final ProfileViewModel _profileViewModel;
+  Timer? _availabilityExpiryTimer;
 
   Future<void> _onInitialized(
     HomeAvailabilityInitialized event,
     Emitter<HomeAvailabilityState> emit,
   ) async {
     final nextGameId = event.gameId?.trim();
-    final resolvedGameId =
-        (nextGameId == null || nextGameId.isEmpty)
-            ? (state.selectedGameId ?? AppOptions.valorantId)
-            : nextGameId;
+    final resolvedGameId = (nextGameId == null || nextGameId.isEmpty)
+        ? (state.selectedGameId ?? AppOptions.valorantId)
+        : nextGameId;
 
     String? resolvedLanguage = state.selectedLanguage;
-    if (resolvedLanguage == null) {
-      resolvedLanguage = await _resolvePreferredLanguage();
-    }
+    resolvedLanguage ??= await _resolvePreferredLanguage();
 
     final availability = await _safeFetchAvailability();
-    String? selectedGameId = resolvedGameId;
+    String selectedGameId = resolvedGameId;
     String? selectedRank = state.selectedRank;
-    String? selectedLanguage = resolvedLanguage ?? state.selectedLanguage;
+    String? selectedLanguage = resolvedLanguage;
 
     if (availability != null) {
       if (availability.gameId.isNotEmpty) {
@@ -58,7 +60,7 @@ class HomeAvailabilityBloc
     }
 
     final isRankValid = AppOptions.isRankValidForGame(
-      gameId: selectedGameId ?? AppOptions.valorantId,
+      gameId: selectedGameId,
       rankName: selectedRank,
     );
 
@@ -67,9 +69,11 @@ class HomeAvailabilityBloc
       selectedLanguage: selectedLanguage,
       selectedRank: selectedRank,
       clearRank: !isRankValid,
-      isAvailable: availability != null && isRankValid && selectedLanguage != null,
+      isAvailable:
+          availability != null && isRankValid && selectedLanguage != null,
     );
     emit(nextState);
+    _syncAvailabilityExpiry(availability, isAvailable: nextState.isAvailable);
   }
 
   Future<void> _onGameChanged(
@@ -97,6 +101,7 @@ class HomeAvailabilityBloc
       final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
+        _clearAvailabilityExpiryTimer();
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
       await _updateAvailability(nextState, startedNow: false);
@@ -118,6 +123,7 @@ class HomeAvailabilityBloc
       final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
+        _clearAvailabilityExpiryTimer();
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
       await _updateAvailability(nextState, startedNow: false);
@@ -129,16 +135,14 @@ class HomeAvailabilityBloc
     Emitter<HomeAvailabilityState> emit,
   ) async {
     final nextState = _syncAvailability(
-      state.copyWith(
-        selectedRank: event.rank,
-        clearRank: event.rank == null,
-      ),
+      state.copyWith(selectedRank: event.rank, clearRank: event.rank == null),
     );
     emit(nextState);
     if (nextState.isAvailable && nextState.canToggleAvailability) {
       final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
         emit(nextState.copyWith(isAvailable: false));
+        _clearAvailabilityExpiryTimer();
       }
     } else if (state.isAvailable && !nextState.isAvailable) {
       await _updateAvailability(nextState, startedNow: false);
@@ -162,7 +166,22 @@ class HomeAvailabilityBloc
     );
     if (!ok) {
       emit(nextState.copyWith(isAvailable: false));
+      _clearAvailabilityExpiryTimer();
     }
+  }
+
+  Future<void> _onExpired(
+    HomeAvailabilityExpired event,
+    Emitter<HomeAvailabilityState> emit,
+  ) async {
+    if (!state.isAvailable) {
+      _clearAvailabilityExpiryTimer();
+      return;
+    }
+
+    final nextState = state.copyWith(isAvailable: false);
+    emit(nextState);
+    await _updateAvailability(nextState, startedNow: false);
   }
 
   HomeAvailabilityState _syncAvailability(HomeAvailabilityState nextState) {
@@ -194,8 +213,16 @@ class HomeAvailabilityBloc
         language: current.selectedLanguage ?? '',
         startedNow: startedNow,
       );
+      if (current.isAvailable) {
+        _scheduleAvailabilityExpiry(DateTime.now());
+      } else {
+        _clearAvailabilityExpiryTimer();
+      }
       return true;
     } catch (_) {
+      if (!current.isAvailable) {
+        _clearAvailabilityExpiryTimer();
+      }
       return false;
     }
   }
@@ -224,5 +251,46 @@ class HomeAvailabilityBloc
       }
     } catch (_) {}
     return null;
+  }
+
+  void _syncAvailabilityExpiry(
+    AvailablePlayerModel? availability, {
+    required bool isAvailable,
+  }) {
+    if (!isAvailable || availability == null) {
+      _clearAvailabilityExpiryTimer();
+      return;
+    }
+    _scheduleAvailabilityExpiry(availability.updatedAt);
+  }
+
+  void _scheduleAvailabilityExpiry(DateTime updatedAt) {
+    _clearAvailabilityExpiryTimer();
+
+    final remaining = updatedAt
+        .add(AppTimeouts.availabilityTtl)
+        .difference(DateTime.now());
+
+    if (remaining <= Duration.zero) {
+      add(const HomeAvailabilityExpired());
+      return;
+    }
+
+    _availabilityExpiryTimer = Timer(remaining, () {
+      if (!isClosed) {
+        add(const HomeAvailabilityExpired());
+      }
+    });
+  }
+
+  void _clearAvailabilityExpiryTimer() {
+    _availabilityExpiryTimer?.cancel();
+    _availabilityExpiryTimer = null;
+  }
+
+  @override
+  Future<void> close() async {
+    _clearAvailabilityExpiryTimer();
+    return super.close();
   }
 }

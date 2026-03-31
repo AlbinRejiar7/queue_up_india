@@ -51,15 +51,13 @@ abstract final class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.gameSelection,
-          builder: (_, state) => const MainTabShellScreen(
-            initialTab: AppBottomTab.games,
-          ),
+          builder: (_, state) =>
+              const MainTabShellScreen(initialTab: AppBottomTab.games),
         ),
         GoRoute(
           path: AppRoutes.home,
-          builder: (_, state) => const MainTabShellScreen(
-            initialTab: AppBottomTab.home,
-          ),
+          builder: (_, state) =>
+              const MainTabShellScreen(initialTab: AppBottomTab.home),
         ),
         GoRoute(
           path: AppRoutes.availablePlayers,
@@ -85,21 +83,20 @@ abstract final class AppRouter {
               rank: AppOptions.valorantRankOptions.first.name,
               language: AppOptions.languageOptions.first,
               availableSince: DateTime.now(),
+              updatedAt: DateTime.now(),
             );
             return PlayerChatScreen(player: player ?? fallback);
           },
         ),
         GoRoute(
           path: AppRoutes.profile,
-          builder: (_, _) => const MainTabShellScreen(
-            initialTab: AppBottomTab.profile,
-          ),
+          builder: (_, _) =>
+              const MainTabShellScreen(initialTab: AppBottomTab.profile),
         ),
         GoRoute(
           path: AppRoutes.rooms,
-          builder: (_, _) => const MainTabShellScreen(
-            initialTab: AppBottomTab.rooms,
-          ),
+          builder: (_, _) =>
+              const MainTabShellScreen(initialTab: AppBottomTab.rooms),
         ),
         GoRoute(
           path: '${AppRoutes.partyList}/:gameId',
@@ -134,8 +131,7 @@ abstract final class AppRouter {
                 state.uri.queryParameters['gameId'] ?? AppOptions.valorantId;
             final rank = state.uri.queryParameters['rank'];
             final language = state.uri.queryParameters['language'];
-            final autoStart =
-                state.uri.queryParameters['autoStart'] == 'true';
+            final autoStart = state.uri.queryParameters['autoStart'] == 'true';
             return BlocProvider<MatchmakingBloc>(
               create: (_) => sl<MatchmakingBloc>(),
               child: SoloMatchmakingScreen(

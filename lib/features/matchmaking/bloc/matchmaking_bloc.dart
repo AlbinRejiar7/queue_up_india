@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_options.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../party/viewmodel/party_view_model.dart';
 import '../models/matchmaking_status.dart';
 import '../models/solo_matchmaking_metadata_model.dart';
 import '../models/solo_matchmaking_session_model.dart';
@@ -17,13 +18,16 @@ import 'matchmaking_state.dart';
 class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
   static const int _lowQueueFallbackAfterSeconds = 25;
 
-  MatchmakingBloc({required MatchmakingViewModel matchmakingViewModel})
-    : _matchmakingViewModel = matchmakingViewModel,
-      super(
-        MatchmakingState.initial(
-          currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
-        ),
-      ) {
+  MatchmakingBloc({
+    required MatchmakingViewModel matchmakingViewModel,
+    required PartyViewModel partyViewModel,
+  }) : _matchmakingViewModel = matchmakingViewModel,
+       _partyViewModel = partyViewModel,
+       super(
+         MatchmakingState.initial(
+           currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
+         ),
+       ) {
     on<MatchmakingInitialized>(_onInitialized);
     on<MatchmakingRankChanged>(_onRankChanged);
     on<MatchmakingGameChanged>(_onGameChanged);
@@ -42,6 +46,7 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
   }
 
   final MatchmakingViewModel _matchmakingViewModel;
+  final PartyViewModel _partyViewModel;
   StreamSubscription<SoloMatchmakingSessionModel?>? _sessionSubscription;
   StreamSubscription<SoloMatchmakingMetadataModel?>? _metadataSubscription;
   StreamSubscription<SoloSquadModel?>? _squadSubscription;
@@ -133,16 +138,31 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
       emit(state.copyWith(isSubmitting: false));
       return;
     }
-    emit(
-      state.copyWith(
-        isSubmitting: true,
-        searchSecondsElapsed: 0,
-        showLowQueueFallback: false,
-        clearFeedback: true,
-      ),
-    );
-    _startSearchTimer();
     try {
+      final currentPartyId = await _partyViewModel.getCurrentPartyId();
+      if (currentPartyId != null && currentPartyId.isNotEmpty) {
+        _stopSearchTimer();
+        emit(
+          state.copyWith(
+            isSubmitting: false,
+            searchSecondsElapsed: 0,
+            showLowQueueFallback: false,
+            feedbackMessage: AppStrings.matchmakingPartyConflict,
+            feedbackIsError: true,
+          ),
+        );
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isSubmitting: true,
+          searchSecondsElapsed: 0,
+          showLowQueueFallback: false,
+          clearFeedback: true,
+        ),
+      );
+      _startSearchTimer();
       await _matchmakingViewModel.startSoloQueue(
         gameId: state.selectedGameId,
         rankId: state.selectedRankId,
@@ -266,14 +286,7 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
       _stopSearchTimer();
     }
 
-    emit(
-      _deriveState(
-        state.copyWith(
-          session: session,
-          isSubmitting: false,
-        ),
-      ),
-    );
+    emit(_deriveState(state.copyWith(session: session, isSubmitting: false)));
   }
 
   void _onMetadataUpdated(
@@ -332,12 +345,7 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
     MatchmakingKeepWaitingRequested event,
     Emitter<MatchmakingState> emit,
   ) {
-    emit(
-      state.copyWith(
-        searchSecondsElapsed: 0,
-        showLowQueueFallback: false,
-      ),
-    );
+    emit(state.copyWith(searchSecondsElapsed: 0, showLowQueueFallback: false));
   }
 
   void _onFeedbackConsumed(
@@ -373,7 +381,8 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
     String? squadId,
     MatchmakingStatus? status,
   ) async {
-    final shouldListen = status == MatchmakingStatus.waiting ||
+    final shouldListen =
+        status == MatchmakingStatus.waiting ||
         status == MatchmakingStatus.acceptedWaiting ||
         status == MatchmakingStatus.confirmed;
     if (!shouldListen || squadId == null) {
@@ -388,7 +397,9 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
     }
     _currentSquadId = squadId;
     await _squadSubscription?.cancel();
-    _squadSubscription = _matchmakingViewModel.watchSquad(squadId).listen((squad) {
+    _squadSubscription = _matchmakingViewModel.watchSquad(squadId).listen((
+      squad,
+    ) {
       add(MatchmakingSquadUpdated(squad));
     });
   }
@@ -412,14 +423,16 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
     );
     return nextState.copyWith(
       playersFound: min(max(queueSize, 1), 4),
-      estimatedSeconds: nextState.session?.estimatedSeconds ??
+      estimatedSeconds:
+          nextState.session?.estimatedSeconds ??
           _estimateSecondsFromQueue(queueSize),
       acceptSecondsRemaining: 0,
       showLowQueueFallback:
           nextState.showLowQueueFallback &&
           (nextState.session?.status == MatchmakingStatus.searching ||
               nextState.isSubmitting),
-      clearSquad: nextState.session?.status == MatchmakingStatus.searching ||
+      clearSquad:
+          nextState.session?.status == MatchmakingStatus.searching ||
           nextState.session == null,
     );
   }
@@ -474,10 +487,7 @@ class MatchmakingBloc extends Bloc<MatchmakingEvent, MatchmakingState> {
     _searchTimer = null;
   }
 
-  String _resolveRank({
-    required String gameId,
-    required String? rankId,
-  }) {
+  String _resolveRank({required String gameId, required String? rankId}) {
     if (rankId != null &&
         AppOptions.isRankValidForGame(gameId: gameId, rankName: rankId)) {
       return rankId;

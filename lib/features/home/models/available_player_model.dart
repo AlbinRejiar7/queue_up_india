@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/constants/app_timeouts.dart';
+
 class AvailablePlayerModel extends Equatable {
   const AvailablePlayerModel({
     required this.id,
@@ -9,6 +11,7 @@ class AvailablePlayerModel extends Equatable {
     required this.rank,
     required this.language,
     required this.availableSince,
+    required this.updatedAt,
   });
 
   final String id;
@@ -18,6 +21,13 @@ class AvailablePlayerModel extends Equatable {
   final String rank;
   final String language;
   final DateTime availableSince;
+  final DateTime updatedAt;
+
+  DateTime get expiresAt => updatedAt.add(AppTimeouts.availabilityTtl);
+
+  bool isFresh([DateTime? now]) {
+    return expiresAt.isAfter(now ?? DateTime.now());
+  }
 
   AvailablePlayerModel copyWith({
     String? id,
@@ -27,6 +37,7 @@ class AvailablePlayerModel extends Equatable {
     String? rank,
     String? language,
     DateTime? availableSince,
+    DateTime? updatedAt,
   }) {
     return AvailablePlayerModel(
       id: id ?? this.id,
@@ -36,6 +47,7 @@ class AvailablePlayerModel extends Equatable {
       rank: rank ?? this.rank,
       language: language ?? this.language,
       availableSince: availableSince ?? this.availableSince,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -48,5 +60,6 @@ class AvailablePlayerModel extends Equatable {
     rank,
     language,
     availableSince,
+    updatedAt,
   ];
 }

@@ -132,8 +132,9 @@ abstract final class AppStrings {
       'Select game, language, and rank to go available';
   static const String seeAvailablePlayers = 'See Available Players';
   static const String seeAvailableSoloPlayers = 'See Available Solo Players';
-  static const String findSquadTitle = 'Find Squad';
-  static const String findSquadAction = 'Find Squad';
+  static const String findSquadTitle = 'Instant Find';
+  static const String findSquadAction = 'Instant Find';
+  static const String findSquadComingSoon = 'Instant Find is coming soon.';
   static const String findSquadSetupTitle = 'Queue Into A Solo Squad';
   static const String findSquadSetupBody =
       'Choose your rank and language, then we will match you with three players from the same game bucket.';
@@ -159,7 +160,7 @@ abstract final class AppStrings {
   static const String matchmakingAlreadyActive =
       'You already have an active matchmaking session.';
   static const String matchmakingPartyConflict =
-      'Leave your current party before starting matchmaking.';
+      'You are already in a party. Leave it first to find a squad.';
   static const String lowQueueFallbackTitle = 'Still Looking For Players';
   static const String lowQueueFallbackBody =
       'Not enough players yet. Try available solo players or open parties.';
@@ -208,8 +209,7 @@ abstract final class AppStrings {
   static const String quickMessageAdded = 'Quick message added.';
   static const String quickMessageUpdated = 'Quick message updated.';
   static const String quickMessageRemoved = 'Quick message removed.';
-  static const String quickMessageExists =
-      'That quick message already exists.';
+  static const String quickMessageExists = 'That quick message already exists.';
   static const String quickMessageLimit =
       'You can add up to 5 custom quick messages.';
   static const String quickMessageCooldown =
@@ -245,8 +245,7 @@ abstract final class AppStrings {
   static const String chatRequestAcceptedBody = 'Accepted your solo invite.';
   static const String chatRequestDeclinedTitle = 'Solo Invite Declined';
   static const String chatRequestDeclinedBody = 'Declined your solo invite.';
-  static const String requestAcceptedToast =
-      'Request accepted. Opening chat.';
+  static const String requestAcceptedToast = 'Request accepted. Opening chat.';
   static const String requestDeclinedToast = 'Request declined.';
   static const String requestActionFailed =
       'Unable to update request right now.';
@@ -280,12 +279,16 @@ abstract final class AppStrings {
   static const String noPartiesAvailable =
       'No parties yet. Be the first to create one.';
   static const String profile = 'Profile';
-  static const String myRooms = 'My Rooms';
-  static const String createdRooms = 'Created Rooms';
-  static const String joinedRooms = 'Joined Rooms';
+  static const String myRooms = 'Parties';
+  static const String createdRooms = 'Created Parties';
+  static const String joinedRooms = 'Joined Parties';
+  static const String partyAutoDeleteInfo =
+      'Parties are deleted automatically 24 hours after creation.';
+  static String partyAutoDeletesIn(String timeLeft) =>
+      'Auto-deletes in $timeLeft';
   static const String noCreatedRooms =
-      'No rooms created yet. Create one from the + tab.';
-  static const String noJoinedRooms = 'No joined rooms yet.';
+      'No parties created yet. Create one from the + tab.';
+  static const String noJoinedRooms = 'No joined parties yet.';
   static const String openRoom = 'Open';
   static const String roomCreated = 'Created';
   static const String roomJoined = 'Joined';
@@ -298,6 +301,19 @@ abstract final class AppStrings {
   static const String changeAvatar = 'Change Profile Avatar';
   static const String saveChanges = 'Save Changes';
   static const String profileSaved = 'Profile preferences saved';
+  static const String reportBug = 'Report Bug';
+  static const String reportBugTitle = 'Report a bug';
+  static const String reportBugHint =
+      'Tell us what happened and what you were doing when it broke.';
+  static const String reportBugFieldHint =
+      'Example: Opened My Parties, tapped Join, app froze on loading screen.';
+  static const String reportBugSubmit = 'Send Report';
+  static const String bugReportDetailsRequired =
+      'Please enter bug details before sending.';
+  static const String bugReportSubmitted =
+      'Bug report sent. We will review it.';
+  static const String bugReportSubmitFailed =
+      'Unable to send bug report right now.';
   static const String logout = 'Log Out';
 
   static const String valorantParties = 'Valorant Parties';
@@ -367,7 +383,8 @@ abstract final class AppStrings {
       'Your account and all data will be permanently deleted.';
   static const String deleteAccountConfirmAction = 'Delete';
   static const String deleteAccountSuccess = 'Account deleted.';
-  static const String deleteAccountFailed = 'Unable to delete account right now.';
+  static const String deleteAccountFailed =
+      'Unable to delete account right now.';
   static const String deleteAccountReauthRequired =
       'Please log in again to delete your account.';
   static const String blockPlayer = 'Block player';
@@ -426,8 +443,7 @@ abstract final class AppStrings {
 
   static String playerIdMessage(String playerId) => 'My Player ID: $playerId';
 
-  static String partyCodeMessage(String partyCode) =>
-      'Party Code: $partyCode';
+  static String partyCodeMessage(String partyCode) => 'Party Code: $partyCode';
 
   static String sendChatRequestMessage(String playerName) =>
       'Send a chat request to $playerName?';

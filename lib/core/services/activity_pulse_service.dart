@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../constants/app_timeouts.dart';
 import '../models/activity_pulse_model.dart';
 
 class ActivityPulseService {
@@ -10,10 +11,7 @@ class ActivityPulseService {
 
   Future<ActivityPulseModel> fetchForGame(String gameId) async {
     if (gameId.trim().isEmpty) {
-      return const ActivityPulseModel(
-        availableSoloPlayers: 0,
-        openParties: 0,
-      );
+      return const ActivityPulseModel(availableSoloPlayers: 0, openParties: 0);
     }
 
     try {
@@ -22,7 +20,6 @@ class ActivityPulseService {
             .collection('availability')
             .where('isAvailable', isEqualTo: true)
             .where('gameId', isEqualTo: gameId)
-            .count()
             .get(),
         _db
             .collection('parties')
@@ -32,18 +29,35 @@ class ActivityPulseService {
             .get(),
       ]);
 
-      final availableSnapshot = results[0];
+      final availableSnapshot =
+          results[0] as QuerySnapshot<Map<String, dynamic>>;
       final openPartiesSnapshot = results[1];
+      final cutoff = DateTime.now().subtract(AppTimeouts.availabilityTtl);
+      final availableCount = availableSnapshot.docs.where((doc) {
+        final data = doc.data();
+        final updatedAt = data['updatedAt'];
+        if (updatedAt is Timestamp) {
+          return updatedAt.toDate().isAfter(cutoff);
+        }
+        if (updatedAt is DateTime) {
+          return updatedAt.isAfter(cutoff);
+        }
+        final availableSince = data['availableSince'];
+        if (availableSince is Timestamp) {
+          return availableSince.toDate().isAfter(cutoff);
+        }
+        if (availableSince is DateTime) {
+          return availableSince.isAfter(cutoff);
+        }
+        return false;
+      }).length;
 
       return ActivityPulseModel(
-        availableSoloPlayers: availableSnapshot.count ?? 0,
+        availableSoloPlayers: availableCount,
         openParties: openPartiesSnapshot.count ?? 0,
       );
     } catch (_) {
-      return const ActivityPulseModel(
-        availableSoloPlayers: 0,
-        openParties: 0,
-      );
+      return const ActivityPulseModel(availableSoloPlayers: 0, openParties: 0);
     }
   }
 }

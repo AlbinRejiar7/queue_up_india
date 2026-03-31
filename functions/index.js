@@ -12,6 +12,7 @@ const db = getFirestore();
 const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
+const PARTY_TTL_HOURS = 24;
 const NOTIFICATION_CHANNEL_ID = "queueup_alerts_default_v1";
 const SOLO_MATCH_REQUIRED_PLAYERS = 4;
 const SOLO_MATCH_READY_SECONDS = 20;
@@ -376,6 +377,42 @@ function queueSoloParticipant(tx, participant, bucketId, queueSize) {
     },
     { merge: true }
   );
+}
+
+async function clearPartyUserReferences(partyId) {
+  const [roomsSnapshot, currentPartyUsersSnapshot] = await Promise.all([
+    db.collectionGroup("rooms").where("partyId", "==", partyId).get(),
+    db.collection("users").where("currentPartyId", "==", partyId).get(),
+  ]);
+
+  const bulkWriter = db.bulkWriter();
+
+  roomsSnapshot.docs.forEach((doc) => {
+    bulkWriter.delete(doc.ref);
+  });
+
+  currentPartyUsersSnapshot.docs.forEach((doc) => {
+    bulkWriter.set(
+      doc.ref,
+      {
+        currentPartyId: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  await bulkWriter.close();
+}
+
+async function deleteExpiredParty(partyRef) {
+  const freshSnap = await partyRef.get();
+  if (!freshSnap.exists) {
+    return;
+  }
+
+  await clearPartyUserReferences(partyRef.id);
+  await db.recursiveDelete(partyRef);
 }
 
 exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
@@ -1221,6 +1258,39 @@ exports.cleanupSoloMatchmaking = onSchedule(
       }
 
       lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    }
+  }
+);
+
+exports.cleanupExpiredParties = onSchedule(
+  { schedule: "every 6 hours", region },
+  async () => {
+    const cutoff = Timestamp.fromMillis(
+      Date.now() - PARTY_TTL_HOURS * 60 * 60 * 1000
+    );
+    let lastDoc = null;
+
+    while (true) {
+      let query = db
+        .collection("parties")
+        .orderBy("createdAt")
+        .endAt(cutoff)
+        .limit(20);
+
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
+
+      const snapshot = await query.get();
+      if (snapshot.empty) {
+        break;
+      }
+
+      lastDoc = snapshot.docs[snapshot.docs.length - 1];
+
+      for (const doc of snapshot.docs) {
+        await deleteExpiredParty(doc.ref);
+      }
     }
   }
 );

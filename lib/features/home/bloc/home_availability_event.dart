@@ -46,3 +46,7 @@ class HomeAvailabilityLanguageChanged extends HomeAvailabilityEvent {
 class HomeAvailabilityToggled extends HomeAvailabilityEvent {
   const HomeAvailabilityToggled();
 }
+
+class HomeAvailabilityExpired extends HomeAvailabilityEvent {
+  const HomeAvailabilityExpired();
+}

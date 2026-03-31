@@ -16,10 +16,10 @@ class FirestorePartyRepository implements PartyRepository {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
     FirebaseFunctions? functions,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
-        _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
@@ -107,14 +107,15 @@ class FirestorePartyRepository implements PartyRepository {
   @override
   Future<List<PartyModel>> fetchCreatedParties() async {
     final uid = _requireUserId();
-    final rooms = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('rooms')
-        .where('role', isEqualTo: 'host')
-        .where('status', isEqualTo: 'active')
+    final snapshot = await _db
+        .collection('parties')
+        .where('hostId', isEqualTo: uid)
         .get();
-    return _loadPartiesFromRooms(rooms.docs);
+    final parties = snapshot.docs.map((doc) {
+      final data = doc.data();
+      return _mapPartyDoc(doc.id, data);
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return _enrichHostNames(parties);
   }
 
   @override
@@ -152,8 +153,7 @@ class FirestorePartyRepository implements PartyRepository {
       return PartyPlayerModel(
         id: member.id,
         name: (memberData['displayName'] as String?) ?? 'QueuePlayer',
-        avatarUrl:
-            (memberData['avatarUrl'] as String?) ?? AppImages.avatarHost,
+        avatarUrl: (memberData['avatarUrl'] as String?) ?? AppImages.avatarHost,
         status: isHost ? 'Host' : 'Ready',
         isHost: isHost,
       );
@@ -164,9 +164,7 @@ class FirestorePartyRepository implements PartyRepository {
   }
 
   @override
-  Stream<List<PartyPlayerModel>> watchPartyMembers({
-    required String partyId,
-  }) {
+  Stream<List<PartyPlayerModel>> watchPartyMembers({required String partyId}) {
     return _db
         .collection('parties')
         .doc(partyId)
@@ -231,17 +229,14 @@ class FirestorePartyRepository implements PartyRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      tx.set(
-        partyRef.collection('members').doc(uid),
-        <String, dynamic>{
-          'uid': uid,
-          'displayName': displayName,
-          'avatarUrl': avatarUrl,
-          'role': 'host',
-          'status': 'active',
-          'joinedAt': FieldValue.serverTimestamp(),
-        },
-      );
+      tx.set(partyRef.collection('members').doc(uid), <String, dynamic>{
+        'uid': uid,
+        'displayName': displayName,
+        'avatarUrl': avatarUrl,
+        'role': 'host',
+        'status': 'active',
+        'joinedAt': FieldValue.serverTimestamp(),
+      });
 
       tx.set(
         _db.collection('users').doc(uid).collection('rooms').doc(partyRef.id),
@@ -257,14 +252,10 @@ class FirestorePartyRepository implements PartyRepository {
         SetOptions(merge: true),
       );
 
-      tx.set(
-        _db.collection('users').doc(uid),
-        <String, dynamic>{
-          'currentPartyId': partyRef.id,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      tx.set(_db.collection('users').doc(uid), <String, dynamic>{
+        'currentPartyId': partyRef.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     });
 
     return fetchPartyDetails(partyId: partyRef.id);
@@ -285,13 +276,10 @@ class FirestorePartyRepository implements PartyRepository {
       'avatarUrl': resolvedAvatar,
     });
 
-    await _db.collection('users').doc(uid).set(
-      <String, dynamic>{
-        'currentPartyId': partyId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _db.collection('users').doc(uid).set(<String, dynamic>{
+      'currentPartyId': partyId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     return fetchPartyDetails(partyId: partyId);
   }
@@ -314,13 +302,10 @@ class FirestorePartyRepository implements PartyRepository {
     final uid = _requireUserId();
     final callable = _functions.httpsCallable('leaveParty');
     await callable.call(<String, dynamic>{'partyId': partyId});
-    await _db.collection('users').doc(uid).set(
-      <String, dynamic>{
-        'currentPartyId': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await _db.collection('users').doc(uid).set(<String, dynamic>{
+      'currentPartyId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   String _requireUserId() {
@@ -383,9 +368,8 @@ class FirestorePartyRepository implements PartyRepository {
     final gameId = (data['gameId'] as String?) ?? AppOptions.valorantId;
     final rank = (data['rankId'] as String?) ?? 'Unranked';
     final language = (data['languageId'] as String?) ?? 'English';
-    final maxPlayers = (data['maxPlayers'] as int?) ??
-        (data['neededPlayers'] as int?) ??
-        4;
+    final maxPlayers =
+        (data['maxPlayers'] as int?) ?? (data['neededPlayers'] as int?) ?? 4;
     final currentPlayers = (data['currentPlayers'] as int?) ?? 0;
     final createdAt = data['createdAt'];
 
@@ -398,9 +382,7 @@ class FirestorePartyRepository implements PartyRepository {
       maxPlayers: maxPlayers,
       players: _placeholderPlayers(currentPlayers),
       partyCode: (data['partyCode'] as String?) ?? '',
-      createdAt: createdAt is Timestamp
-          ? createdAt.toDate()
-          : DateTime.now(),
+      createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
       coverImageUrl: _logoForGame(gameId),
       hostId: (data['hostId'] as String?) ?? '',
       hostDisplayName: data['hostDisplayName'] as String?,
