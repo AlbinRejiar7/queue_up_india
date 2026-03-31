@@ -113,7 +113,7 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
-        allow read: if isSignedIn();
+        allow read: if isPartyMember(partyId);
         allow create: if isPartyMember(partyId);
         allow update, delete: if false;
       }
