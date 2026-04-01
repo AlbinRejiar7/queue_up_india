@@ -377,6 +377,13 @@ abstract final class AppStrings {
   static const String inLobby = 'In Lobby';
   static const String startMatch = 'Start Match';
   static const String leaveParty = 'Leave Party';
+  static const String leavePartyConfirmTitle = 'Leave this party?';
+  static const String leavePartyMemberConfirmMessage =
+      'You will leave this party and stop receiving party updates.';
+  static const String leavePartyHostTransferConfirmMessage =
+      'You are the host. Leaving now will transfer host to another active player.';
+  static const String leavePartyHostDeleteConfirmMessage =
+      'You are the host. Leaving now will close this party because no other active players remain.';
   static const String deleteAccount = 'Delete Account';
   static const String confirmDeleteAccountTitle = 'Delete your account?';
   static const String confirmDeleteAccountMessage =
@@ -390,6 +397,10 @@ abstract final class AppStrings {
   static const String blockPlayer = 'Block player';
   static const String unblockPlayer = 'Unblock player';
   static const String reportPlayer = 'Report player';
+  static const String blockedPlayersTitle = 'Blocked players';
+  static const String blockedPlayersSubtitle =
+      'Unblock someone here to chat with them again.';
+  static const String noBlockedPlayers = 'You have not blocked any players.';
   static const String blockedPlayerNotice = 'You have blocked this player.';
   static const String blockedChatDisabled =
       'You blocked this player. Unblock to send messages.';

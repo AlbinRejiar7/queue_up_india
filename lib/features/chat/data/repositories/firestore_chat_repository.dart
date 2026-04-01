@@ -4,15 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/chat_message.dart';
 import '../../models/chat_thread.dart';
 import '../../../../core/constants/app_images.dart';
+import '../../../../core/utils/block_list_helper.dart';
 import 'chat_repository.dart';
 import '../../../../core/utils/paged_result.dart';
 
 class FirestoreChatRepository implements ChatRepository {
-  FirestoreChatRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  FirestoreChatRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
@@ -32,8 +31,7 @@ class FirestoreChatRepository implements ChatRepository {
         .snapshots()
         .map((snapshot) {
           final items = _mapMessages(snapshot.docs).reversed.toList();
-          final nextCursor =
-              snapshot.docs.isEmpty ? null : snapshot.docs.last;
+          final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
           final hasMore = snapshot.docs.length == limit;
           return PagedResult<ChatMessage>(
             items: items,
@@ -48,26 +46,41 @@ class FirestoreChatRepository implements ChatRepository {
     required String peerId,
     int limit = 10,
   }) {
+    final uid = _requireUserId();
     final chatId = _chatIdForPeer(peerId);
-    return _db
+    final source = _db
         .collection('direct_chats')
         .doc(chatId)
         .collection('messages')
         .orderBy('createdAt', descending: true)
         .orderBy(FieldPath.documentId, descending: true)
         .limit(limit)
-        .snapshots()
-        .map((snapshot) {
-          final items = _mapMessages(snapshot.docs).reversed.toList();
-          final nextCursor =
-              snapshot.docs.isEmpty ? null : snapshot.docs.last;
-          final hasMore = snapshot.docs.length == limit;
-          return PagedResult<ChatMessage>(
-            items: items,
-            hasMore: hasMore,
-            nextCursor: nextCursor,
+        .snapshots();
+    return BlockListHelper.combineWithBlockedIds<
+      QuerySnapshot<Map<String, dynamic>>,
+      PagedResult<ChatMessage>
+    >(
+      firestore: _db,
+      uid: uid,
+      source: source,
+      builder: (snapshot, blockedUserIds) {
+        if (blockedUserIds.contains(peerId)) {
+          return const PagedResult<ChatMessage>(
+            items: <ChatMessage>[],
+            hasMore: false,
+            nextCursor: null,
           );
-        });
+        }
+        final items = _mapMessages(snapshot.docs).reversed.toList();
+        final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
+        final hasMore = snapshot.docs.length == limit;
+        return PagedResult<ChatMessage>(
+          items: items,
+          hasMore: hasMore,
+          nextCursor: nextCursor,
+        );
+      },
+    );
   }
 
   @override
@@ -80,16 +93,27 @@ class FirestoreChatRepository implements ChatRepository {
         .orderBy(FieldPath.documentId, descending: true)
         .limit(limit);
 
-    return query.snapshots().asyncMap((snapshot) async {
-      final threads = await _mapThreads(snapshot.docs);
-      final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-      final hasMore = snapshot.docs.length == limit;
-      return PagedResult<ChatThread>(
-        items: threads,
-        hasMore: hasMore,
-        nextCursor: nextCursor,
-      );
-    });
+    return BlockListHelper.combineWithBlockedIds<
+      QuerySnapshot<Map<String, dynamic>>,
+      PagedResult<ChatThread>
+    >(
+      firestore: _db,
+      uid: uid,
+      source: query.snapshots(),
+      builder: (snapshot, blockedUserIds) async {
+        final threads = await _mapThreads(snapshot.docs);
+        final visibleThreads = threads
+            .where((thread) => !blockedUserIds.contains(thread.peerId))
+            .toList();
+        final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
+        final hasMore = snapshot.docs.length == limit;
+        return PagedResult<ChatThread>(
+          items: visibleThreads,
+          hasMore: hasMore,
+          nextCursor: nextCursor,
+        );
+      },
+    );
   }
 
   @override
@@ -140,12 +164,19 @@ class FirestoreChatRepository implements ChatRepository {
     }
 
     final snapshot = await query.get();
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: uid,
+    );
     final threads = await _mapThreads(snapshot.docs);
+    final visibleThreads = threads
+        .where((thread) => !blockedUserIds.contains(thread.peerId))
+        .toList();
     final nextCursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
     final hasMore = snapshot.docs.length == limit;
 
     return PagedResult<ChatThread>(
-      items: threads,
+      items: visibleThreads,
       hasMore: hasMore,
       nextCursor: nextCursor,
     );
@@ -157,6 +188,13 @@ class FirestoreChatRepository implements ChatRepository {
     if (peerId.trim().isEmpty) {
       return false;
     }
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: uid,
+    );
+    if (blockedUserIds.contains(peerId)) {
+      return false;
+    }
     final chatId = _chatIdForPeer(peerId);
     final snapshot = await _db.collection('direct_chats').doc(chatId).get();
     if (!snapshot.exists) {
@@ -165,7 +203,7 @@ class FirestoreChatRepository implements ChatRepository {
     final data = snapshot.data();
     final participants =
         (data?['participants'] as List?)?.whereType<String>().toList() ??
-            const <String>[];
+        const <String>[];
     return participants.contains(uid) && participants.contains(peerId);
   }
 
@@ -175,6 +213,18 @@ class FirestoreChatRepository implements ChatRepository {
     Object? cursor,
     int limit = 10,
   }) async {
+    final uid = _requireUserId();
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: uid,
+    );
+    if (blockedUserIds.contains(peerId)) {
+      return const PagedResult<ChatMessage>(
+        items: <ChatMessage>[],
+        hasMore: false,
+        nextCursor: null,
+      );
+    }
     final chatId = _chatIdForPeer(peerId);
     Query<Map<String, dynamic>> query = _db
         .collection('direct_chats')
@@ -207,6 +257,7 @@ class FirestoreChatRepository implements ChatRepository {
   }) async {
     final uid = _requireUserId();
     final senderName = await _resolveDisplayName(uid);
+    final createdAt = Timestamp.now();
 
     await _db
         .collection('parties')
@@ -216,7 +267,8 @@ class FirestoreChatRepository implements ChatRepository {
           'senderId': uid,
           'senderName': senderName,
           'text': message,
-          'createdAt': FieldValue.serverTimestamp(),
+          'createdAt': createdAt,
+          'serverCreatedAt': FieldValue.serverTimestamp(),
         });
   }
 
@@ -226,6 +278,13 @@ class FirestoreChatRepository implements ChatRepository {
     required String message,
   }) async {
     final uid = _requireUserId();
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: uid,
+    );
+    if (blockedUserIds.contains(peerId)) {
+      throw StateError('Blocked user');
+    }
     final senderName = await _resolveDisplayName(uid);
     final chatId = _chatIdForPeer(peerId);
 
@@ -246,14 +305,18 @@ class FirestoreChatRepository implements ChatRepository {
   @override
   Future<void> markDirectChatRead({required String peerId}) async {
     final uid = _requireUserId();
-    final chatId = _chatIdForPeer(peerId);
-    await _db.collection('direct_chats').doc(chatId).set(
-      <String, dynamic>{
-        'unreadCounts.$uid': 0,
-        'lastReadAt.$uid': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: uid,
     );
+    if (blockedUserIds.contains(peerId)) {
+      return;
+    }
+    final chatId = _chatIdForPeer(peerId);
+    await _db.collection('direct_chats').doc(chatId).set(<String, dynamic>{
+      'unreadCounts.$uid': 0,
+      'lastReadAt.$uid': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   List<ChatMessage> _mapMessages(
@@ -269,8 +332,7 @@ class FirestoreChatRepository implements ChatRepository {
         senderName: (data['senderName'] as String?) ?? 'Player',
         message: (data['text'] as String?) ?? '',
         isMe: senderId != null && senderId == uid,
-        timestamp:
-            createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+        timestamp: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
       );
     }).toList();
   }
@@ -314,9 +376,8 @@ class FirestoreChatRepository implements ChatRepository {
 
     final futures = docs.map((doc) async {
       final data = doc.data();
-      final participants = (data['participants'] as List?)
-              ?.whereType<String>()
-              .toList() ??
+      final participants =
+          (data['participants'] as List?)?.whereType<String>().toList() ??
           const <String>[];
       final peerId = participants.firstWhere(
         (id) => uid == null || id != uid,
@@ -324,8 +385,9 @@ class FirestoreChatRepository implements ChatRepository {
       );
       final lastMessage = (data['lastMessage'] as String?) ?? '';
       final rawTime = data['lastMessageAt'] ?? data['createdAt'];
-      final lastMessageAt =
-          rawTime is Timestamp ? rawTime.toDate() : DateTime.now();
+      final lastMessageAt = rawTime is Timestamp
+          ? rawTime.toDate()
+          : DateTime.now();
       int unreadCount = 0;
       final unreadMap = data['unreadCounts'];
       if (uid != null && unreadMap is Map) {

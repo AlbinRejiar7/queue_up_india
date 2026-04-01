@@ -13,6 +13,23 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.admin == true;
     }
 
+    function hasBlocked(blockerUid, targetUid) {
+      return exists(/databases/$(database)/documents/users/$(blockerUid)/private/blocks) &&
+        get(/databases/$(database)/documents/users/$(blockerUid)/private/blocks).data.blockedUserIds != null &&
+        targetUid in get(/databases/$(database)/documents/users/$(blockerUid)/private/blocks).data.blockedUserIds;
+    }
+
+    function areUsersBlocked(firstUid, secondUid) {
+      return hasBlocked(firstUid, secondUid) || hasBlocked(secondUid, firstUid);
+    }
+
+    function directChatHasNoBlocksAfter(chatId) {
+      return !areUsersBlocked(
+        getAfter(/databases/$(database)/documents/direct_chats/$(chatId)).data.participants[0],
+        getAfter(/databases/$(database)/documents/direct_chats/$(chatId)).data.participants[1]
+      );
+    }
+
     function isPartyHost(partyId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/parties/$(partyId)).data.hostId
@@ -42,8 +59,15 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read: if isOwner(uid);
+        allow get, list: if isOwner(uid) ||
+          (
+            isSignedIn() &&
+            resource.data.type == 'chat_request' &&
+            resource.data.status == 'pending' &&
+            resource.data.fromUserId == request.auth.uid
+          );
         allow create: if isSignedIn() &&
+          !areUsersBlocked(request.auth.uid, uid) &&
           request.resource.data.fromUserId == request.auth.uid &&
           (
             (request.resource.data.type == 'chat_request' &&
@@ -120,10 +144,19 @@ service cloud.firestore {
     }
 
     match /direct_chats/{chatId} {
-      allow read: if isSignedIn() &&
+      allow get: if isSignedIn() &&
+        (
+          resource == null ||
+          request.auth.uid in resource.data.participants
+        );
+      allow list: if isSignedIn() &&
         request.auth.uid in resource.data.participants;
       allow create: if isSignedIn() &&
-        request.auth.uid in request.resource.data.participants;
+        request.auth.uid in request.resource.data.participants &&
+        !areUsersBlocked(
+          request.resource.data.participants[0],
+          request.resource.data.participants[1]
+        );
       allow update: if isSignedIn() &&
         request.auth.uid in resource.data.participants;
       allow delete: if false;
@@ -132,7 +165,8 @@ service cloud.firestore {
         allow read: if isSignedIn() &&
           request.auth.uid in get(/databases/$(database)/documents/direct_chats/$(chatId)).data.participants;
         allow create: if isSignedIn() &&
-          request.auth.uid in get(/databases/$(database)/documents/direct_chats/$(chatId)).data.participants;
+          request.auth.uid in getAfter(/databases/$(database)/documents/direct_chats/$(chatId)).data.participants &&
+          directChatHasNoBlocksAfter(chatId);
         allow update, delete: if false;
       }
     }

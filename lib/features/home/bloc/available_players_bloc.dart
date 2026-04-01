@@ -19,10 +19,10 @@ class AvailablePlayersBloc
     required AvailablePlayersViewModel availablePlayersViewModel,
     required NotificationsViewModel notificationsViewModel,
     required ChatViewModel chatViewModel,
-  })  : _availablePlayersViewModel = availablePlayersViewModel,
-        _notificationsViewModel = notificationsViewModel,
-        _chatViewModel = chatViewModel,
-        super(const AvailablePlayersState.initial()) {
+  }) : _availablePlayersViewModel = availablePlayersViewModel,
+       _notificationsViewModel = notificationsViewModel,
+       _chatViewModel = chatViewModel,
+       super(const AvailablePlayersState.initial()) {
     on<AvailablePlayersLoaded>(_onLoaded);
     on<AvailablePlayersLoadMoreRequested>(_onLoadMore);
     on<AvailablePlayersLivePageUpdated>(_onLivePageUpdated);
@@ -78,10 +78,7 @@ class AvailablePlayersBloc
         cursor: cursor,
         limit: _pageSize,
       );
-      _olderPlayers = <AvailablePlayerModel>[
-        ..._olderPlayers,
-        ...page.items,
-      ];
+      _olderPlayers = <AvailablePlayerModel>[..._olderPlayers, ...page.items];
       _olderCursor = page.nextCursor;
       _olderHasMore = page.hasMore;
       final combined = _mergePlayers(_livePlayers, _olderPlayers);
@@ -125,10 +122,7 @@ class AvailablePlayersBloc
     Emitter<AvailablePlayersState> emit,
   ) async {
     emit(
-      state.copyWith(
-        selectedRank: event.rank,
-        clearRank: event.rank == null,
-      ),
+      state.copyWith(selectedRank: event.rank, clearRank: event.rank == null),
     );
     await _reloadWithFilters(emit);
   }
@@ -151,11 +145,7 @@ class AvailablePlayersBloc
     Emitter<AvailablePlayersState> emit,
   ) async {
     emit(
-      state.copyWith(
-        clearGameId: true,
-        clearRank: true,
-        clearLanguage: true,
-      ),
+      state.copyWith(clearGameId: true, clearRank: true, clearLanguage: true),
     );
     await _reloadWithFilters(emit);
   }
@@ -265,6 +255,19 @@ class AvailablePlayersBloc
           requestActionPeerId: null,
         ),
       );
+    } on StateError catch (error) {
+      final isBlockedError = error.message == 'Blocked user';
+      emit(
+        state.copyWith(
+          isRequesting: false,
+          requestMessage: isBlockedError
+              ? AppStrings.blockedChatDisabled
+              : AppStrings.chatRequestFailed,
+          requestSuccess: false,
+          requestMessageType: RequestMessageType.error,
+          requestActionPeerId: null,
+        ),
+      );
     } catch (_) {
       emit(
         state.copyWith(
@@ -308,10 +311,10 @@ class AvailablePlayersBloc
     }
 
     final combined = _mergePlayers(_livePlayers, _olderPlayers);
-    final effectiveCursor =
-        _olderPlayers.isEmpty ? _liveCursor : _olderCursor;
-    final effectiveHasMore =
-        _olderPlayers.isEmpty ? _liveHasMore : _olderHasMore;
+    final effectiveCursor = _olderPlayers.isEmpty ? _liveCursor : _olderCursor;
+    final effectiveHasMore = _olderPlayers.isEmpty
+        ? _liveHasMore
+        : _olderHasMore;
 
     emit(
       state.copyWith(

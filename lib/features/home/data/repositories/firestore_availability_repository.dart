@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/constants/app_timeouts.dart';
+import '../../../../core/utils/block_list_helper.dart';
 import '../../models/available_player_model.dart';
 import 'availability_repository.dart';
 import '../../../../core/utils/paged_result.dart';
@@ -55,18 +56,28 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
 
   @override
   Stream<List<AvailablePlayerModel>> watchAvailablePlayers() {
-    return _db
+    final uid = _requireUserId();
+    final source = _db
         .collection('availability')
         .where('isAvailable', isEqualTo: true)
         .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-          final now = DateTime.now();
-          return snapshot.docs
-              .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
-              .where((player) => player.isFresh(now))
-              .toList();
-        });
+        .snapshots();
+    return BlockListHelper.combineWithBlockedIds<
+      QuerySnapshot<Map<String, dynamic>>,
+      List<AvailablePlayerModel>
+    >(
+      firestore: _db,
+      uid: uid,
+      source: source,
+      builder: (snapshot, blockedUserIds) {
+        final now = DateTime.now();
+        return snapshot.docs
+            .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
+            .where((player) => player.isFresh(now))
+            .where((player) => !blockedUserIds.contains(player.id))
+            .toList();
+      },
+    );
   }
 
   @override
@@ -93,24 +104,36 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       query = query.where('languageId', isEqualTo: language);
     }
 
-    return query.snapshots().map((snapshot) {
-      final now = DateTime.now();
-      final players = snapshot.docs
-          .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
-          .where((player) => player.isFresh(now))
-          .toList();
-      final hitStaleBoundary = players.length != snapshot.docs.length;
-      final hasMore = snapshot.docs.length == limit && !hitStaleBoundary;
-      final nextCursor = hasMore && snapshot.docs.isNotEmpty
-          ? snapshot.docs.last
-          : null;
+    final uid = _requireUserId();
+    return BlockListHelper.combineWithBlockedIds<
+      QuerySnapshot<Map<String, dynamic>>,
+      PagedResult<AvailablePlayerModel>
+    >(
+      firestore: _db,
+      uid: uid,
+      source: query.snapshots(),
+      builder: (snapshot, blockedUserIds) {
+        final now = DateTime.now();
+        final freshPlayers = snapshot.docs
+            .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
+            .where((player) => player.isFresh(now))
+            .toList();
+        final players = freshPlayers
+            .where((player) => !blockedUserIds.contains(player.id))
+            .toList();
+        final hitStaleBoundary = freshPlayers.length != snapshot.docs.length;
+        final hasMore = snapshot.docs.length == limit && !hitStaleBoundary;
+        final nextCursor = hasMore && snapshot.docs.isNotEmpty
+            ? snapshot.docs.last
+            : null;
 
-      return PagedResult<AvailablePlayerModel>(
-        items: players,
-        hasMore: hasMore,
-        nextCursor: nextCursor,
-      );
-    });
+        return PagedResult<AvailablePlayerModel>(
+          items: players,
+          hasMore: hasMore,
+          nextCursor: nextCursor,
+        );
+      },
+    );
   }
 
   @override
@@ -142,6 +165,17 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     final trimmed = userId.trim();
     if (trimmed.isEmpty) {
       return null;
+    }
+
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid != null) {
+      final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+        firestore: _db,
+        uid: currentUid,
+      );
+      if (blockedUserIds.contains(trimmed)) {
+        return null;
+      }
     }
 
     final doc = await _db.collection('availability').doc(trimmed).get();
@@ -186,12 +220,19 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     }
 
     final snapshot = await query.get();
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: _requireUserId(),
+    );
     final now = DateTime.now();
-    final players = snapshot.docs
+    final freshPlayers = snapshot.docs
         .map((doc) => _mapAvailablePlayer(doc.id, doc.data()))
         .where((player) => player.isFresh(now))
         .toList();
-    final hitStaleBoundary = players.length != snapshot.docs.length;
+    final players = freshPlayers
+        .where((player) => !blockedUserIds.contains(player.id))
+        .toList();
+    final hitStaleBoundary = freshPlayers.length != snapshot.docs.length;
     final hasMore = snapshot.docs.length == limit && !hitStaleBoundary;
     final nextCursor = hasMore && snapshot.docs.isNotEmpty
         ? snapshot.docs.last

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/constants/app_images.dart';
+import '../../../../core/utils/block_list_helper.dart';
 import '../../models/notification_item.dart';
 import 'notifications_repository.dart';
 
@@ -9,8 +10,8 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
   FirestoreNotificationsRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   static const int _defaultLimit = 50;
 
@@ -20,37 +21,52 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
   @override
   Stream<List<NotificationItem>> watchNotifications() {
     final uid = _requireUserId();
-    return _db
+    final source = _db
         .collection('users')
         .doc(uid)
         .collection('notifications')
         .orderBy('createdAt', descending: true)
         .limit(_defaultLimit)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            final createdAt = data['createdAt'];
-            final readAt = data['readAt'];
-            return NotificationItem(
-              id: doc.id,
-              title: (data['title'] as String?) ?? 'Notification',
-              body: (data['body'] as String?) ?? '',
-              type: data['type'] as String?,
-              status: data['status'] as String?,
-              fromUserId: data['fromUserId'] as String?,
-              fromUserName: data['fromUserName'] as String?,
-              fromUserAvatar: data['fromUserAvatar'] as String?,
-              gameId: data['gameId'] as String?,
-              rank: data['rankId'] as String?,
-              language: data['languageId'] as String?,
-              createdAt: createdAt is Timestamp
-                  ? createdAt.toDate()
-                  : DateTime.now(),
-              readAt: readAt is Timestamp ? readAt.toDate() : null,
-            );
-          }).toList(),
-        );
+        .snapshots();
+    return BlockListHelper.combineWithBlockedIds<
+      QuerySnapshot<Map<String, dynamic>>,
+      List<NotificationItem>
+    >(
+      firestore: _db,
+      uid: uid,
+      source: source,
+      builder: (snapshot, blockedUserIds) {
+        return snapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              final createdAt = data['createdAt'];
+              final readAt = data['readAt'];
+              return NotificationItem(
+                id: doc.id,
+                title: (data['title'] as String?) ?? 'Notification',
+                body: (data['body'] as String?) ?? '',
+                type: data['type'] as String?,
+                status: data['status'] as String?,
+                fromUserId: data['fromUserId'] as String?,
+                fromUserName: data['fromUserName'] as String?,
+                fromUserAvatar: data['fromUserAvatar'] as String?,
+                gameId: data['gameId'] as String?,
+                rank: data['rankId'] as String?,
+                language: data['languageId'] as String?,
+                createdAt: createdAt is Timestamp
+                    ? createdAt.toDate()
+                    : DateTime.now(),
+                readAt: readAt is Timestamp ? readAt.toDate() : null,
+              );
+            })
+            .where(
+              (notification) =>
+                  notification.fromUserId == null ||
+                  !blockedUserIds.contains(notification.fromUserId),
+            )
+            .toList();
+      },
+    );
   }
 
   @override
@@ -61,12 +77,9 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
         .doc(uid)
         .collection('notifications')
         .doc(notificationId)
-        .set(
-          <String, dynamic>{
-            'readAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
+        .set(<String, dynamic>{
+          'readAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   @override
@@ -83,13 +96,9 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
     }
     final batch = _db.batch();
     for (final doc in snapshot.docs) {
-      batch.set(
-        doc.reference,
-        <String, dynamic>{
-          'readAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(doc.reference, <String, dynamic>{
+        'readAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
     await batch.commit();
   }
@@ -132,6 +141,7 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
     required String title,
     required String body,
   }) async {
+    await _ensurePeerNotBlocked(targetUserId);
     final fromUserId = _requireUserId();
     final senderName = await _resolveDisplayName(fromUserId);
     final senderAvatar = await _resolveAvatarUrl(fromUserId);
@@ -161,6 +171,13 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
     required String targetUserId,
     required String fromUserId,
   }) async {
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: _requireUserId(),
+    );
+    if (blockedUserIds.contains(targetUserId)) {
+      return false;
+    }
     final snapshot = await _db
         .collection('users')
         .doc(targetUserId)
@@ -178,6 +195,13 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
     required String targetUserId,
     required String fromUserId,
   }) async {
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: _requireUserId(),
+    );
+    if (blockedUserIds.contains(targetUserId)) {
+      return false;
+    }
     final snapshot = await _db
         .collection('users')
         .doc(fromUserId)
@@ -200,6 +224,7 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
     String? rank,
     String? language,
   }) async {
+    await _ensurePeerNotBlocked(targetUserId);
     final fromUserId = _requireUserId();
     final senderName = await _resolveDisplayName(fromUserId);
     final senderAvatar = await _resolveAvatarUrl(fromUserId);
@@ -235,13 +260,10 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
         .doc(uid)
         .collection('notifications')
         .doc(notificationId)
-        .set(
-          <String, dynamic>{
-            'status': status,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
+        .set(<String, dynamic>{
+          'status': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   String _requireUserId() {
@@ -250,6 +272,16 @@ class FirestoreNotificationsRepository implements NotificationsRepository {
       throw StateError('Authentication required.');
     }
     return uid;
+  }
+
+  Future<void> _ensurePeerNotBlocked(String peerId) async {
+    final blockedUserIds = await BlockListHelper.fetchBlockedUserIds(
+      firestore: _db,
+      uid: _requireUserId(),
+    );
+    if (blockedUserIds.contains(peerId)) {
+      throw StateError('Blocked user');
+    }
   }
 
   Future<String> _resolveDisplayName(String uid) async {

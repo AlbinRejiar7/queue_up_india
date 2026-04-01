@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_routes.dart';
@@ -13,12 +14,13 @@ import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
-import '../../../../core/widgets/safe_back_button.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../chat/bloc/chat_bloc.dart';
 import '../../../chat/viewmodel/chat_view_model.dart';
 import '../../bloc/party_bloc.dart';
 import '../../bloc/party_event.dart';
 import '../../bloc/party_state.dart';
+import '../../models/party_model.dart';
 import 'widgets/party_chat_sheet.dart';
 import 'widgets/party_overview_header.dart';
 import 'widgets/player_tile.dart';
@@ -42,6 +44,19 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
     super.initState();
     _chatController = DraggableScrollableController()
       ..addListener(_handleSheetChanged);
+    context.read<PartyBloc>().add(
+      PartyDetailsRequested(partyId: widget.partyId),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PartyDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.partyId == widget.partyId) {
+      return;
+    }
+    _groupChatBloc?.close();
+    _groupChatBloc = null;
     context.read<PartyBloc>().add(
       PartyDetailsRequested(partyId: widget.partyId),
     );
@@ -74,6 +89,55 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
     );
   }
 
+  Future<void> _requestLeaveParty({
+    required PartyModel party,
+    required bool isHost,
+  }) async {
+    final blocState = context.read<PartyBloc>().state;
+    if (blocState is PartyLoading) {
+      return;
+    }
+
+    final message = isHost
+        ? party.playerCount <= 1
+              ? AppStrings.leavePartyHostDeleteConfirmMessage
+              : AppStrings.leavePartyHostTransferConfirmMessage
+        : AppStrings.leavePartyMemberConfirmMessage;
+
+    final confirmed = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.leavePartyConfirmTitle,
+      message: message,
+      confirmLabel: AppStrings.leaveParty,
+      cancelLabel: AppStrings.cancelAction,
+      confirmIsDestructive: true,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    context.read<PartyBloc>().add(PartyLeaveRequested(partyId: party.id));
+  }
+
+  Future<void> _handleBackNavigation({
+    required PartyModel party,
+    required bool isHost,
+  }) async {
+    if (isHost) {
+      if (!mounted) {
+        return;
+      }
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(AppRoutes.rooms);
+      }
+      return;
+    }
+
+    await _requestLeaveParty(party: party, isHost: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,48 +165,80 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                     },
                     builder: (BuildContext context, PartyState state) {
                       final party = state.data.selectedParty;
+                      final currentUserId =
+                          FirebaseAuth.instance.currentUser?.uid;
 
                       if (party == null || party.id != widget.partyId) {
                         return const Center(child: CircularProgressIndicator());
                       }
-                      _groupChatBloc ??= ChatBloc(
-                        chatViewModel: sl<ChatViewModel>(),
-                        scope: ChatScope.party,
-                        targetId: party.id,
-                      );
+                      final bool canAccessPartyChat =
+                          currentUserId != null &&
+                          party.players.any(
+                            (player) => player.id == currentUserId,
+                          );
 
-                      return Column(
-                        children: <Widget>[
-                          Padding(
-                            padding: contentPadding,
-                            child: Column(
-                              children: <Widget>[
-                                SizedBox(height: 6.h),
-                                Row(
-                                  children: <Widget>[
-                                    SafeBackButton(
-                                      fallbackRoute: AppRoutes.rooms,
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        AppStrings.partyDetails,
-                                        textAlign: TextAlign.center,
-                                        style: AppTextStyles.pageTitle,
+                      if (canAccessPartyChat && _groupChatBloc == null) {
+                        _groupChatBloc = ChatBloc(
+                          chatViewModel: sl<ChatViewModel>(),
+                          scope: ChatScope.party,
+                          targetId: party.id,
+                        );
+                      } else if (!canAccessPartyChat &&
+                          _groupChatBloc != null) {
+                        _groupChatBloc?.close();
+                        _groupChatBloc = null;
+                      }
+
+                      final bool isHost =
+                          currentUserId != null &&
+                          currentUserId == party.hostId;
+
+                      return PopScope<Object?>(
+                        canPop: false,
+                        onPopInvokedWithResult:
+                            (bool didPop, Object? result) async {
+                              if (didPop) {
+                                return;
+                              }
+                              await _handleBackNavigation(
+                                party: party,
+                                isHost: isHost,
+                              );
+                            },
+                        child: Column(
+                          children: <Widget>[
+                            Padding(
+                              padding: contentPadding,
+                              child: Column(
+                                children: <Widget>[
+                                  SizedBox(height: 6.h),
+                                  Row(
+                                    children: <Widget>[
+                                      IconButton(
+                                        onPressed: () {
+                                          _handleBackNavigation(
+                                            party: party,
+                                            isHost: isHost,
+                                          );
+                                        },
+                                        icon: const Icon(Icons.arrow_back),
                                       ),
-                                    ),
-                                    SizedBox(width: 48.w),
-                                  ],
-                                ),
-                              ],
+                                      Expanded(
+                                        child: Text(
+                                          AppStrings.partyDetails,
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.pageTitle,
+                                        ),
+                                      ),
+                                      SizedBox(width: 48.w),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder:
-                                  (
-                                    BuildContext context,
-                                    BoxConstraints constraints,
-                                  ) {
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (BuildContext context, BoxConstraints constraints) {
                                   final Widget detailsChild = RepaintBoundary(
                                     child: Padding(
                                       padding: EdgeInsets.fromLTRB(
@@ -181,8 +277,9 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                                                         style: AppTextStyles
                                                             .caption
                                                             .copyWith(
-                                                          letterSpacing: 1.4,
-                                                        ),
+                                                              letterSpacing:
+                                                                  1.4,
+                                                            ),
                                                       ),
                                                       SizedBox(height: 6.h),
                                                       Text(
@@ -190,8 +287,8 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                                                         style: AppTextStyles
                                                             .sectionTitle
                                                             .copyWith(
-                                                          fontSize: 24.sp,
-                                                        ),
+                                                              fontSize: 24.sp,
+                                                            ),
                                                       ),
                                                     ],
                                                   ),
@@ -219,44 +316,40 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                                             SizedBox(height: 14.h),
                                             Text(
                                               '${AppStrings.players} (${party.playerCount}/${party.maxPlayers})',
-                                              style:
-                                                  AppTextStyles.pageTitle,
+                                              style: AppTextStyles.pageTitle,
                                             ),
                                             SizedBox(height: 10.h),
                                             Builder(
                                               builder: (context) {
-                                                final bool canKick = party
-                                                        .players.isNotEmpty &&
-                                                    party
-                                                        .players.first.isHost;
-                                                // TODO: Wire with current user ID once auth is integrated.
                                                 return Column(
                                                   children: party.players
                                                       .map(
                                                         (player) => Padding(
                                                           padding:
                                                               EdgeInsets.only(
-                                                            bottom: 10.h,
-                                                          ),
+                                                                bottom: 10.h,
+                                                              ),
                                                           child: PlayerTile(
                                                             player: player,
-                                                            showKick: canKick,
-                                                            onKick: () {
-                                                              context
-                                                                  .read<
-                                                                    PartyBloc
-                                                                  >()
-                                                                  .add(
-                                                                    PartyKickRequested(
-                                                                      partyId:
-                                                                          party
-                                                                              .id,
-                                                                      playerId:
-                                                                          player
-                                                                              .id,
-                                                                    ),
-                                                                  );
-                                                            },
+                                                            showKick:
+                                                                isHost &&
+                                                                player.id !=
+                                                                    currentUserId,
+                                                            onKick:
+                                                                isHost &&
+                                                                    player.id !=
+                                                                        currentUserId
+                                                                ? () {
+                                                                    context.read<PartyBloc>().add(
+                                                                      PartyKickRequested(
+                                                                        partyId:
+                                                                            party.id,
+                                                                        playerId:
+                                                                            player.id,
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                : null,
                                                           ),
                                                         ),
                                                       )
@@ -270,13 +363,10 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                                               icon: Icons.logout,
                                               isDanger: true,
                                               onPressed: () {
-                                                context
-                                                    .read<PartyBloc>()
-                                                    .add(
-                                                      PartyLeaveRequested(
-                                                        partyId: party.id,
-                                                      ),
-                                                    );
+                                                _requestLeaveParty(
+                                                  party: party,
+                                                  isHost: isHost,
+                                                );
                                               },
                                             ),
                                             SizedBox(height: 24.h),
@@ -286,54 +376,59 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                                     ),
                                   );
 
-                                      return Stack(
-                                        children: <Widget>[
-                                          ValueListenableBuilder<double>(
-                                            valueListenable: _sheetSize,
-                                            builder: (context, size, child) {
-                                              final clamped =
-                                                  size.clamp(0.1, 0.9);
-                                              final detailHeight =
-                                                  constraints.maxHeight *
-                                                      (1 - clamped);
+                                  return Stack(
+                                    children: <Widget>[
+                                      ValueListenableBuilder<double>(
+                                        valueListenable: _sheetSize,
+                                        builder: (context, size, child) {
+                                          final clamped = canAccessPartyChat
+                                              ? size.clamp(0.1, 0.9)
+                                              : 0.0;
+                                          final detailHeight =
+                                              constraints.maxHeight *
+                                              (1 - clamped);
 
-                                              return AnimatedPositioned(
-                                                duration: const Duration(
-                                                  milliseconds: 90,
-                                                ),
-                                                curve: Curves.easeOutCubic,
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: detailHeight,
-                                                child: ClipRect(
-                                              child: child,
+                                          return AnimatedPositioned(
+                                            duration: const Duration(
+                                              milliseconds: 90,
                                             ),
+                                            curve: Curves.easeOutCubic,
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: detailHeight,
+                                            child: ClipRect(child: child),
                                           );
                                         },
                                         child: detailsChild,
                                       ),
-                                      Positioned.fill(
-                                        child: RepaintBoundary(
-                                          child: BlocProvider<ChatBloc>.value(
-                                            value: _groupChatBloc!,
-                                            child: PartyChatSheet(
-                                              party: party,
-                                              initialChildSize: 0.1,
-                                              minChildSize: 0.1,
-                                              maxChildSize: 0.9,
-                                              controller: _chatController,
-                                              onExpandTap: _expandChat,
+                                      if (canAccessPartyChat &&
+                                          _groupChatBloc != null)
+                                        Positioned.fill(
+                                          child: RepaintBoundary(
+                                            child: BlocProvider<ChatBloc>.value(
+                                              value: _groupChatBloc!,
+                                              child: PartyChatSheet(
+                                                key: ValueKey<String>(
+                                                  'party-chat-${party.id}',
+                                                ),
+                                                party: party,
+                                                initialChildSize: 0.1,
+                                                minChildSize: 0.1,
+                                                maxChildSize: 0.9,
+                                                controller: _chatController,
+                                                onExpandTap: _expandChat,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
                                     ],
                                   );
-                                  },
+                                },
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       );
                     },
                   );

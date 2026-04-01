@@ -1099,16 +1099,25 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
     if (party.hostId !== uid) {
       throw new HttpsError("permission-denied", "Only the host can kick players.");
     }
+    if (memberId === uid) {
+      throw new HttpsError("failed-precondition", "Host cannot kick themselves.");
+    }
 
     const memberRef = partyRef.collection("members").doc(memberId);
     const memberSnap = await tx.get(memberRef);
     if (!memberSnap.exists || memberSnap.data().status !== "active") {
       return;
     }
+    if (memberSnap.data().role === "host" || party.hostId === memberId) {
+      throw new HttpsError("failed-precondition", "Host cannot be kicked.");
+    }
 
-    const currentPlayers = party.currentPlayers || 0;
+    const activeMembersSnap = await tx.get(
+      partyRef.collection("members").where("status", "==", "active")
+    );
+    const activeMemberIds = activeMembersSnap.docs.map((doc) => doc.id);
+    const nextCount = activeMemberIds.filter((activeId) => activeId !== memberId).length;
     const maxPlayers = party.maxPlayers || party.neededPlayers || 0;
-    const nextCount = Math.max(currentPlayers - 1, 0);
 
     tx.update(memberRef, {
       status: "kicked",
@@ -1117,11 +1126,17 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
 
     tx.update(partyRef, {
       currentPlayers: nextCount,
-      status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open"
+      status: maxPlayers > 0 && nextCount >= maxPlayers ? "full" : "open",
+      updatedAt: FieldValue.serverTimestamp()
     });
 
     const roomRef = db.collection("users").doc(memberId).collection("rooms").doc(partyId);
     tx.set(roomRef, { status: "kicked" }, { merge: true });
+    tx.set(
+      db.collection("users").doc(memberId),
+      { currentPartyId: null, updatedAt: FieldValue.serverTimestamp() },
+      { merge: true }
+    );
   });
 
   if (memberId) {

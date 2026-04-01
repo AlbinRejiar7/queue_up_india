@@ -1080,344 +1080,364 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                             child: Column(
                               children: <Widget>[
                                 Expanded(
-                                  child: BlocListener<ChatBloc, ChatState>(
-                                    listenWhen: (previous, current) =>
-                                        previous.messages.length !=
-                                        current.messages.length,
-                                    listener: (context, state) {
-                                      if (_stickToBottom &&
-                                          !state.isLoadingMore) {
-                                        _scrollToBottom();
-                                      }
-                                    },
-                                    child: BlocBuilder<ChatBloc, ChatState>(
-                                      builder: (context, state) {
-                                        final messages = state.messages;
-                                        final itemCount =
-                                            messages.length +
-                                            (state.isLoadingMore ? 1 : 0);
-
-                                        return NotificationListener<
-                                          ScrollNotification
-                                        >(
-                                          onNotification: (notification) {
-                                            final metrics =
-                                                notification.metrics;
-                                            final distanceToBottom =
-                                                metrics.maxScrollExtent -
-                                                metrics.pixels;
-                                            _stickToBottom =
-                                                distanceToBottom <= 120.h;
-
-                                            if (metrics.pixels <= 120.h) {
-                                              context.read<ChatBloc>().add(
-                                                const ChatLoadOlderRequested(),
-                                              );
-                                            }
-                                            return false;
-                                          },
-                                          child: ListView.builder(
-                                            controller: _scrollController,
-                                            itemCount: itemCount,
-                                            itemBuilder:
-                                                (
-                                                  BuildContext context,
-                                                  int index,
-                                                ) {
-                                                  if (state.isLoadingMore &&
-                                                      index == 0) {
-                                                    return Padding(
-                                                      padding: EdgeInsets.only(
-                                                        bottom: 8.h,
-                                                      ),
-                                                      child: const Center(
-                                                        child:
-                                                            CircularProgressIndicator(),
-                                                      ),
-                                                    );
-                                                  }
-                                                  final messageIndex =
-                                                      state.isLoadingMore
-                                                      ? index - 1
-                                                      : index;
-                                                  return ChatBubble(
-                                                    message:
-                                                        messages[messageIndex],
-                                                  );
-                                                },
+                                  child: _isBlocked
+                                      ? Center(
+                                          child: Text(
+                                            AppStrings.blockedPlayerNotice,
+                                            textAlign: TextAlign.center,
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                                  color: AppColors.danger,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 10.h),
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxHeight: maxBottomSectionHeight,
-                                  ),
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Expanded(
-                                              child: OutlinedButton(
-                                                onPressed: () {
-                                                  if (_isBlocked) {
-                                                    AppSnackBar.showInfo(
-                                                      context,
-                                                      AppStrings
-                                                          .blockedChatDisabled,
+                                        )
+                                      : BlocListener<ChatBloc, ChatState>(
+                                          listenWhen: (previous, current) =>
+                                              previous.messages.length !=
+                                              current.messages.length,
+                                          listener: (context, state) {
+                                            if (_stickToBottom &&
+                                                !state.isLoadingMore) {
+                                              _scrollToBottom();
+                                            }
+                                          },
+                                          child: BlocBuilder<ChatBloc, ChatState>(
+                                            builder: (context, state) {
+                                              final messages = state.messages;
+                                              final itemCount =
+                                                  messages.length +
+                                                  (state.isLoadingMore ? 1 : 0);
+
+                                              return NotificationListener<
+                                                ScrollNotification
+                                              >(
+                                                onNotification: (notification) {
+                                                  final metrics =
+                                                      notification.metrics;
+                                                  final distanceToBottom =
+                                                      metrics.maxScrollExtent -
+                                                      metrics.pixels;
+                                                  _stickToBottom =
+                                                      distanceToBottom <= 120.h;
+
+                                                  if (metrics.pixels <= 120.h) {
+                                                    context.read<ChatBloc>().add(
+                                                      const ChatLoadOlderRequested(),
                                                     );
-                                                    return;
                                                   }
-                                                  _promptAndSend(
-                                                    context: context,
-                                                    title: AppStrings
-                                                        .sharePlayerId,
-                                                    hint: AppStrings
-                                                        .enterPlayerIdHint,
-                                                    formatter: (value) =>
-                                                        AppStrings.playerIdMessage(
-                                                          value,
-                                                        ),
-                                                  );
+                                                  return false;
                                                 },
-                                                style: OutlinedButton.styleFrom(
-                                                  foregroundColor:
-                                                      AppColors.textPrimary,
-                                                  side: BorderSide(
-                                                    color: AppColors
-                                                        .electricBlueBright,
-                                                  ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          14.r,
-                                                        ),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  AppStrings.sharePlayerId,
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            ),
-                                            SizedBox(width: 10.w),
-                                            Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  if (_isBlocked) {
-                                                    AppSnackBar.showInfo(
-                                                      context,
-                                                      AppStrings
-                                                          .blockedChatDisabled,
-                                                    );
-                                                    return;
-                                                  }
-                                                  _promptAndSend(
-                                                    context: context,
-                                                    title: AppStrings
-                                                        .sharePartyCode,
-                                                    hint: AppStrings
-                                                        .enterPartyCodeHint,
-                                                    formatter: (value) =>
-                                                        AppStrings.partyCodeMessage(
-                                                          value,
-                                                        ),
-                                                  );
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: AppColors
-                                                      .electricBlueBright,
-                                                  foregroundColor:
-                                                      AppColors.textPrimary,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          14.r,
-                                                        ),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  AppStrings.sharePartyCode,
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 10.h),
-                                        GlassContainer(
-                                          borderRadius: 22.r,
-                                          padding: EdgeInsets.all(14.r),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: <Widget>[
-                                              Row(
-                                                children: <Widget>[
-                                                  Text(
-                                                    AppStrings
-                                                        .quickMessagesTitle,
-                                                    style: AppTextStyles
-                                                        .bodyMedium
-                                                        .copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                  ),
-                                                  const Spacer(),
-                                                  TextButton(
-                                                    onPressed:
-                                                        _customQuickMessages
-                                                                .length >=
-                                                            _maxCustomQuickMessages
-                                                        ? null
-                                                        : _promptAddQuickMessage,
-                                                    child: Text(
-                                                      AppStrings.addAction,
-                                                    ),
-                                                  ),
-                                                  if (totalQuickCount > 5)
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          _showAllQuickMessages =
-                                                              !_showAllQuickMessages;
-                                                        });
-                                                      },
-                                                      child: Text(
-                                                        _showAllQuickMessages
-                                                            ? AppStrings.seeLess
-                                                            : AppStrings
-                                                                  .seeMore,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 4.h),
-                                              Text(
-                                                AppStrings.quickMessagesHint,
-                                                style: AppTextStyles.caption
-                                                    .copyWith(
-                                                      color: AppColors
-                                                          .textSecondary,
-                                                    ),
-                                              ),
-                                              SizedBox(height: 8.h),
-                                              AnimatedSize(
-                                                duration: const Duration(
-                                                  milliseconds: 220,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                                alignment:
-                                                    Alignment.bottomCenter,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: <Widget>[
-                                                    if (visibleCustomMessages
-                                                        .isNotEmpty) ...<
-                                                      Widget
-                                                    >[
-                                                      Text(
-                                                        AppStrings
-                                                            .customQuickMessagesTitle,
-                                                        style: AppTextStyles
-                                                            .caption
-                                                            .copyWith(
-                                                              color: AppColors
-                                                                  .textSecondary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                            ),
-                                                      ),
-                                                      SizedBox(height: 8.h),
-                                                      Wrap(
-                                                        spacing: 8.w,
-                                                        runSpacing: 8.h,
-                                                        children: visibleCustomMessages.map((
-                                                          message,
-                                                        ) {
-                                                          return GestureDetector(
-                                                            onLongPress: () {
-                                                              _promptQuickMessageActions(
-                                                                message,
-                                                              );
-                                                            },
-                                                            child:
-                                                                _buildQuickChip(
-                                                                  context,
-                                                                  message,
-                                                                  isCustom:
-                                                                      true,
+                                                child: ListView.builder(
+                                                  controller: _scrollController,
+                                                  itemCount: itemCount,
+                                                  itemBuilder:
+                                                      (
+                                                        BuildContext context,
+                                                        int index,
+                                                      ) {
+                                                        if (state
+                                                                .isLoadingMore &&
+                                                            index == 0) {
+                                                          return Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  bottom: 8.h,
                                                                 ),
-                                                          );
-                                                        }).toList(),
-                                                      ),
-                                                    ],
-                                                    if (visibleCustomMessages
-                                                            .isNotEmpty &&
-                                                        visibleDefaultMessages
-                                                            .isNotEmpty) ...<
-                                                      Widget
-                                                    >[
-                                                      SizedBox(height: 12.h),
-                                                      Divider(
-                                                        height: 1,
-                                                        color: AppColors
-                                                            .navSurface,
-                                                      ),
-                                                      SizedBox(height: 12.h),
-                                                    ],
-                                                    if (visibleDefaultMessages
-                                                        .isNotEmpty) ...<
-                                                      Widget
-                                                    >[
-                                                      Text(
-                                                        AppStrings
-                                                            .defaultQuickMessagesTitle,
-                                                        style: AppTextStyles
-                                                            .caption
-                                                            .copyWith(
-                                                              color: AppColors
-                                                                  .textSecondary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
+                                                            child: const Center(
+                                                              child:
+                                                                  CircularProgressIndicator(),
                                                             ),
-                                                      ),
-                                                      SizedBox(height: 8.h),
-                                                      Wrap(
-                                                        spacing: 8.w,
-                                                        runSpacing: 8.h,
-                                                        children:
-                                                            visibleDefaultMessages
-                                                                .map((message) {
-                                                                  return _buildQuickChip(
-                                                                    context,
-                                                                    message,
-                                                                    isCustom:
-                                                                        false,
-                                                                  );
-                                                                })
-                                                                .toList(),
-                                                      ),
-                                                    ],
-                                                  ],
+                                                          );
+                                                        }
+                                                        final messageIndex =
+                                                            state.isLoadingMore
+                                                            ? index - 1
+                                                            : index;
+                                                        return ChatBubble(
+                                                          message:
+                                                              messages[messageIndex],
+                                                        );
+                                                      },
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                ),
+                                if (!_isBlocked) ...<Widget>[
+                                  SizedBox(height: 10.h),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxHeight: maxBottomSectionHeight,
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () {
+                                                    if (_isBlocked) {
+                                                      AppSnackBar.showInfo(
+                                                        context,
+                                                        AppStrings
+                                                            .blockedChatDisabled,
+                                                      );
+                                                      return;
+                                                    }
+                                                    _promptAndSend(
+                                                      context: context,
+                                                      title: AppStrings
+                                                          .sharePlayerId,
+                                                      hint: AppStrings
+                                                          .enterPlayerIdHint,
+                                                      formatter: (value) =>
+                                                          AppStrings.playerIdMessage(
+                                                            value,
+                                                          ),
+                                                    );
+                                                  },
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor:
+                                                        AppColors.textPrimary,
+                                                    side: BorderSide(
+                                                      color: AppColors
+                                                          .electricBlueBright,
+                                                    ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            14.r,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    AppStrings.sharePlayerId,
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(width: 10.w),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    if (_isBlocked) {
+                                                      AppSnackBar.showInfo(
+                                                        context,
+                                                        AppStrings
+                                                            .blockedChatDisabled,
+                                                      );
+                                                      return;
+                                                    }
+                                                    _promptAndSend(
+                                                      context: context,
+                                                      title: AppStrings
+                                                          .sharePartyCode,
+                                                      hint: AppStrings
+                                                          .enterPartyCodeHint,
+                                                      formatter: (value) =>
+                                                          AppStrings.partyCodeMessage(
+                                                            value,
+                                                          ),
+                                                    );
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AppColors
+                                                        .electricBlueBright,
+                                                    foregroundColor:
+                                                        AppColors.textPrimary,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            14.r,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    AppStrings.sharePartyCode,
+                                                    textAlign: TextAlign.center,
+                                                  ),
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                      ],
+                                          SizedBox(height: 10.h),
+                                          GlassContainer(
+                                            borderRadius: 22.r,
+                                            padding: EdgeInsets.all(14.r),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                Row(
+                                                  children: <Widget>[
+                                                    Text(
+                                                      AppStrings
+                                                          .quickMessagesTitle,
+                                                      style: AppTextStyles
+                                                          .bodyMedium
+                                                          .copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                                    const Spacer(),
+                                                    TextButton(
+                                                      onPressed:
+                                                          _customQuickMessages
+                                                                  .length >=
+                                                              _maxCustomQuickMessages
+                                                          ? null
+                                                          : _promptAddQuickMessage,
+                                                      child: Text(
+                                                        AppStrings.addAction,
+                                                      ),
+                                                    ),
+                                                    if (totalQuickCount > 5)
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            _showAllQuickMessages =
+                                                                !_showAllQuickMessages;
+                                                          });
+                                                        },
+                                                        child: Text(
+                                                          _showAllQuickMessages
+                                                              ? AppStrings
+                                                                    .seeLess
+                                                              : AppStrings
+                                                                    .seeMore,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                SizedBox(height: 4.h),
+                                                Text(
+                                                  AppStrings.quickMessagesHint,
+                                                  style: AppTextStyles.caption
+                                                      .copyWith(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                      ),
+                                                ),
+                                                SizedBox(height: 8.h),
+                                                AnimatedSize(
+                                                  duration: const Duration(
+                                                    milliseconds: 220,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                  alignment:
+                                                      Alignment.bottomCenter,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: <Widget>[
+                                                      if (visibleCustomMessages
+                                                          .isNotEmpty) ...<
+                                                        Widget
+                                                      >[
+                                                        Text(
+                                                          AppStrings
+                                                              .customQuickMessagesTitle,
+                                                          style: AppTextStyles
+                                                              .caption
+                                                              .copyWith(
+                                                                color: AppColors
+                                                                    .textSecondary,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                        ),
+                                                        SizedBox(height: 8.h),
+                                                        Wrap(
+                                                          spacing: 8.w,
+                                                          runSpacing: 8.h,
+                                                          children: visibleCustomMessages.map((
+                                                            message,
+                                                          ) {
+                                                            return GestureDetector(
+                                                              onLongPress: () {
+                                                                _promptQuickMessageActions(
+                                                                  message,
+                                                                );
+                                                              },
+                                                              child:
+                                                                  _buildQuickChip(
+                                                                    context,
+                                                                    message,
+                                                                    isCustom:
+                                                                        true,
+                                                                  ),
+                                                            );
+                                                          }).toList(),
+                                                        ),
+                                                      ],
+                                                      if (visibleCustomMessages
+                                                              .isNotEmpty &&
+                                                          visibleDefaultMessages
+                                                              .isNotEmpty) ...<
+                                                        Widget
+                                                      >[
+                                                        SizedBox(height: 12.h),
+                                                        Divider(
+                                                          height: 1,
+                                                          color: AppColors
+                                                              .navSurface,
+                                                        ),
+                                                        SizedBox(height: 12.h),
+                                                      ],
+                                                      if (visibleDefaultMessages
+                                                          .isNotEmpty) ...<
+                                                        Widget
+                                                      >[
+                                                        Text(
+                                                          AppStrings
+                                                              .defaultQuickMessagesTitle,
+                                                          style: AppTextStyles
+                                                              .caption
+                                                              .copyWith(
+                                                                color: AppColors
+                                                                    .textSecondary,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                        ),
+                                                        SizedBox(height: 8.h),
+                                                        Wrap(
+                                                          spacing: 8.w,
+                                                          runSpacing: 8.h,
+                                                          children:
+                                                              visibleDefaultMessages
+                                                                  .map((
+                                                                    message,
+                                                                  ) {
+                                                                    return _buildQuickChip(
+                                                                      context,
+                                                                      message,
+                                                                      isCustom:
+                                                                          false,
+                                                                    );
+                                                                  })
+                                                                  .toList(),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
