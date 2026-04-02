@@ -77,11 +77,9 @@ class PushNotificationService {
 
     _auth.authStateChanges().listen((user) async {
       final newUid = user?.uid;
-      if (_currentUid != null && _currentUid != newUid) {
-        final token = await _messaging.getToken();
-        if (token != null) {
-          await _deleteToken(_currentUid!, token);
-        }
+      if (_currentUid != newUid) {
+        _lastSyncedToken = null;
+        _lastSyncAt = null;
       }
       _currentUid = newUid;
       if (newUid != null) {
@@ -166,6 +164,30 @@ class PushNotificationService {
         .collection('fcmTokens')
         .doc(token)
         .delete();
+  }
+
+  Future<void> removeCurrentUserToken() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      return;
+    }
+
+    final token = await _messaging.getToken();
+    if (token == null) {
+      debugPrint('[Push] no token available to delete for $uid');
+      return;
+    }
+
+    try {
+      await _deleteToken(uid, token);
+      if (_lastSyncedToken == token) {
+        _lastSyncedToken = null;
+        _lastSyncAt = null;
+      }
+    } catch (error, stack) {
+      debugPrint('[Push] token cleanup skipped for $uid: $error');
+      debugPrintStack(stackTrace: stack);
+    }
   }
 
   Future<void> _requestPermissions() async {

@@ -1,156 +1,155 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../core/constants/country_codes.dart';
-
 enum RegistrationMode { login, register }
 
 enum UsernameCheckStatus { unknown, available, taken, invalid }
 
 class RegistrationViewData extends Equatable {
   const RegistrationViewData({
-    required this.phoneNumber,
-    required this.otp,
-    required this.isOtpSent,
     required this.username,
+    required this.passwordResetUsername,
+    required this.password,
+    required this.confirmPassword,
+    required this.recoveryEmail,
     required this.usernameStatus,
     required this.isUsernameChecking,
-    required this.isSendingOtp,
-    required this.isVerifyingOtp,
+    required this.canResetPassword,
+    required this.isCheckingPasswordReset,
+    required this.isSubmitting,
     required this.selectedAvatarUrl,
-    required this.selectedCountryCodeId,
-    required this.otpResendSeconds,
-    required this.otpLogId,
-    required this.otpLogMessage,
-    required this.otpLogIsError,
     required this.didCompleteRegistration,
+    required this.showPasswordResetNotice,
     required this.acceptedLegal,
     required this.mode,
   });
 
   const RegistrationViewData.initial()
-    : phoneNumber = '',
-      otp = '',
-      isOtpSent = false,
-      username = '',
+    : username = '',
+      passwordResetUsername = '',
+      password = '',
+      confirmPassword = '',
+      recoveryEmail = '',
       usernameStatus = UsernameCheckStatus.unknown,
       isUsernameChecking = false,
-      isSendingOtp = false,
-      isVerifyingOtp = false,
+      canResetPassword = false,
+      isCheckingPasswordReset = false,
+      isSubmitting = false,
       selectedAvatarUrl = null,
-      selectedCountryCodeId = defaultCountryCodeId,
-      otpResendSeconds = 0,
-      otpLogId = 0,
-      otpLogMessage = null,
-      otpLogIsError = false,
       didCompleteRegistration = false,
+      showPasswordResetNotice = false,
       acceptedLegal = false,
       mode = RegistrationMode.login;
 
-  final String phoneNumber;
-  final String otp;
-  final bool isOtpSent;
   final String username;
+  final String passwordResetUsername;
+  final String password;
+  final String confirmPassword;
+  final String recoveryEmail;
   final UsernameCheckStatus usernameStatus;
   final bool isUsernameChecking;
-  final bool isSendingOtp;
-  final bool isVerifyingOtp;
+  final bool canResetPassword;
+  final bool isCheckingPasswordReset;
+  final bool isSubmitting;
   final String? selectedAvatarUrl;
-  final String selectedCountryCodeId;
-  final int otpResendSeconds;
-  final int otpLogId;
-  final String? otpLogMessage;
-  final bool otpLogIsError;
   final bool didCompleteRegistration;
+  final bool showPasswordResetNotice;
   final bool acceptedLegal;
   final RegistrationMode mode;
 
   bool get isRegistration => mode == RegistrationMode.register;
 
+  String get normalizedUsername =>
+      username.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '');
+
+  String get normalizedPasswordResetUsername => passwordResetUsername
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+
   bool get hasUsername => username.trim().isNotEmpty;
+
+  bool get hasSelectedAvatar => (selectedAvatarUrl ?? '').trim().isNotEmpty;
 
   bool get isUsernameAvailable =>
       usernameStatus == UsernameCheckStatus.available;
 
-  bool get canSendOtp {
-    if (otpResendSeconds > 0) {
-      return false;
+  bool get isRecoveryEmailValid {
+    final trimmed = recoveryEmail.trim();
+    if (trimmed.isEmpty) {
+      return true;
     }
-    if (isRegistration && !hasUsername) {
-      return false;
-    }
-    if (isRegistration && !isUsernameAvailable) {
-      return false;
-    }
-    if (isRegistration && !acceptedLegal) {
-      return false;
-    }
-    final option = countryCodeOptionById(selectedCountryCodeId);
-    final dialDigits = option == null
-        ? ''
-        : option.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
-    final totalDigits = dialDigits.length + phoneNumber.length;
-    return phoneNumber.length >= 6 &&
-        phoneNumber.length <= 15 &&
-        totalDigits <= 15;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmed);
   }
 
-  bool get canVerifyOtp {
-    if (!isOtpSent || otp.length != 6) {
+  bool get hasValidPassword => password.trim().length >= 6;
+
+  bool get doPasswordsMatch => password == confirmPassword;
+
+  bool get canSubmit {
+    if (normalizedUsername.length < 3) {
       return false;
     }
-    if (isRegistration && !hasUsername) {
+    if (!hasValidPassword) {
       return false;
     }
-    if (isRegistration && !isUsernameAvailable) {
-      return false;
-    }
-    if (isRegistration && !acceptedLegal) {
-      return false;
+    if (isRegistration) {
+      if (!isUsernameAvailable) {
+        return false;
+      }
+      if (!doPasswordsMatch) {
+        return false;
+      }
+      if (!hasSelectedAvatar) {
+        return false;
+      }
+      if (!acceptedLegal) {
+        return false;
+      }
+      if (!isRecoveryEmailValid) {
+        return false;
+      }
     }
     return true;
   }
 
   RegistrationViewData copyWith({
-    String? phoneNumber,
-    String? otp,
-    bool? isOtpSent,
     String? username,
-    bool clearUsername = false,
+    String? passwordResetUsername,
+    String? password,
+    String? confirmPassword,
+    String? recoveryEmail,
     UsernameCheckStatus? usernameStatus,
     bool? isUsernameChecking,
-    bool? isSendingOtp,
-    bool? isVerifyingOtp,
+    bool? canResetPassword,
+    bool? isCheckingPasswordReset,
+    bool? isSubmitting,
     String? selectedAvatarUrl,
     bool clearAvatar = false,
-    String? selectedCountryCodeId,
-    int? otpResendSeconds,
-    int? otpLogId,
-    String? otpLogMessage,
-    bool? otpLogIsError,
     bool? didCompleteRegistration,
+    bool? showPasswordResetNotice,
     bool? acceptedLegal,
     RegistrationMode? mode,
   }) {
     return RegistrationViewData(
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      otp: otp ?? this.otp,
-      isOtpSent: isOtpSent ?? this.isOtpSent,
-      username: clearUsername ? '' : username ?? this.username,
+      username: username ?? this.username,
+      passwordResetUsername:
+          passwordResetUsername ?? this.passwordResetUsername,
+      password: password ?? this.password,
+      confirmPassword: confirmPassword ?? this.confirmPassword,
+      recoveryEmail: recoveryEmail ?? this.recoveryEmail,
       usernameStatus: usernameStatus ?? this.usernameStatus,
       isUsernameChecking: isUsernameChecking ?? this.isUsernameChecking,
-      isSendingOtp: isSendingOtp ?? this.isSendingOtp,
-      isVerifyingOtp: isVerifyingOtp ?? this.isVerifyingOtp,
+      canResetPassword: canResetPassword ?? this.canResetPassword,
+      isCheckingPasswordReset:
+          isCheckingPasswordReset ?? this.isCheckingPasswordReset,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
       selectedAvatarUrl: clearAvatar
           ? null
           : selectedAvatarUrl ?? this.selectedAvatarUrl,
-      selectedCountryCodeId:
-          selectedCountryCodeId ?? this.selectedCountryCodeId,
-      otpResendSeconds: otpResendSeconds ?? this.otpResendSeconds,
-      otpLogId: otpLogId ?? this.otpLogId,
-      otpLogMessage: otpLogMessage ?? this.otpLogMessage,
-      otpLogIsError: otpLogIsError ?? this.otpLogIsError,
       didCompleteRegistration:
           didCompleteRegistration ?? this.didCompleteRegistration,
+      showPasswordResetNotice:
+          showPasswordResetNotice ?? this.showPasswordResetNotice,
       acceptedLegal: acceptedLegal ?? this.acceptedLegal,
       mode: mode ?? this.mode,
     );
@@ -158,21 +157,19 @@ class RegistrationViewData extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-    phoneNumber,
-    otp,
-    isOtpSent,
     username,
+    passwordResetUsername,
+    password,
+    confirmPassword,
+    recoveryEmail,
     usernameStatus,
     isUsernameChecking,
-    isSendingOtp,
-    isVerifyingOtp,
+    canResetPassword,
+    isCheckingPasswordReset,
+    isSubmitting,
     selectedAvatarUrl,
-    selectedCountryCodeId,
-    otpResendSeconds,
-    otpLogId,
-    otpLogMessage,
-    otpLogIsError,
     didCompleteRegistration,
+    showPasswordResetNotice,
     acceptedLegal,
     mode,
   ];

@@ -19,7 +19,7 @@ import '../../bloc/registration_bloc.dart';
 import '../../bloc/registration_event.dart';
 import '../../bloc/registration_state.dart';
 import 'widgets/avatar_selection_section.dart';
-import 'widgets/phone_otp_card.dart';
+import 'widgets/password_credentials_card.dart';
 import 'widgets/registration_header.dart';
 import 'widgets/registration_username_field.dart';
 
@@ -32,21 +32,6 @@ class RegistrationScreen extends StatelessWidget {
       body: GlowBackground(
         child: MultiBlocListener(
           listeners: <BlocListener<RegistrationBloc, RegistrationState>>[
-            BlocListener<RegistrationBloc, RegistrationState>(
-              listenWhen: (previous, current) =>
-                  previous.data.otpLogId != current.data.otpLogId,
-              listener: (context, state) {
-                final message = state.data.otpLogMessage;
-                if (message == null || message.trim().isEmpty) {
-                  return;
-                }
-                if (state.data.otpLogIsError) {
-                  AppSnackBar.showError(context, message);
-                } else {
-                  AppSnackBar.showInfo(context, message);
-                }
-              },
-            ),
             BlocListener<RegistrationBloc, RegistrationState>(
               listenWhen: (previous, current) =>
                   previous.data.didCompleteRegistration !=
@@ -78,136 +63,148 @@ class RegistrationScreen extends StatelessWidget {
           child: SafeArea(
             child: ResponsiveLayoutBuilder(
               builder:
-                (
-                  BuildContext context,
-                  BoxConstraints constraints,
-                  EdgeInsets contentPadding,
-                ) {
-                  final mode =
-                      context.read<RegistrationBloc>().state.data.mode;
-                  if (mode != RegistrationMode.register) {
-                    context.read<RegistrationBloc>().add(
-                          const RegistrationModeChanged(
-                            mode: RegistrationMode.register,
-                          ),
-                        );
-                  }
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: Padding(
-                        padding: contentPadding,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            SizedBox(height: 8.h),
-                            Row(
-                              children: <Widget>[
-                                const SafeBackButton(
-                                  fallbackRoute: AppRoutes.login,
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    AppStrings.appName,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.pageTitle,
+                  (
+                    BuildContext context,
+                    BoxConstraints constraints,
+                    EdgeInsets contentPadding,
+                  ) {
+                    final mode = context
+                        .read<RegistrationBloc>()
+                        .state
+                        .data
+                        .mode;
+                    if (mode != RegistrationMode.register) {
+                      context.read<RegistrationBloc>().add(
+                        const RegistrationModeChanged(
+                          mode: RegistrationMode.register,
+                        ),
+                      );
+                    }
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Padding(
+                          padding: contentPadding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              SizedBox(height: 8.h),
+                              Row(
+                                children: <Widget>[
+                                  const SafeBackButton(
+                                    fallbackRoute: AppRoutes.login,
                                   ),
-                                ),
-                                SizedBox(width: 48.w),
-                              ],
-                            ),
-                            SizedBox(height: 16.h),
-                            const RegistrationHeader(),
-                            SizedBox(height: 18.h),
-                            const RegistrationUsernameField(),
-                            SizedBox(height: 20.h),
-                            const AvatarSelectionSection(),
-                            SizedBox(height: 18.h),
-                            const PhoneOtpCard(),
-                            SizedBox(height: 16.h),
-                            BlocBuilder<RegistrationBloc, RegistrationState>(
-                              builder: (context, state) {
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Checkbox(
-                                      value: state.data.acceptedLegal,
-                                      onChanged: (value) {
-                                        context.read<RegistrationBloc>().add(
-                                          RegistrationLegalAcceptedChanged(
-                                            accepted: value ?? false,
-                                          ),
-                                        );
-                                      },
+                                  Expanded(
+                                    child: Text(
+                                      AppStrings.appName,
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.pageTitle,
                                     ),
-                                    Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.only(top: 6.h),
-                                        child: Text.rich(
-                                          TextSpan(
-                                            text: '${AppStrings.acceptLegalPrefix} ',
-                                            style: AppTextStyles.caption,
-                                            children: <TextSpan>[
-                                              TextSpan(
-                                                text: AppStrings.privacyPolicy,
-                                                style: AppTextStyles.caption
-                                                    .copyWith(
-                                                  color: AppColors.electricBlue,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () {
-                                                    launchUrl(
-                                                      Uri.parse(
-                                                        AppStrings
-                                                            .privacyPolicyUrl,
+                                  ),
+                                  SizedBox(width: 48.w),
+                                ],
+                              ),
+                              SizedBox(height: 16.h),
+                              const RegistrationHeader(),
+                              SizedBox(height: 18.h),
+                              const RegistrationUsernameField(),
+                              SizedBox(height: 18.h),
+                              const PasswordCredentialsCard(),
+                              SizedBox(height: 18.h),
+                              const AvatarSelectionSection(),
+                              SizedBox(height: 16.h),
+                              BlocBuilder<RegistrationBloc, RegistrationState>(
+                                builder: (context, state) {
+                                  return Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Checkbox(
+                                        value: state.data.acceptedLegal,
+                                        onChanged: (value) {
+                                          context.read<RegistrationBloc>().add(
+                                            RegistrationLegalAcceptedChanged(
+                                              accepted: value ?? false,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: EdgeInsets.only(top: 6.h),
+                                          child: Text.rich(
+                                            TextSpan(
+                                              text:
+                                                  '${AppStrings.acceptLegalPrefix} ',
+                                              style: AppTextStyles.caption,
+                                              children: <TextSpan>[
+                                                TextSpan(
+                                                  text:
+                                                      AppStrings.privacyPolicy,
+                                                  style: AppTextStyles.caption
+                                                      .copyWith(
+                                                        color: AppColors
+                                                            .electricBlue,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                       ),
-                                                      mode: LaunchMode
-                                                          .externalApplication,
-                                                    );
-                                                  },
-                                              ),
-                                              TextSpan(
-                                                text: ' ${AppStrings.acceptLegalAnd} ',
-                                                style: AppTextStyles.caption,
-                                              ),
-                                              TextSpan(
-                                                text: AppStrings.termsOfService,
-                                                style: AppTextStyles.caption
-                                                    .copyWith(
-                                                  color: AppColors.electricBlue,
-                                                  fontWeight: FontWeight.w600,
+                                                  recognizer: TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      launchUrl(
+                                                        Uri.parse(
+                                                          AppStrings
+                                                              .privacyPolicyUrl,
+                                                        ),
+                                                        mode: LaunchMode
+                                                            .externalApplication,
+                                                      );
+                                                    },
                                                 ),
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () {
-                                                    launchUrl(
-                                                      Uri.parse(
-                                                        AppStrings.termsUrl,
+                                                TextSpan(
+                                                  text:
+                                                      ' ${AppStrings.acceptLegalAnd} ',
+                                                  style: AppTextStyles.caption,
+                                                ),
+                                                TextSpan(
+                                                  text:
+                                                      AppStrings.termsOfService,
+                                                  style: AppTextStyles.caption
+                                                      .copyWith(
+                                                        color: AppColors
+                                                            .electricBlue,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                       ),
-                                                      mode: LaunchMode
-                                                          .externalApplication,
-                                                    );
-                                                  },
-                                              ),
-                                              const TextSpan(text: '.'),
-                                            ],
+                                                  recognizer: TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      launchUrl(
+                                                        Uri.parse(
+                                                          AppStrings.termsUrl,
+                                                        ),
+                                                        mode: LaunchMode
+                                                            .externalApplication,
+                                                      );
+                                                    },
+                                                ),
+                                                const TextSpan(text: '.'),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                            SizedBox(height: 20.h),
-                          ],
+                                    ],
+                                  );
+                                },
+                              ),
+                              SizedBox(height: 20.h),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
             ),
           ),
         ),

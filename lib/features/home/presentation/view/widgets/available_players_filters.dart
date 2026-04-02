@@ -5,6 +5,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_options.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_text_styles.dart';
+import '../../../../../core/widgets/app_network_image.dart';
 import '../../../../../core/widgets/glass_container.dart';
 
 class AvailablePlayersFilters extends StatelessWidget {
@@ -103,8 +104,7 @@ class AvailablePlayersFilters extends StatelessWidget {
                             ),
                           )
                           .toList(),
-                      onChanged:
-                          selectedGameId == null ? null : onRankChanged,
+                      onChanged: selectedGameId == null ? null : onRankChanged,
                     ),
                   ),
                   SizedBox(
@@ -163,8 +163,10 @@ class _FilterDropdown extends StatelessWidget {
         SizedBox(height: 4.h),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final selectedRowMaxWidth =
-                (constraints.maxWidth - 56.w).clamp(0.0, constraints.maxWidth);
+            final selectedRowMaxWidth = (constraints.maxWidth - 56.w).clamp(
+              0.0,
+              constraints.maxWidth,
+            );
 
             return DropdownButtonFormField<String>(
               key: ValueKey<String>(
@@ -230,14 +232,14 @@ class _ImageLabelRow extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8.r),
           child: imageUrl.startsWith('http')
-              ? Image.network(
-                  imageUrl,
+              ? AppNetworkImage(
+                  imageUrl: imageUrl,
                   width: 20.w,
                   height: 20.w,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _ImageFallback(size: 20.w);
-                  },
+                  placeholderIcon: Icons.image,
+                  placeholderIconSize: 12.sp,
+                  backgroundColor: AppColors.navSurface,
                 )
               : Image.asset(
                   imageUrl,

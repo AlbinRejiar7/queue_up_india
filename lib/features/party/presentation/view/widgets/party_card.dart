@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/theme/app_text_styles.dart';
+import '../../../../../core/widgets/app_network_image.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../../core/widgets/rank_tag_chip.dart';
 import '../../../../../core/widgets/tag_chip.dart';
@@ -50,7 +51,10 @@ class PartyCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   party.coverImageUrl.startsWith('http')
-                      ? Image.network(party.coverImageUrl, fit: BoxFit.cover)
+                      ? AppNetworkImage(
+                          imageUrl: party.coverImageUrl,
+                          fit: BoxFit.cover,
+                        )
                       : Image.asset(party.coverImageUrl, fit: BoxFit.cover),
                   const DecoratedBox(
                     decoration: BoxDecoration(
@@ -71,16 +75,18 @@ class PartyCard extends StatelessWidget {
                         RankTagChip(
                           rankName: party.rank,
                           gameId: party.gameId,
-                          backgroundColor:
-                              AppColors.navSurface.withValues(alpha: 0.9),
+                          backgroundColor: AppColors.navSurface.withValues(
+                            alpha: 0.9,
+                          ),
                           textColor: AppColors.textPrimary,
                           compact: true,
                         ),
                         TagChip(
                           label: party.language,
                           compact: true,
-                          backgroundColor:
-                              AppColors.navSurface.withValues(alpha: 0.9),
+                          backgroundColor: AppColors.navSurface.withValues(
+                            alpha: 0.9,
+                          ),
                           textColor: AppColors.textPrimary,
                         ),
                       ],
@@ -125,9 +131,8 @@ class PartyCard extends StatelessWidget {
                         fontSize: 24.sp / 1.4,
                       ),
                     ),
-                    if (hostName != null && hostName.trim().isNotEmpty) ...<
-                      Widget
-                    >[
+                    if (hostName != null &&
+                        hostName.trim().isNotEmpty) ...<Widget>[
                       SizedBox(height: 4.h),
                       Text(
                         'Created by $hostName',

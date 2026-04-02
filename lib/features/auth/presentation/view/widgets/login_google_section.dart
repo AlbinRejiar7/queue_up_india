@@ -69,8 +69,7 @@ class LoginGoogleSection extends StatelessWidget {
                                 children: <TextSpan>[
                                   TextSpan(
                                     text: AppStrings.privacyPolicy,
-                                    style:
-                                        AppTextStyles.caption.copyWith(
+                                    style: AppTextStyles.caption.copyWith(
                                       color: AppColors.electricBlue,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -90,17 +89,14 @@ class LoginGoogleSection extends StatelessWidget {
                                   ),
                                   TextSpan(
                                     text: AppStrings.termsOfService,
-                                    style:
-                                        AppTextStyles.caption.copyWith(
+                                    style: AppTextStyles.caption.copyWith(
                                       color: AppColors.electricBlue,
                                       fontWeight: FontWeight.w600,
                                     ),
                                     recognizer: TapGestureRecognizer()
                                       ..onTap = () {
                                         launchUrl(
-                                          Uri.parse(
-                                            AppStrings.termsUrl,
-                                          ),
+                                          Uri.parse(AppStrings.termsUrl),
                                           mode: LaunchMode.externalApplication,
                                         );
                                       },
@@ -127,12 +123,10 @@ class LoginGoogleSection extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: accepted
-                                ? () =>
-                                    Navigator.of(dialogContext).pop(true)
+                                ? () => Navigator.of(dialogContext).pop(true)
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  AppColors.electricBlueBright,
+                              backgroundColor: AppColors.electricBlueBright,
                               foregroundColor: AppColors.textPrimary,
                               elevation: accepted ? 10 : 0,
                               shadowColor: AppColors.electricBlueBright
@@ -165,9 +159,7 @@ class LoginGoogleSection extends StatelessWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Divider(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
+                  child: Divider(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -177,9 +169,7 @@ class LoginGoogleSection extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: Divider(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
+                  child: Divider(color: Colors.white.withValues(alpha: 0.08)),
                 ),
               ],
             ),
@@ -191,14 +181,15 @@ class LoginGoogleSection extends StatelessWidget {
                 onPressed: isLoading
                     ? null
                     : () async {
-                        final accepted =
-                            await _showGoogleConsentDialog(context);
-                        if (!accepted) {
+                        final registrationBloc = context
+                            .read<RegistrationBloc>();
+                        final accepted = await _showGoogleConsentDialog(
+                          context,
+                        );
+                        if (!accepted || !context.mounted) {
                           return;
                         }
-                        context.read<RegistrationBloc>().add(
-                          const RegistrationGooglePressed(),
-                        );
+                        registrationBloc.add(const RegistrationGooglePressed());
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.navSurface.withValues(alpha: 0.9),

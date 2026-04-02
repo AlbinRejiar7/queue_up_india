@@ -8,6 +8,7 @@ import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
@@ -107,7 +108,8 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                       final knownGameIds = AppOptions.gameOptions
                           .map((GameOption game) => game.id)
                           .toList(growable: false);
-                      final gameId = _resolveSelection(
+                      final gameId =
+                          _resolveSelection(
                             requestedGameId,
                             knownGameIds,
                             fallbackToFirst: true,
@@ -232,12 +234,12 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                         style: IconButton.styleFrom(
                                           backgroundColor:
                                               AppColors.textPrimary,
-                                          foregroundColor:
-                                              AppColors.navSurface,
+                                          foregroundColor: AppColors.navSurface,
                                           minimumSize: Size(48.w, 48.w),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(14.r),
+                                            borderRadius: BorderRadius.circular(
+                                              14.r,
+                                            ),
                                           ),
                                         ),
                                         icon: Icon(Icons.remove, size: 22.sp),
@@ -263,8 +265,9 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                                           foregroundColor: Colors.white,
                                           minimumSize: Size(52.w, 52.w),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(16.r),
+                                            borderRadius: BorderRadius.circular(
+                                              16.r,
+                                            ),
                                           ),
                                         ),
                                         icon: Icon(Icons.add, size: 24.sp),
@@ -368,11 +371,7 @@ class _GameDropdownField extends StatelessWidget {
     final ids = options
         .map((GameOption game) => game.id)
         .toList(growable: false);
-    final selected = _resolveSelection(
-      value,
-      ids,
-      fallbackToFirst: true,
-    );
+    final selected = _resolveSelection(value, ids, fallbackToFirst: true);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,8 +383,10 @@ class _GameDropdownField extends StatelessWidget {
             final selectedRowMaxWidth = (constraints.maxWidth - 24.w)
                 .clamp(120.0, constraints.maxWidth)
                 .toDouble();
-            final maxTextWidth =
-                (selectedRowMaxWidth - 44.w).clamp(80.0, selectedRowMaxWidth);
+            final maxTextWidth = (selectedRowMaxWidth - 44.w).clamp(
+              80.0,
+              selectedRowMaxWidth,
+            );
 
             return DropdownButtonFormField<String>(
               key: ValueKey<String>(
@@ -426,7 +427,10 @@ class _GameDropdownField extends StatelessWidget {
               onChanged: ids.isEmpty ? null : onChanged,
               decoration: const InputDecoration(
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
               ),
               borderRadius: BorderRadius.circular(18.r),
             );
@@ -453,11 +457,7 @@ class _RankDropdownField extends StatelessWidget {
     final names = options
         .map((RankOption rank) => rank.name)
         .toList(growable: false);
-    final selected = _resolveSelection(
-      value,
-      names,
-      fallbackToFirst: true,
-    );
+    final selected = _resolveSelection(value, names, fallbackToFirst: true);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,8 +469,10 @@ class _RankDropdownField extends StatelessWidget {
             final selectedRowMaxWidth = (constraints.maxWidth - 24.w)
                 .clamp(120.0, constraints.maxWidth)
                 .toDouble();
-            final maxTextWidth =
-                (selectedRowMaxWidth - 44.w).clamp(80.0, selectedRowMaxWidth);
+            final maxTextWidth = (selectedRowMaxWidth - 44.w).clamp(
+              80.0,
+              selectedRowMaxWidth,
+            );
 
             return DropdownButtonFormField<String>(
               key: ValueKey<String>(
@@ -511,7 +513,10 @@ class _RankDropdownField extends StatelessWidget {
               onChanged: names.isEmpty ? null : onChanged,
               decoration: const InputDecoration(
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
               ),
               borderRadius: BorderRadius.circular(18.r),
             );
@@ -537,11 +542,7 @@ class _DropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = _resolveSelection(
-      value,
-      options,
-      fallbackToFirst: false,
-    );
+    final selected = _resolveSelection(value, options, fallbackToFirst: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,10 +590,9 @@ class _ImageLabelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedMaxTextWidth = maxTextWidth ??
-        (MediaQuery.sizeOf(context).width * 0.5)
-            .clamp(140.0, 420.0)
-            .toDouble();
+    final resolvedMaxTextWidth =
+        maxTextWidth ??
+        (MediaQuery.sizeOf(context).width * 0.5).clamp(140.0, 420.0).toDouble();
 
     return Row(
       mainAxisSize: MainAxisSize.max,
@@ -600,14 +600,14 @@ class _ImageLabelRow extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8.r),
           child: imageUrl.startsWith('http')
-              ? Image.network(
-                  imageUrl,
+              ? AppNetworkImage(
+                  imageUrl: imageUrl,
                   width: 24.w,
                   height: 24.w,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _ImageFallback(size: 24.w);
-                  },
+                  placeholderIcon: Icons.image,
+                  placeholderIconSize: 14.sp,
+                  backgroundColor: AppColors.navSurface,
                 )
               : Image.asset(
                   imageUrl,

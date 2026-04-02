@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_images.dart';
+import '../../../../firebase_options.dart';
 import '../../models/language_model.dart';
 import '../../models/profile_preferences_model.dart';
 import 'settings_repository.dart';
@@ -86,8 +89,15 @@ class FirestoreSettingsRepository implements SettingsRepository {
       return _fallbackProfile();
     }
 
-    final snapshot = await _db.collection('users').doc(user.uid).get();
+    final refreshedUser = await _syncVerifiedAuthEmail(user);
+
+    final snapshot = await _db.collection('users').doc(refreshedUser.uid).get();
     final data = snapshot.data() ?? <String, dynamic>{};
+    final privateSnapshot = await snapshot.reference
+        .collection('private')
+        .doc('profile')
+        .get();
+    final privateData = privateSnapshot.data() ?? <String, dynamic>{};
     final queueName =
         (data['displayName'] as String?) ?? user.displayName ?? 'QueuePlayer';
     final preferredLanguageCode =
@@ -95,12 +105,38 @@ class FirestoreSettingsRepository implements SettingsRepository {
         await fetchSelectedLanguageCode() ??
         'en';
     final avatarUrl = (data['avatarUrl'] as String?) ?? AppImages.avatarHost;
+    final recoveryEmail = (privateData['recoveryEmail'] as String?) ?? '';
+    final authEmail =
+        (privateData['authEmail'] as String?)?.trim() ??
+        (data['authEmail'] as String?)?.trim() ??
+        (refreshedUser.email ?? '').trim();
+    final pendingAuthEmail =
+        (privateData['pendingAuthEmail'] as String?)?.trim() ?? '';
+    final hasLinkedEmail =
+        (privateData['hasEmail'] as bool?) ??
+        (data['hasEmail'] as bool?) ??
+        (!_isAliasEmail(authEmail) && authEmail.isNotEmpty);
 
     return ProfilePreferencesModel(
       queueName: queueName,
       preferredLanguageCode: preferredLanguageCode,
       avatarUrl: avatarUrl,
+      recoveryEmail: recoveryEmail,
+      authEmail: authEmail,
+      pendingAuthEmail: pendingAuthEmail,
+      hasLinkedEmail: hasLinkedEmail,
     );
+  }
+
+  @override
+  Future<bool> isUsernameAvailable({required String username}) async {
+    final normalized = _normalizeUsername(username);
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    final snapshot = await _db.collection('usernames').doc(normalized).get();
+    return !snapshot.exists;
   }
 
   @override
@@ -112,14 +148,87 @@ class FirestoreSettingsRepository implements SettingsRepository {
       return;
     }
 
-    await _db.collection('users').doc(user.uid).set(<String, dynamic>{
+    final trimmedName = preferences.queueName.trim();
+    final normalizedName = _normalizeUsername(trimmedName);
+    if (normalizedName.length < 3) {
+      throw StateError('Username is invalid.');
+    }
+
+    final userRef = _db.collection('users').doc(user.uid);
+    final snapshot = await userRef.get();
+    final data = snapshot.data() ?? <String, dynamic>{};
+    final currentDisplayName =
+        (data['displayName'] as String?)?.trim() ??
+        user.displayName?.trim() ??
+        '';
+    final currentNormalized = _normalizeUsername(currentDisplayName);
+    final currentAuthEmail = await _resolveCurrentAuthEmail(
+      user,
+      normalizedUsername: normalizedName,
+    );
+    final authEmailAlias = await _resolvePasswordAliasEmail(
+      user,
+      normalizedName,
+    );
+    final hasLinkedEmail = !_isAliasEmail(currentAuthEmail);
+    final usernames = _db.collection('usernames');
+    final newUsernameRef = usernames.doc(normalizedName);
+    final currentUsernameRef =
+        currentNormalized.isNotEmpty && currentNormalized != normalizedName
+        ? usernames.doc(currentNormalized)
+        : null;
+
+    await _db.runTransaction((tx) async {
+      final newUsernameSnapshot = await tx.get(newUsernameRef);
+      final currentUsernameSnapshot = currentUsernameRef == null
+          ? null
+          : await tx.get(currentUsernameRef);
+      if (newUsernameSnapshot.exists) {
+        final usernameData = newUsernameSnapshot.data();
+        if (usernameData != null && usernameData['uid'] != user.uid) {
+          throw StateError('Username already taken');
+        }
+      }
+
+      tx.set(newUsernameRef, <String, dynamic>{
+        'uid': user.uid,
+        'username': trimmedName,
+        if (authEmailAlias.isNotEmpty) 'authEmailAlias': authEmailAlias,
+        'authEmail': currentAuthEmail,
+        'hasEmail': hasLinkedEmail,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (currentUsernameRef != null && currentUsernameSnapshot != null) {
+        final currentUsernameData = currentUsernameSnapshot.data();
+        if (currentUsernameSnapshot.exists &&
+            currentUsernameData != null &&
+            currentUsernameData['uid'] == user.uid) {
+          tx.delete(currentUsernameRef);
+        }
+      }
+    });
+
+    await userRef.set(<String, dynamic>{
       'displayName': preferences.queueName,
       'preferredLanguageId': preferences.preferredLanguageCode,
       'avatarUrl': preferences.avatarUrl,
+      'authEmail': currentAuthEmail,
+      'hasEmail': hasLinkedEmail,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    final trimmedName = preferences.queueName.trim();
+    final trimmedRecoveryEmail = preferences.recoveryEmail.trim();
+    await userRef.collection('private').doc('profile').set(<String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+      'authEmail': currentAuthEmail,
+      'hasEmail': hasLinkedEmail,
+      if (authEmailAlias.isNotEmpty) 'usernameAliasEmail': authEmailAlias,
+      'recoveryEmail': trimmedRecoveryEmail.isEmpty
+          ? FieldValue.delete()
+          : trimmedRecoveryEmail.toLowerCase(),
+    }, SetOptions(merge: true));
+
     if (trimmedName.isNotEmpty &&
         (user.displayName ?? '').trim() != trimmedName) {
       try {
@@ -127,6 +236,195 @@ class FirestoreSettingsRepository implements SettingsRepository {
         await user.reload();
       } catch (_) {}
     }
+  }
+
+  @override
+  Future<void> requestAuthEmailUpdate({
+    required String username,
+    required String newEmail,
+    required String currentPassword,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user');
+    }
+
+    final trimmedPassword = currentPassword.trim();
+    if (trimmedPassword.isEmpty) {
+      throw StateError('Current password is required.');
+    }
+
+    final trimmedEmail = newEmail.trim().toLowerCase();
+    if (!_isValidEmail(trimmedEmail)) {
+      throw StateError('Linked email is invalid.');
+    }
+
+    final currentAuthEmail = await _resolveCurrentAuthEmail(
+      user,
+      normalizedUsername: _normalizeUsername(username),
+    );
+    if (trimmedEmail == currentAuthEmail.toLowerCase()) {
+      throw StateError('Linked email already set.');
+    }
+
+    developer.log(
+      'Email verification requested for ${user.uid}: ${_maskEmail(trimmedEmail)}',
+      name: 'ProfileEmailUpdate',
+    );
+    final authLanguageCode = await _resolveAuthLanguageCode(user.uid);
+    await _auth.setLanguageCode(authLanguageCode);
+    final actionCodeSettings = _buildEmailActionSettings();
+    _debugEmailUpdate(
+      'Auth context for ${user.uid}: '
+      'project=${_auth.app.options.projectId}, '
+      'tenant=${_auth.tenantId ?? '<default>'}, '
+      'language=${authLanguageCode ?? '<device-default>'}, '
+      'current=${_maskEmail(currentAuthEmail)}, '
+      'target=${_maskEmail(trimmedEmail)}, '
+      'providers=${user.providerData.map((provider) => provider.providerId).join(',')}, '
+      'emailVerified=${user.emailVerified}, '
+      'actionCodeSettings=${actionCodeSettings.asMap()}',
+    );
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: currentAuthEmail,
+        password: trimmedPassword,
+      );
+
+      developer.log(
+        'Reauthenticating ${user.uid} with ${_maskEmail(currentAuthEmail)}',
+        name: 'ProfileEmailUpdate',
+      );
+      await user.reauthenticateWithCredential(credential);
+      developer.log(
+        'Reauthentication succeeded for ${user.uid}',
+        name: 'ProfileEmailUpdate',
+      );
+
+      await user.verifyBeforeUpdateEmail(trimmedEmail, actionCodeSettings);
+      developer.log(
+        'verifyBeforeUpdateEmail succeeded for ${user.uid}; verification mail sent to ${_maskEmail(trimmedEmail)}',
+        name: 'ProfileEmailUpdate',
+      );
+      _debugEmailUpdate(
+        'Verification email accepted by Firebase for ${user.uid}: '
+        'target=${_maskEmail(trimmedEmail)}, '
+        'language=${authLanguageCode ?? '<device-default>'}, '
+        'template=email-address-change(default), '
+        'continueUrl=${actionCodeSettings.url}',
+      );
+
+      await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('private')
+          .doc('profile')
+          .set(<String, dynamic>{
+            'pendingAuthEmail': trimmedEmail,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+      developer.log(
+        'Pending auth email saved for ${user.uid}: ${_maskEmail(trimmedEmail)}',
+        name: 'ProfileEmailUpdate',
+      );
+      _debugEmailUpdate(
+        'Pending email state persisted for ${user.uid}: '
+        'pending=${_maskEmail(trimmedEmail)}',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Email verification request failed for ${user.uid}: $error',
+        name: 'ProfileEmailUpdate',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _debugEmailUpdate(
+        'Verification email request failed for ${user.uid}: '
+        'error=$error, '
+        'language=${authLanguageCode ?? '<device-default>'}, '
+        'tenant=${_auth.tenantId ?? '<default>'}',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String username,
+    required String newPassword,
+    String? currentPassword,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user');
+    }
+
+    final trimmedPassword = newPassword.trim();
+    if (trimmedPassword.length < 6) {
+      throw StateError('Password is too short.');
+    }
+
+    final normalizedUsername = _normalizeUsername(username);
+    if (normalizedUsername.length < 3) {
+      throw StateError('Username is invalid.');
+    }
+
+    final authEmail = await _resolveCurrentAuthEmail(
+      user,
+      normalizedUsername: normalizedUsername,
+    );
+    final aliasEmail = await _resolvePasswordAliasEmail(
+      user,
+      normalizedUsername,
+    );
+    final hasPasswordProvider = user.providerData.any(
+      (provider) => provider.providerId == EmailAuthProvider.PROVIDER_ID,
+    );
+
+    if (hasPasswordProvider) {
+      final trimmedCurrentPassword = currentPassword?.trim() ?? '';
+      if (trimmedCurrentPassword.isEmpty) {
+        throw StateError('Current password is required.');
+      }
+      final credential = EmailAuthProvider.credential(
+        email: authEmail,
+        password: trimmedCurrentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(trimmedPassword);
+    } else {
+      final credential = EmailAuthProvider.credential(
+        email: authEmail,
+        password: trimmedPassword,
+      );
+      await user.linkWithCredential(credential);
+    }
+
+    await _db
+        .collection('usernames')
+        .doc(normalizedUsername)
+        .set(<String, dynamic>{
+          'uid': user.uid,
+          'username': username.trim(),
+          'authEmailAlias': aliasEmail,
+          'authEmail': authEmail,
+          'hasEmail': !_isAliasEmail(authEmail),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('private')
+        .doc('profile')
+        .set(<String, dynamic>{
+          'usernameAliasEmail': aliasEmail,
+          'authEmail': authEmail,
+          'hasEmail': !_isAliasEmail(authEmail),
+          'authProvider': 'password',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   @override
@@ -214,11 +512,274 @@ class FirestoreSettingsRepository implements SettingsRepository {
     return trimmed.replaceAll(RegExp(r'[^a-z0-9_]'), '');
   }
 
+  Future<String> _resolveCurrentAuthEmail(
+    User user, {
+    required String normalizedUsername,
+  }) async {
+    final currentEmail = user.email?.trim();
+    if (currentEmail != null && currentEmail.isNotEmpty) {
+      return currentEmail.toLowerCase();
+    }
+
+    final privateSnapshot = await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('private')
+        .doc('profile')
+        .get();
+    final privateData = privateSnapshot.data();
+    final privateAuthEmail = (privateData?['authEmail'] as String?)?.trim();
+    if (privateAuthEmail != null && privateAuthEmail.isNotEmpty) {
+      return privateAuthEmail.toLowerCase();
+    }
+
+    final usernameSnapshot = await _db
+        .collection('usernames')
+        .doc(normalizedUsername)
+        .get();
+    final usernameData = usernameSnapshot.data();
+    final usernameAuthEmail = (usernameData?['authEmail'] as String?)?.trim();
+    if (usernameAuthEmail != null && usernameAuthEmail.isNotEmpty) {
+      return usernameAuthEmail.toLowerCase();
+    }
+
+    return '$normalizedUsername@queueup.app';
+  }
+
+  Future<String> _resolvePasswordAliasEmail(
+    User user,
+    String normalizedUsername,
+  ) async {
+    final currentEmail = user.email?.trim();
+    if (currentEmail != null &&
+        currentEmail.toLowerCase().endsWith('@queueup.app')) {
+      return currentEmail;
+    }
+
+    final privateSnapshot = await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('private')
+        .doc('profile')
+        .get();
+    final privateData = privateSnapshot.data();
+    final privateAlias = (privateData?['usernameAliasEmail'] as String?)
+        ?.trim();
+    if (privateAlias != null &&
+        privateAlias.toLowerCase().endsWith('@queueup.app')) {
+      return privateAlias;
+    }
+
+    final usernameSnapshot = await _db
+        .collection('usernames')
+        .doc(normalizedUsername)
+        .get();
+    final usernameData = usernameSnapshot.data();
+    final usernameAlias = (usernameData?['authEmailAlias'] as String?)?.trim();
+    if (usernameAlias != null &&
+        usernameAlias.toLowerCase().endsWith('@queueup.app')) {
+      return usernameAlias;
+    }
+
+    return '$normalizedUsername@queueup.app';
+  }
+
+  Future<User> _syncVerifiedAuthEmail(User user) async {
+    await user.reload();
+    final refreshedUser = _auth.currentUser ?? user;
+    final authEmail = refreshedUser.email?.trim().toLowerCase() ?? '';
+    final hasLinkedEmail = authEmail.isNotEmpty && !_isAliasEmail(authEmail);
+    final userRef = _db.collection('users').doc(refreshedUser.uid);
+    final privateRef = userRef.collection('private').doc('profile');
+    final privateSnapshot = await privateRef.get();
+    final privateData = privateSnapshot.data() ?? <String, dynamic>{};
+    final pendingAuthEmail =
+        (privateData['pendingAuthEmail'] as String?)?.trim().toLowerCase() ??
+        '';
+    final resolvedUsername = _normalizeUsername(
+      (refreshedUser.displayName ?? '').trim(),
+    );
+
+    if (pendingAuthEmail.isNotEmpty) {
+      if (pendingAuthEmail == authEmail && hasLinkedEmail) {
+        developer.log(
+          'Verified email detected for ${refreshedUser.uid}: ${_maskEmail(authEmail)}. Syncing Firestore.',
+          name: 'ProfileEmailUpdate',
+        );
+        _debugEmailUpdate(
+          'Verified email now active for ${refreshedUser.uid}: '
+          'authEmail=${_maskEmail(authEmail)}, emailVerified=${refreshedUser.emailVerified}',
+        );
+      } else {
+        developer.log(
+          'Pending email still awaiting verification for ${refreshedUser.uid}: ${_maskEmail(pendingAuthEmail)}; current=${_maskEmail(authEmail)} verified=${refreshedUser.emailVerified}',
+          name: 'ProfileEmailUpdate',
+        );
+        _debugEmailUpdate(
+          'Still waiting on verification for ${refreshedUser.uid}: '
+          'pending=${_maskEmail(pendingAuthEmail)}, '
+          'current=${_maskEmail(authEmail)}, '
+          'emailVerified=${refreshedUser.emailVerified}, '
+          'language=${_auth.languageCode ?? '<device-default>'}',
+        );
+      }
+    }
+
+    await privateRef.set(<String, dynamic>{
+      'authEmail': authEmail,
+      'hasEmail': hasLinkedEmail,
+      if (pendingAuthEmail.isNotEmpty && pendingAuthEmail == authEmail)
+        'pendingAuthEmail': FieldValue.delete(),
+      if (hasLinkedEmail && pendingAuthEmail == authEmail)
+        'emailVerifiedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await userRef.set(<String, dynamic>{
+      'authEmail': authEmail,
+      'hasEmail': hasLinkedEmail,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (resolvedUsername.isNotEmpty) {
+      await _db
+          .collection('usernames')
+          .doc(resolvedUsername)
+          .set(<String, dynamic>{
+            'uid': refreshedUser.uid,
+            'username': refreshedUser.displayName ?? resolvedUsername,
+            'authEmailAlias': await _resolvePasswordAliasEmail(
+              refreshedUser,
+              resolvedUsername,
+            ),
+            'authEmail': authEmail,
+            'hasEmail': hasLinkedEmail,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    }
+
+    if (pendingAuthEmail.isNotEmpty &&
+        pendingAuthEmail == authEmail &&
+        hasLinkedEmail) {
+      developer.log(
+        'Verified email synced to Firestore for ${refreshedUser.uid}: ${_maskEmail(authEmail)}',
+        name: 'ProfileEmailUpdate',
+      );
+      _debugEmailUpdate(
+        'Firestore sync complete for ${refreshedUser.uid}: '
+        'authEmail=${_maskEmail(authEmail)}, hasEmail=$hasLinkedEmail',
+      );
+    }
+
+    return refreshedUser;
+  }
+
+  bool _isAliasEmail(String email) {
+    return email.trim().toLowerCase().endsWith('@queueup.app');
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+  }
+
+  Future<String?> _resolveAuthLanguageCode(String uid) async {
+    String? preferredLanguageCode;
+    try {
+      final userSnapshot = await _db.collection('users').doc(uid).get();
+      preferredLanguageCode =
+          (userSnapshot.data()?['preferredLanguageId'] as String?)
+              ?.trim()
+              .toLowerCase();
+    } catch (_) {}
+
+    preferredLanguageCode ??= (await fetchSelectedLanguageCode())
+        ?.trim()
+        .toLowerCase();
+
+    final normalized = _normalizeAuthLanguageCode(preferredLanguageCode);
+    _debugEmailUpdate(
+      'Resolved Firebase Auth email language for $uid: '
+      'requested=${preferredLanguageCode ?? '<none>'}, '
+      'applied=${normalized ?? '<device-default>'}',
+    );
+    return normalized;
+  }
+
+  String? _normalizeAuthLanguageCode(String? code) {
+    if (code == null || code.isEmpty) {
+      return null;
+    }
+
+    const supportedCodes = <String>{
+      'en',
+      'hi',
+      'bn',
+      'gu',
+      'kn',
+      'ml',
+      'mr',
+      'pa',
+      'ta',
+      'te',
+      'ur',
+    };
+
+    if (supportedCodes.contains(code)) {
+      return code;
+    }
+    return 'en';
+  }
+
+  ActionCodeSettings _buildEmailActionSettings() {
+    return ActionCodeSettings(
+      url: 'https://${_auth.app.options.projectId}.firebaseapp.com/',
+      handleCodeInApp: false,
+      androidPackageName: 'com.queueup.india',
+      androidInstallApp: false,
+      iOSBundleId: _safeIosBundleId(),
+    );
+  }
+
+  String? _safeIosBundleId() {
+    try {
+      return DefaultFirebaseOptions.ios.iosBundleId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _maskEmail(String email) {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      return '<empty>';
+    }
+    final parts = trimmed.split('@');
+    if (parts.length != 2) {
+      return trimmed;
+    }
+    final local = parts.first;
+    final domain = parts.last;
+    final visibleLocal = local.length <= 1
+        ? '*'
+        : local.length == 2
+        ? '${local[0]}*'
+        : '${local.substring(0, 2)}***';
+    return '$visibleLocal@$domain';
+  }
+
+  void _debugEmailUpdate(String message) {
+    debugPrint('[ProfileEmailUpdate] $message');
+  }
+
   ProfilePreferencesModel _fallbackProfile() {
     return const ProfilePreferencesModel(
       queueName: 'QueuePlayer',
       preferredLanguageCode: 'en',
       avatarUrl: AppImages.avatarHost,
+      recoveryEmail: '',
+      authEmail: '',
+      pendingAuthEmail: '',
+      hasLinkedEmail: false,
     );
   }
 

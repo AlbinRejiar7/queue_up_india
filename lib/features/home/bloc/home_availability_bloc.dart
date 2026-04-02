@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_timeouts.dart';
 import '../../../core/constants/app_options.dart';
+import '../../../core/utils/app_preferences.dart';
 import '../../settings/viewmodel/profile_view_model.dart';
 import '../models/available_player_model.dart';
 import '../viewmodel/availability_view_model.dart';
@@ -40,11 +41,13 @@ class HomeAvailabilityBloc
         : nextGameId;
 
     String? resolvedLanguage = state.selectedLanguage;
+    resolvedLanguage ??= await AppPreferences.loadSelectedLanguage();
     resolvedLanguage ??= await _resolvePreferredLanguage();
 
     final availability = await _safeFetchAvailability();
     String selectedGameId = resolvedGameId;
-    String? selectedRank = state.selectedRank;
+    String? selectedRank =
+        state.selectedRank ?? await _loadSavedRank(resolvedGameId);
     String? selectedLanguage = resolvedLanguage;
 
     if (availability != null) {
@@ -73,6 +76,11 @@ class HomeAvailabilityBloc
           availability != null && isRankValid && selectedLanguage != null,
     );
     emit(nextState);
+    await _persistSelections(
+      gameId: nextState.selectedGameId,
+      language: nextState.selectedLanguage,
+      rank: nextState.selectedRank,
+    );
     _syncAvailabilityExpiry(availability, isAvailable: nextState.isAvailable);
   }
 
@@ -85,17 +93,21 @@ class HomeAvailabilityBloc
       return;
     }
 
-    final isRankValid = AppOptions.isRankValidForGame(
-      gameId: gameId,
-      rankName: state.selectedRank,
-    );
+    final savedRank = await _loadSavedRank(gameId);
+    final nextRank =
+        AppOptions.isRankValidForGame(gameId: gameId, rankName: savedRank)
+        ? savedRank
+        : null;
 
-    final nextState = state.copyWith(
-      selectedGameId: gameId,
-      clearRank: !isRankValid,
-      isAvailable: _ensureAvailability(state, isRankValid),
+    final nextState = _syncAvailability(
+      state.copyWith(
+        selectedGameId: gameId,
+        selectedRank: nextRank,
+        clearRank: nextRank == null,
+      ),
     );
     emit(nextState);
+    await AppPreferences.saveSelectedGameId(gameId);
 
     if (nextState.isAvailable && nextState.canToggleAvailability) {
       final ok = await _updateAvailability(nextState, startedNow: false);
@@ -119,6 +131,11 @@ class HomeAvailabilityBloc
       ),
     );
     emit(nextState);
+    if (event.language == null) {
+      await AppPreferences.clearSelectedLanguage();
+    } else {
+      await AppPreferences.saveSelectedLanguage(event.language!);
+    }
     if (nextState.isAvailable && nextState.canToggleAvailability) {
       final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
@@ -138,6 +155,17 @@ class HomeAvailabilityBloc
       state.copyWith(selectedRank: event.rank, clearRank: event.rank == null),
     );
     emit(nextState);
+    final gameId = nextState.selectedGameId;
+    if (gameId != null) {
+      if (event.rank == null) {
+        await AppPreferences.clearSelectedRank(gameId);
+      } else {
+        await AppPreferences.saveSelectedRank(
+          gameId: gameId,
+          rank: event.rank!,
+        );
+      }
+    }
     if (nextState.isAvailable && nextState.canToggleAvailability) {
       final ok = await _updateAvailability(nextState, startedNow: false);
       if (!ok) {
@@ -189,13 +217,6 @@ class HomeAvailabilityBloc
       return nextState.copyWith(isAvailable: false);
     }
     return nextState;
-  }
-
-  bool _ensureAvailability(HomeAvailabilityState currentState, bool rankValid) {
-    if (currentState.isAvailable) {
-      return currentState.selectedLanguage != null && rankValid;
-    }
-    return currentState.isAvailable;
   }
 
   Future<bool> _updateAvailability(
@@ -251,6 +272,35 @@ class HomeAvailabilityBloc
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<String?> _loadSavedRank(String gameId) async {
+    final savedRank = await AppPreferences.loadSelectedRank(gameId);
+    if (savedRank == null) {
+      return null;
+    }
+    if (!AppOptions.isRankValidForGame(gameId: gameId, rankName: savedRank)) {
+      await AppPreferences.clearSelectedRank(gameId);
+      return null;
+    }
+    return savedRank;
+  }
+
+  Future<void> _persistSelections({
+    required String? gameId,
+    required String? language,
+    required String? rank,
+  }) async {
+    if (gameId != null && gameId.trim().isNotEmpty) {
+      await AppPreferences.saveSelectedGameId(gameId);
+      if (rank != null && rank.trim().isNotEmpty) {
+        await AppPreferences.saveSelectedRank(gameId: gameId, rank: rank);
+      }
+    }
+
+    if (language != null && language.trim().isNotEmpty) {
+      await AppPreferences.saveSelectedLanguage(language);
+    }
   }
 
   void _syncAvailabilityExpiry(

@@ -1,25 +1,7 @@
-import 'dart:async';
-
 import '../../models/user_model.dart';
 import 'auth_repository.dart';
 
 class MockAuthRepository implements AuthRepository {
-  @override
-  Stream<OtpLogEvent> get otpLogs =>
-      const Stream<OtpLogEvent>.empty();
-
-  @override
-  Future<void> sendOtp({required String phoneNumber}) async {
-    // TODO: Implement FirebaseAuth here
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-  }
-
-  @override
-  Future<bool> isPhoneRegistered({required String phoneNumber}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    return true;
-  }
-
   @override
   Future<bool> isUsernameAvailable({required String username}) async {
     await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -28,7 +10,6 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<UserModel> signInWithGoogle() async {
-    // TODO: Implement FirebaseAuth here
     await Future<void>.delayed(const Duration(milliseconds: 900));
     return const UserModel(
       id: 'google_001',
@@ -38,20 +19,41 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserModel> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    String? avatarUrl,
-    String? displayName,
+  Future<UserModel> signInWithUsernamePassword({
+    required String username,
+    required String password,
   }) async {
-    // TODO: Implement FirebaseAuth here
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+    return UserModel(
+      id: 'password_001',
+      displayName: username.trim(),
+      avatarUrl: null,
+    );
+  }
+
+  @override
+  Future<UserModel> registerWithUsernamePassword({
+    required String username,
+    required String password,
+    String? avatarUrl,
+    String? recoveryEmail,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
     return UserModel(
-      id: 'phone_001',
-      displayName: displayName?.trim().isNotEmpty == true
-          ? displayName!.trim()
-          : 'QueuePlayer',
+      id: 'password_002',
+      displayName: username.trim().isEmpty ? 'QueuePlayer' : username.trim(),
       avatarUrl: avatarUrl,
     );
+  }
+
+  @override
+  Future<bool> canSendPasswordReset({required String username}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return username.trim().isNotEmpty;
+  }
+
+  @override
+  Future<void> sendPasswordReset({required String username}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 }

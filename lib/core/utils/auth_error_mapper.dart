@@ -27,6 +27,18 @@ class AuthErrorMapper {
         if (lowered.contains('username') && lowered.contains('taken')) {
           return AppStrings.usernameTaken;
         }
+        if (lowered.contains('no linked email')) {
+          return AppStrings.forgotPasswordDisabled;
+        }
+        if (lowered.contains('recovery email') && lowered.contains('invalid')) {
+          return AppStrings.invalidRecoveryEmail;
+        }
+        if (lowered.contains('linked email') && lowered.contains('invalid')) {
+          return AppStrings.linkedEmailInvalid;
+        }
+        if (lowered.contains('already set')) {
+          return AppStrings.linkedEmailAlreadySet;
+        }
         return raw;
       }
     }
@@ -36,15 +48,15 @@ class AuthErrorMapper {
 
   static String? _fromCode(String code) {
     switch (code) {
-      case 'invalid-phone-number':
-      case 'missing-phone-number':
-        return AppStrings.invalidPhoneNumber;
-      case 'invalid-verification-code':
-        return AppStrings.invalidOtp;
-      case 'invalid-verification-id':
-      case 'session-expired':
-      case 'code-expired':
-        return AppStrings.otpExpired;
+      case 'invalid-email':
+        return AppStrings.invalidRecoveryEmail;
+      case 'email-already-in-use':
+        return AppStrings.usernameTaken;
+      case 'wrong-password':
+      case 'invalid-login-credentials':
+        return AppStrings.loginFailed;
+      case 'weak-password':
+        return AppStrings.passwordTooShort;
       case 'too-many-requests':
       case 'quota-exceeded':
         return AppStrings.authTooManyRequests;
@@ -60,6 +72,9 @@ class AuthErrorMapper {
         return AppStrings.googleAccountExists;
       case 'invalid-credential':
         return AppStrings.invalidCredential;
+      case 'requires-recent-login':
+      case 'user-mismatch':
+        return AppStrings.requiresRecentLogin;
       case 'user-disabled':
         return AppStrings.userDisabled;
       case 'user-not-found':

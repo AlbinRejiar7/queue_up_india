@@ -4,9 +4,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/di/injection_container.dart';
+import 'core/network/network_status_cubit.dart';
 import 'core/navigation/bloc/main_tab_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/availability_lifecycle_handler.dart';
+import 'core/widgets/network_status_snack_listener.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/bloc/registration_bloc.dart';
 import 'features/chat/bloc/chat_badge_bloc.dart';
@@ -26,9 +28,7 @@ class QueueUpApp extends StatelessWidget {
       providers: <BlocProvider<dynamic>>[
         BlocProvider<MainTabBloc>(create: (_) => sl<MainTabBloc>()),
         BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
-        BlocProvider<RegistrationBloc>(
-          create: (_) => sl<RegistrationBloc>(),
-        ),
+        BlocProvider<RegistrationBloc>(create: (_) => sl<RegistrationBloc>()),
         BlocProvider<LanguageBloc>(create: (_) => sl<LanguageBloc>()),
         BlocProvider<ProfileBloc>(create: (_) => sl<ProfileBloc>()),
         BlocProvider<GameBloc>(create: (_) => sl<GameBloc>()),
@@ -39,8 +39,9 @@ class QueueUpApp extends StatelessWidget {
         BlocProvider<AvailablePlayersBloc>(
           create: (_) => sl<AvailablePlayersBloc>(),
         ),
-        BlocProvider<ChatBadgeBloc>(
-          create: (_) => sl<ChatBadgeBloc>(),
+        BlocProvider<ChatBadgeBloc>(create: (_) => sl<ChatBadgeBloc>()),
+        BlocProvider<NetworkStatusCubit>(
+          create: (_) => sl<NetworkStatusCubit>(),
         ),
       ],
       child: ScreenUtilInit(
@@ -54,6 +55,11 @@ class QueueUpApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               theme: AppTheme.darkTheme,
               routerConfig: sl<GoRouter>(),
+              builder: (context, child) {
+                return NetworkStatusSnackListener(
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
             ),
           );
         },

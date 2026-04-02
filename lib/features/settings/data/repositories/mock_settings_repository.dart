@@ -10,6 +10,9 @@ class MockSettingsRepository implements SettingsRepository {
     queueName: 'ShadowPlayer',
     preferredLanguageCode: 'en',
     avatarUrl: AppImages.avatarHost,
+    authEmail: '',
+    pendingAuthEmail: '',
+    hasLinkedEmail: false,
   );
 
   static const List<LanguageModel> _languages = <LanguageModel>[
@@ -190,11 +193,43 @@ class MockSettingsRepository implements SettingsRepository {
   }
 
   @override
+  Future<bool> isUsernameAvailable({required String username}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    final normalized = _normalizeUsername(username);
+    final currentNormalized = _normalizeUsername(_preferences.queueName);
+    return normalized.isNotEmpty && normalized != currentNormalized;
+  }
+
+  @override
   Future<void> saveProfilePreferences(
     ProfilePreferencesModel preferences,
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 180));
     _preferences = preferences;
+  }
+
+  @override
+  Future<void> requestAuthEmailUpdate({
+    required String username,
+    required String newEmail,
+    required String currentPassword,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (currentPassword.trim().isEmpty) {
+      throw StateError('Current password is required.');
+    }
+    _preferences = _preferences.copyWith(
+      pendingAuthEmail: newEmail.trim().toLowerCase(),
+    );
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String username,
+    required String newPassword,
+    String? currentPassword,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 180));
   }
 
   @override
@@ -209,6 +244,13 @@ class MockSettingsRepository implements SettingsRepository {
       queueName: '',
       preferredLanguageCode: '',
       avatarUrl: AppImages.avatarHost,
+      authEmail: '',
+      pendingAuthEmail: '',
+      hasLinkedEmail: false,
     );
+  }
+
+  String _normalizeUsername(String username) {
+    return username.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '');
   }
 }

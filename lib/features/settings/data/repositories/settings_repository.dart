@@ -14,7 +14,21 @@ abstract class SettingsRepository {
 
   Future<ProfilePreferencesModel> fetchProfilePreferences();
 
+  Future<bool> isUsernameAvailable({required String username});
+
   Future<void> saveProfilePreferences(ProfilePreferencesModel preferences);
+
+  Future<void> requestAuthEmailUpdate({
+    required String username,
+    required String newEmail,
+    required String currentPassword,
+  });
+
+  Future<void> updatePassword({
+    required String username,
+    required String newPassword,
+    String? currentPassword,
+  });
 
   Future<void> submitBugReport({required String details});
 

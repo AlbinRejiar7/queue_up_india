@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/theme/app_text_styles.dart';
+import '../../../../../core/widgets/app_network_image.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../models/game_model.dart';
 
@@ -26,7 +27,7 @@ class GameTile extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(34.r),
               child: game.coverUrl.startsWith('http')
-                  ? Image.network(game.coverUrl, fit: BoxFit.cover)
+                  ? AppNetworkImage(imageUrl: game.coverUrl, fit: BoxFit.cover)
                   : Image.asset(game.coverUrl, fit: BoxFit.cover),
             ),
             DecoratedBox(

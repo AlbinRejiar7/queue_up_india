@@ -20,6 +20,15 @@ class ProfileQueueNameChanged extends ProfileEvent {
   List<Object?> get props => <Object?>[queueName];
 }
 
+class ProfileUsernameCheckRequested extends ProfileEvent {
+  const ProfileUsernameCheckRequested({required this.username});
+
+  final String username;
+
+  @override
+  List<Object?> get props => <Object?>[username];
+}
+
 class ProfilePreferredLanguageChanged extends ProfileEvent {
   const ProfilePreferredLanguageChanged({required this.languageCode});
 
@@ -29,12 +38,55 @@ class ProfilePreferredLanguageChanged extends ProfileEvent {
   List<Object?> get props => <Object?>[languageCode];
 }
 
+class ProfileRecoveryEmailChanged extends ProfileEvent {
+  const ProfileRecoveryEmailChanged({required this.recoveryEmail});
+
+  final String recoveryEmail;
+
+  @override
+  List<Object?> get props => <Object?>[recoveryEmail];
+}
+
 class ProfileSavePressed extends ProfileEvent {
   const ProfileSavePressed();
 }
 
 class ProfileSaveNoticeConsumed extends ProfileEvent {
   const ProfileSaveNoticeConsumed();
+}
+
+class ProfileAuthEmailUpdateRequested extends ProfileEvent {
+  const ProfileAuthEmailUpdateRequested({
+    required this.newEmail,
+    required this.currentPassword,
+  });
+
+  final String newEmail;
+  final String currentPassword;
+
+  @override
+  List<Object?> get props => <Object?>[newEmail, currentPassword];
+}
+
+class ProfileEmailUpdateNoticeConsumed extends ProfileEvent {
+  const ProfileEmailUpdateNoticeConsumed();
+}
+
+class ProfilePasswordRequested extends ProfileEvent {
+  const ProfilePasswordRequested({
+    required this.newPassword,
+    this.currentPassword,
+  });
+
+  final String newPassword;
+  final String? currentPassword;
+
+  @override
+  List<Object?> get props => <Object?>[newPassword, currentPassword];
+}
+
+class ProfilePasswordNoticeConsumed extends ProfileEvent {
+  const ProfilePasswordNoticeConsumed();
 }
 
 class ProfileAvatarChanged extends ProfileEvent {

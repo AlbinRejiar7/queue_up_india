@@ -9,114 +9,17 @@ abstract class RegistrationEvent extends Equatable {
   List<Object?> get props => <Object?>[];
 }
 
-class RegistrationPhoneChanged extends RegistrationEvent {
-  const RegistrationPhoneChanged({required this.phoneNumber});
-
-  final String phoneNumber;
-
-  @override
-  List<Object?> get props => <Object?>[phoneNumber];
-}
-
-class RegistrationOtpChanged extends RegistrationEvent {
-  const RegistrationOtpChanged({required this.otp});
-
-  final String otp;
-
-  @override
-  List<Object?> get props => <Object?>[otp];
-}
-
-class RegistrationAvatarSelected extends RegistrationEvent {
-  const RegistrationAvatarSelected({required this.avatarUrl});
-
-  final String avatarUrl;
-
-  @override
-  List<Object?> get props => <Object?>[avatarUrl];
-}
-
-class RegistrationCountryCodeChanged extends RegistrationEvent {
-  const RegistrationCountryCodeChanged({required this.countryCodeId});
-
-  final String countryCodeId;
-
-  @override
-  List<Object?> get props => <Object?>[countryCodeId];
-}
-
-class RegistrationSendOtpPressed extends RegistrationEvent {
-  const RegistrationSendOtpPressed({required this.userInitiated});
-
-  final bool userInitiated;
-
-  @override
-  List<Object?> get props => <Object?>[userInitiated];
-}
-
-class RegistrationVerifyOtpPressed extends RegistrationEvent {
-  const RegistrationVerifyOtpPressed();
-}
-
-class RegistrationOtpCooldownTicked extends RegistrationEvent {
-  const RegistrationOtpCooldownTicked({required this.secondsLeft});
-
-  final int secondsLeft;
-
-  @override
-  List<Object?> get props => <Object?>[secondsLeft];
-}
-
-class RegistrationOtpSessionRestored extends RegistrationEvent {
-  const RegistrationOtpSessionRestored({
-    required this.phoneNumber,
-    required this.countryCodeId,
-    required this.resendSeconds,
-  });
-
-  final String phoneNumber;
-  final String countryCodeId;
-  final int resendSeconds;
-
-  @override
-  List<Object?> get props => <Object?>[
-    phoneNumber,
-    countryCodeId,
-    resendSeconds,
-  ];
-}
-
-class RegistrationAutoVerified extends RegistrationEvent {
-  const RegistrationAutoVerified();
-}
-
-class RegistrationOtpLogReceived extends RegistrationEvent {
-  const RegistrationOtpLogReceived({
-    required this.message,
-    required this.isError,
-  });
-
-  final String message;
-  final bool isError;
-
-  @override
-  List<Object?> get props => <Object?>[message, isError];
-}
-
-class RegistrationGooglePressed extends RegistrationEvent {
-  const RegistrationGooglePressed();
-}
-
-class RegistrationNavigationConsumed extends RegistrationEvent {
-  const RegistrationNavigationConsumed();
-}
-
-class RegistrationResetRequested extends RegistrationEvent {
-  const RegistrationResetRequested();
-}
-
 class RegistrationUsernameChanged extends RegistrationEvent {
   const RegistrationUsernameChanged({required this.username});
+
+  final String username;
+
+  @override
+  List<Object?> get props => <Object?>[username];
+}
+
+class RegistrationPasswordResetUsernameChanged extends RegistrationEvent {
+  const RegistrationPasswordResetUsernameChanged({required this.username});
 
   final String username;
 
@@ -131,6 +34,77 @@ class RegistrationUsernameCheckRequested extends RegistrationEvent {
 
   @override
   List<Object?> get props => <Object?>[username];
+}
+
+class RegistrationPasswordResetAvailabilityRequested extends RegistrationEvent {
+  const RegistrationPasswordResetAvailabilityRequested({
+    required this.username,
+  });
+
+  final String username;
+
+  @override
+  List<Object?> get props => <Object?>[username];
+}
+
+class RegistrationPasswordChanged extends RegistrationEvent {
+  const RegistrationPasswordChanged({required this.password});
+
+  final String password;
+
+  @override
+  List<Object?> get props => <Object?>[password];
+}
+
+class RegistrationConfirmPasswordChanged extends RegistrationEvent {
+  const RegistrationConfirmPasswordChanged({required this.confirmPassword});
+
+  final String confirmPassword;
+
+  @override
+  List<Object?> get props => <Object?>[confirmPassword];
+}
+
+class RegistrationRecoveryEmailChanged extends RegistrationEvent {
+  const RegistrationRecoveryEmailChanged({required this.recoveryEmail});
+
+  final String recoveryEmail;
+
+  @override
+  List<Object?> get props => <Object?>[recoveryEmail];
+}
+
+class RegistrationAvatarSelected extends RegistrationEvent {
+  const RegistrationAvatarSelected({required this.avatarUrl});
+
+  final String avatarUrl;
+
+  @override
+  List<Object?> get props => <Object?>[avatarUrl];
+}
+
+class RegistrationSubmitPressed extends RegistrationEvent {
+  const RegistrationSubmitPressed();
+}
+
+class RegistrationGooglePressed extends RegistrationEvent {
+  const RegistrationGooglePressed();
+}
+
+class RegistrationForgotPasswordPressed extends RegistrationEvent {
+  const RegistrationForgotPasswordPressed();
+}
+
+class RegistrationPasswordResetNoticeConsumed extends RegistrationEvent {
+  const RegistrationPasswordResetNoticeConsumed();
+}
+
+class RegistrationPasswordResetFlowResetRequested extends RegistrationEvent {
+  const RegistrationPasswordResetFlowResetRequested();
+}
+
+class RegistrationResetRequested extends RegistrationEvent {
+  const RegistrationResetRequested();
 }
 
 class RegistrationModeChanged extends RegistrationEvent {

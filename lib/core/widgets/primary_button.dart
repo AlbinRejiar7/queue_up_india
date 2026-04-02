@@ -68,7 +68,15 @@ class PrimaryButton extends StatelessWidget {
                     Icon(icon, size: 20.sp),
                     SizedBox(width: 8.w),
                   ],
-                  Text(label, style: AppTextStyles.buttonText),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.buttonText,
+                    ),
+                  ),
                 ],
               ),
       ),

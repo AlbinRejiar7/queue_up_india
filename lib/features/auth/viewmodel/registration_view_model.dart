@@ -7,36 +7,44 @@ class RegistrationViewModel {
 
   final AuthRepository _authRepository;
 
-  Stream<OtpLogEvent> get otpLogs => _authRepository.otpLogs;
-
-  Future<void> sendOtp(String phoneNumber) {
-    return _authRepository.sendOtp(phoneNumber: phoneNumber);
-  }
-
-  Future<bool> isPhoneRegistered(String phoneNumber) {
-    return _authRepository.isPhoneRegistered(phoneNumber: phoneNumber);
-  }
-
   Future<bool> isUsernameAvailable(String username) {
     return _authRepository.isUsernameAvailable(username: username);
   }
 
-  Future<UserModel> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    String? avatarUrl,
-    String? displayName,
+  Future<UserModel> signInWithUsernamePassword({
+    required String username,
+    required String password,
   }) {
-    return _authRepository.verifyOtp(
-      phoneNumber: phoneNumber,
-      otp: otp,
+    return _authRepository.signInWithUsernamePassword(
+      username: username,
+      password: password,
+    );
+  }
+
+  Future<UserModel> registerWithUsernamePassword({
+    required String username,
+    required String password,
+    String? avatarUrl,
+    String? recoveryEmail,
+  }) {
+    return _authRepository.registerWithUsernamePassword(
+      username: username,
+      password: password,
       avatarUrl: avatarUrl,
-      displayName: displayName,
+      recoveryEmail: recoveryEmail,
     );
   }
 
   Future<UserModel> continueWithGoogle({String? avatarUrl}) async {
     final user = await _authRepository.signInWithGoogle();
     return user.copyWith(avatarUrl: avatarUrl ?? user.avatarUrl);
+  }
+
+  Future<bool> canSendPasswordReset(String username) {
+    return _authRepository.canSendPasswordReset(username: username);
+  }
+
+  Future<void> sendPasswordReset(String username) {
+    return _authRepository.sendPasswordReset(username: username);
   }
 }

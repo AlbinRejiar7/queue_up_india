@@ -9,6 +9,7 @@ import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -69,11 +70,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
     setState(() {
       _pendingJoinIds.add(partyId);
     });
-    context.read<PartyBloc>().add(
-          PartyJoinRequested(
-            partyId: partyId,
-          ),
-        );
+    context.read<PartyBloc>().add(PartyJoinRequested(partyId: partyId));
     await context.push(AppRoutes.partyDetailsPath(partyId));
     if (!mounted) {
       return;
@@ -84,7 +81,6 @@ class _PartyListScreenState extends State<PartyListScreen> {
   }
 
   Future<void> _showRankFilterSheet({
-    required BuildContext context,
     required String gameId,
     required String? selected,
   }) async {
@@ -109,7 +105,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: options.length + 1,
-                    separatorBuilder: (_, __) => SizedBox(height: 8.h),
+                    separatorBuilder: (_, _) => SizedBox(height: 8.h),
                     itemBuilder: (BuildContext context, int index) {
                       if (index == 0) {
                         return _FilterSheetTile(
@@ -140,10 +136,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
     context.read<PartyBloc>().add(PartyFilterRankChanged(value: result));
   }
 
-  Future<void> _showLanguageFilterSheet({
-    required BuildContext context,
-    required String? selected,
-  }) async {
+  Future<void> _showLanguageFilterSheet({required String? selected}) async {
     final result = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: AppColors.background,
@@ -167,7 +160,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: AppOptions.languageOptions.length + 1,
-                    separatorBuilder: (_, __) => SizedBox(height: 8.h),
+                    separatorBuilder: (_, _) => SizedBox(height: 8.h),
                     itemBuilder: (BuildContext context, int index) {
                       if (index == 0) {
                         return _FilterSheetTile(
@@ -256,11 +249,10 @@ class _PartyListScreenState extends State<PartyListScreen> {
                                   child: Row(
                                     children: <Widget>[
                                       _FilterChip(
-                                        label: rankFilter ??
-                                            AppStrings.filterRank,
+                                        label:
+                                            rankFilter ?? AppStrings.filterRank,
                                         onTap: () {
                                           _showRankFilterSheet(
-                                            context: context,
                                             gameId: widget.gameId,
                                             selected: rankFilter,
                                           );
@@ -268,11 +260,11 @@ class _PartyListScreenState extends State<PartyListScreen> {
                                       ),
                                       const _Gap(),
                                       _FilterChip(
-                                        label: languageFilter ??
+                                        label:
+                                            languageFilter ??
                                             AppStrings.filterLanguage,
                                         onTap: () {
                                           _showLanguageFilterSheet(
-                                            context: context,
                                             selected: languageFilter,
                                           );
                                         },
@@ -309,142 +301,143 @@ class _PartyListScreenState extends State<PartyListScreen> {
                                       ),
                                       children: const <Widget>[
                                         Center(
-                                          child:
-                                              CircularProgressIndicator(),
+                                          child: CircularProgressIndicator(),
                                         ),
                                       ],
                                     )
                                   : parties.isEmpty
-                                      ? ListView(
-                                          physics:
-                                              const AlwaysScrollableScrollPhysics(),
-                                          padding: EdgeInsets.fromLTRB(
-                                            contentPadding.left,
-                                            120.h,
-                                            contentPadding.right,
-                                            24.h,
+                                  ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: EdgeInsets.fromLTRB(
+                                        contentPadding.left,
+                                        120.h,
+                                        contentPadding.right,
+                                        24.h,
+                                      ),
+                                      children: <Widget>[
+                                        Center(
+                                          child: Text(
+                                            AppStrings.noPartiesAvailable,
+                                            style: AppTextStyles.bodyMedium,
+                                            textAlign: TextAlign.center,
                                           ),
-                                          children: <Widget>[
-                                            Center(
-                                              child: Text(
-                                                AppStrings.noPartiesAvailable,
-                                                style:
-                                                    AppTextStyles.bodyMedium,
-                                                textAlign: TextAlign.center,
-                                              ),
+                                        ),
+                                      ],
+                                    )
+                                  : (isTablet
+                                        ? GridView.builder(
+                                            controller: _scrollController,
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: EdgeInsets.fromLTRB(
+                                              contentPadding.left,
+                                              4.h,
+                                              contentPadding.right,
+                                              24.h,
                                             ),
-                                          ],
-                                        )
-                                      : (isTablet
-                                          ? GridView.builder(
-                                              controller: _scrollController,
-                                              physics:
-                                                  const AlwaysScrollableScrollPhysics(),
-                                              padding: EdgeInsets.fromLTRB(
-                                                contentPadding.left,
-                                                4.h,
-                                                contentPadding.right,
-                                                24.h,
-                                              ),
-                                              itemCount: parties.length +
-                                                  (isLoadingMore ? 1 : 0),
-                                              gridDelegate:
-                                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 2,
-                                                mainAxisExtent: 320.h,
-                                                mainAxisSpacing: 14.h,
-                                                crossAxisSpacing: 14.w,
-                                              ),
-                                              itemBuilder:
-                                                  (BuildContext context,
-                                                      int index) {
-                                                if (index >= parties.length) {
-                                                  return const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  );
-                                                }
-                                                final party = parties[index];
-                                                return PartyCard(
-                                                  party: party,
-                                                  isJoining:
-                                                      _pendingJoinIds.contains(
-                                                    party.id,
-                                                  ),
-                                                  onJoin: () {
-                                                    final isOwner =
-                                                        currentUserId != null &&
-                                                        party.hostId ==
-                                                            currentUserId;
-                                                    if (isOwner) {
-                                                      AppSnackBar.showError(
-                                                        context,
-                                                        AppStrings
-                                                            .cannotJoinOwnParty,
-                                                      );
-                                                      return;
-                                                    }
-                                                    _handleJoin(party.id);
-                                                  },
-                                                );
-                                              },
-                                            )
-                                          : ListView.separated(
-                                              controller: _scrollController,
-                                              physics:
-                                                  const AlwaysScrollableScrollPhysics(),
-                                              padding: EdgeInsets.fromLTRB(
-                                                contentPadding.left,
-                                                4.h,
-                                                contentPadding.right,
-                                                24.h,
-                                              ),
-                                              itemCount: parties.length +
-                                                  (isLoadingMore ? 1 : 0),
-                                              separatorBuilder:
-                                                  (context, index) =>
-                                                      SizedBox(height: 14.h),
-                                              itemBuilder: (
-                                                BuildContext context,
-                                                int index,
-                                              ) {
-                                                if (index >= parties.length) {
-                                                  return Padding(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                      vertical: 8.h,
-                                                    ),
-                                                    child: const Center(
+                                            itemCount:
+                                                parties.length +
+                                                (isLoadingMore ? 1 : 0),
+                                            gridDelegate:
+                                                SliverGridDelegateWithFixedCrossAxisCount(
+                                                  crossAxisCount: 2,
+                                                  mainAxisExtent: 320.h,
+                                                  mainAxisSpacing: 14.h,
+                                                  crossAxisSpacing: 14.w,
+                                                ),
+                                            itemBuilder:
+                                                (
+                                                  BuildContext context,
+                                                  int index,
+                                                ) {
+                                                  if (index >= parties.length) {
+                                                    return const Center(
                                                       child:
                                                           CircularProgressIndicator(),
-                                                    ),
+                                                    );
+                                                  }
+                                                  final party = parties[index];
+                                                  return PartyCard(
+                                                    party: party,
+                                                    isJoining: _pendingJoinIds
+                                                        .contains(party.id),
+                                                    onJoin: () {
+                                                      final isOwner =
+                                                          currentUserId !=
+                                                              null &&
+                                                          party.hostId ==
+                                                              currentUserId;
+                                                      if (isOwner) {
+                                                        AppSnackBar.showError(
+                                                          context,
+                                                          AppStrings
+                                                              .cannotJoinOwnParty,
+                                                        );
+                                                        return;
+                                                      }
+                                                      _handleJoin(party.id);
+                                                    },
                                                   );
-                                                }
-                                                final party = parties[index];
-                                                return PartyCard(
-                                                  party: party,
-                                                  isJoining:
-                                                      _pendingJoinIds.contains(
-                                                    party.id,
-                                                  ),
-                                                  onJoin: () {
-                                                    final isOwner =
-                                                        currentUserId != null &&
-                                                        party.hostId ==
-                                                            currentUserId;
-                                                    if (isOwner) {
-                                                      AppSnackBar.showError(
-                                                        context,
-                                                        AppStrings
-                                                            .cannotJoinOwnParty,
-                                                      );
-                                                      return;
-                                                    }
-                                                    _handleJoin(party.id);
-                                                  },
-                                                );
-                                              },
-                                            )),
+                                                },
+                                          )
+                                        : ListView.separated(
+                                            controller: _scrollController,
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: EdgeInsets.fromLTRB(
+                                              contentPadding.left,
+                                              4.h,
+                                              contentPadding.right,
+                                              24.h,
+                                            ),
+                                            itemCount:
+                                                parties.length +
+                                                (isLoadingMore ? 1 : 0),
+                                            separatorBuilder:
+                                                (context, index) =>
+                                                    SizedBox(height: 14.h),
+                                            itemBuilder:
+                                                (
+                                                  BuildContext context,
+                                                  int index,
+                                                ) {
+                                                  if (index >= parties.length) {
+                                                    return Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            vertical: 8.h,
+                                                          ),
+                                                      child: const Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  }
+                                                  final party = parties[index];
+                                                  return PartyCard(
+                                                    party: party,
+                                                    isJoining: _pendingJoinIds
+                                                        .contains(party.id),
+                                                    onJoin: () {
+                                                      final isOwner =
+                                                          currentUserId !=
+                                                              null &&
+                                                          party.hostId ==
+                                                              currentUserId;
+                                                      if (isOwner) {
+                                                        AppSnackBar.showError(
+                                                          context,
+                                                          AppStrings
+                                                              .cannotJoinOwnParty,
+                                                        );
+                                                        return;
+                                                      }
+                                                      _handleJoin(party.id);
+                                                    },
+                                                  );
+                                                },
+                                          )),
                             ),
                           ),
                         ],
@@ -527,9 +520,7 @@ class _FilterSheetTile extends StatelessWidget {
               ? AppColors.electricBlue.withValues(alpha: 0.18)
               : AppColors.surface,
           border: Border.all(
-            color: isSelected
-                ? AppColors.electricBlue
-                : AppColors.navSurface,
+            color: isSelected ? AppColors.electricBlue : AppColors.navSurface,
           ),
         ),
         child: Row(
@@ -564,12 +555,16 @@ class _RankImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = 22.w;
     if (path.startsWith('http')) {
-      return Image.network(
-        path,
+      return AppNetworkImage(
+        imageUrl: path,
         width: size,
         height: size,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _fallback(size),
+        placeholderIcon: Icons.workspace_premium,
+        placeholderIconSize: size,
+        iconColor: AppColors.textSecondary,
+        backgroundColor: Colors.transparent,
+        showLoadingIndicator: false,
       );
     }
     return Image.asset(
@@ -577,7 +572,7 @@ class _RankImage extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => _fallback(size),
+      errorBuilder: (_, _, _) => _fallback(size),
     );
   }
 

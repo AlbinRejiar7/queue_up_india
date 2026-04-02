@@ -10,7 +10,9 @@ import '../../../bloc/registration_event.dart';
 import '../../../bloc/registration_state.dart';
 
 class RegistrationUsernameField extends StatelessWidget {
-  const RegistrationUsernameField({super.key});
+  const RegistrationUsernameField({super.key, this.hintText});
+
+  final String? hintText;
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +48,8 @@ class RegistrationUsernameField extends StatelessWidget {
             TextFormField(
               initialValue: state.data.username,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                hintText: AppStrings.usernameHint,
+              decoration: InputDecoration(
+                hintText: hintText ?? AppStrings.usernameHint,
               ),
               onChanged: (String value) {
                 context.read<RegistrationBloc>().add(

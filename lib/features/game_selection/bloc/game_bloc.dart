@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/utils/app_preferences.dart';
 import '../viewmodel/game_view_model.dart';
 import 'game_event.dart';
 import 'game_state.dart';
@@ -23,8 +24,14 @@ class GameBloc extends Bloc<GameEvent, GameState> {
 
     try {
       final games = await _gameViewModel.loadPopularGames();
+      final savedGameId = await AppPreferences.loadSelectedGameId();
+      final hasSavedGame =
+          savedGameId != null && games.any((game) => game.id == savedGameId);
       final selectedGameId =
-          state.data.selectedGameId ?? (games.isEmpty ? null : games.first.id);
+          state.data.selectedGameId ??
+          (hasSavedGame
+              ? savedGameId
+              : (games.isEmpty ? null : games.first.id));
       emit(
         GameSuccess(
           data: state.data.copyWith(
@@ -38,7 +45,13 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     }
   }
 
-  void _onGameSelected(GameSelected event, Emitter<GameState> emit) {
+  Future<void> _onGameSelected(
+    GameSelected event,
+    Emitter<GameState> emit,
+  ) async {
+    if (event.gameId.trim().isNotEmpty) {
+      await AppPreferences.saveSelectedGameId(event.gameId);
+    }
     emit(GameSuccess(data: state.data.copyWith(selectedGameId: event.gameId)));
   }
 }

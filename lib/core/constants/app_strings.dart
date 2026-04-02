@@ -29,9 +29,10 @@ abstract final class AppStrings {
       'Please review and accept our Privacy Policy and Terms before signing in with Google.';
   static const String createAccountTitle = 'Create Account';
   static const String createAccountSubtitle =
-      'Register with your phone and jump into the queue.';
+      'Choose your username and password to jump into the queue.';
   static const String loginTitle = 'Login';
-  static const String loginSubtitle = 'Enter your phone number to continue.';
+  static const String loginSubtitle =
+      'Enter your username and password to continue.';
   static const String username = 'Username';
   static const String usernameHint = 'Choose a unique username';
   static const String usernameRequired = 'Enter a username to continue.';
@@ -41,54 +42,123 @@ abstract final class AppStrings {
   static const String usernameInvalid = 'Use at least 3 letters or numbers.';
   static const String usernameCheckFailed =
       'Unable to check username right now.';
-  static const String phoneNumber = 'Phone Number';
-  static const String phoneNumberHint = 'Phone number (6-15 digits)';
-  static const String indiaCountryCode = '+91';
-  static const String sendOtp = 'Send OTP';
-  static const String otpSent = 'OTP sent';
-  static const String enterOtp = 'Enter OTP';
-  static const String otpHint = '6-digit OTP';
-  static const String verifyOtp = 'Verify OTP';
-  static const String resendOtp = 'Resend OTP';
-  static String resendOtpIn(String time) => 'Resend in $time';
-  static String resendOtpWait(String time) =>
-      'Please wait $time before resending.';
-  static const String sendOtpFirst = 'Send OTP first to continue.';
-  static const String selectCountryCode = 'Select country code';
-  static const String searchCountry = 'Search country';
+  static const String password = 'Password';
+  static const String passwordHint = 'Enter your password';
+  static const String confirmPassword = 'Confirm Password';
+  static const String confirmPasswordHint = 'Re-enter your password';
+  static const String recoveryEmail = 'Recovery Email';
+  static const String recoveryEmailOptional = 'Recovery Email (Optional)';
+  static const String recoveryEmailHint = 'Add an email for account recovery';
+  static const String recoveryEmailHelp =
+      'Optional for now. It helps us support account recovery later.';
+  static const String linkedEmail = 'Linked Email';
+  static const String addEmail = 'Add Email';
+  static const String changeEmail = 'Change Email';
+  static const String linkedEmailTitle = 'Add or change email';
+  static const String linkedEmailHint =
+      'Link an email so password reset works with Firebase.';
+  static const String linkedEmailPendingTitle = 'Verification pending';
+  static const String linkedEmailPendingHint =
+      'Check your inbox and verify the new email before it becomes active.';
+  static const String linkedEmailResendAction = 'Resend Verification Email';
+  static const String linkedEmailResendHint =
+      'Use the same pending email to resend the verification mail.';
+  static const String linkedEmailCurrentLabel = 'Current linked email';
+  static const String linkedEmailNewHint = 'Enter your new email';
+  static const String linkedEmailPasswordHint =
+      'Enter your current password to confirm';
+  static const String linkedEmailAdded = 'Email linked successfully.';
+  static const String linkedEmailVerificationSent =
+      'Verification email sent. Please verify the new email.';
+  static const String linkedEmailMissing =
+      'No email linked yet. Add one to use password reset.';
+  static const String linkedEmailInvalid =
+      'Enter a valid email address to continue.';
+  static const String linkedEmailAlreadySet =
+      'This email is already linked to your account.';
+  static const String linkedEmailUpdateFailed =
+      'Unable to update your email right now.';
+  static const String linkedEmailSyncFailed =
+      'Unable to refresh your linked email status right now.';
+  static const String linkedEmailStatusAdded = 'Linked and active';
+  static const String linkedEmailStatusPending = 'Pending verification';
+  static const String linkedEmailStatusMissing = 'Not linked yet';
+  static const String linkedEmailSubtitle = 'Add an email for password reset';
+  static const String forgotPassword = 'Forgot Password?';
+  static const String forgotPasswordTitle = 'Reset your password';
+  static const String forgotPasswordDialogHint =
+      'Enter your username to check whether this account can receive a reset email.';
+  static const String forgotPasswordReady =
+      'Password reset is available for this account.';
+  static const String forgotPasswordSendAction = 'Send Reset Email';
+  static const String forgotPasswordDisabled =
+      'Add an email in Profile to use password reset.';
+  static const String forgotPasswordEnterUsername =
+      'Enter your username first to check password reset.';
+  static const String forgotPasswordEmailSent =
+      'Password reset email sent to your linked email.';
+  static const String forgotPasswordFailed =
+      'Unable to send password reset right now.';
+  static const String forgotPasswordChecking =
+      'Checking password reset availability...';
+  static const String passwordTooShort =
+      'Use at least 6 characters for your password.';
+  static const String passwordMismatch = 'Passwords do not match.';
+  static const String currentPassword = 'Current Password';
+  static const String currentPasswordHint = 'Enter your current password';
+  static const String newPassword = 'New Password';
+  static const String newPasswordHint = 'Enter your new password';
+  static const String confirmNewPassword = 'Confirm New Password';
+  static const String confirmNewPasswordHint = 'Re-enter your new password';
+  static const String managePassword = 'Manage Password';
+  static const String managePasswordTitle = 'Set or change password';
+  static const String managePasswordHint =
+      'If this is your first password, leave current password blank.';
+  static const String currentPasswordRequired =
+      'Enter your current password to change it.';
+  static const String passwordUpdated =
+      'Password saved. You can now sign in with your username and password.';
+  static const String passwordUpdateFailed =
+      'Unable to update your password right now.';
+  static const String invalidRecoveryEmail =
+      'Enter a valid recovery email or leave it blank.';
+  static const String signInAction = 'Sign In';
+  static const String createAccountAction = 'Create Account';
   static const String selectAvatar = 'Select Profile Avatar';
   static const String selectAvatarHint =
       'Choose a preset to show in parties and rooms.';
+  static const String avatarRequired = 'Select a profile picture to continue.';
   static const String dontHaveAccount = "Don't have an account?";
   static const String registerAction = 'Register';
   static const String alreadyHaveAccount = 'Already have an account?';
   static const String loginAction = 'Login';
   static const String orDivider = 'OR';
-  static const String otpSendFailed = 'Unable to send OTP right now.';
-  static const String otpVerifyFailed = 'Unable to verify OTP right now.';
-  static const String invalidPhoneNumber = 'Enter a valid phone number.';
-  static const String phoneNotRegistered =
-      'This number is not registered. Please create an account.';
-  static const String invalidOtp = 'Enter the 6-digit OTP to continue.';
-  static const String otpExpired = 'OTP expired. Request a new one.';
+  static const String createAccountFailed =
+      'Unable to create your account right now.';
+  static const String loginFailed = 'Incorrect username or password.';
   static const String authTooManyRequests =
       'Too many attempts. Please wait and try again.';
   static const String networkError = 'Check your internet connection.';
   static const String networkTimeout = 'Network is slow. Try again.';
+  static const String offlineStatusMessage =
+      'No internet connection. Some content may not load.';
+  static const String slowConnectionStatusMessage =
+      'Internet is slow right now. Loading may take longer.';
   static const String authProviderDisabled =
-      'Phone sign-in is unavailable right now.';
+      'Sign-in is unavailable right now.';
   static const String deviceNotAuthorized =
       'This device is not authorized for sign-in.';
   static const String credentialInUse =
-      'This phone number is already linked to another account.';
+      'This credential is already linked to another account.';
   static const String googleAccountExists =
       'This email is already linked to another sign-in method.';
-  static const String invalidCredential =
-      'Unable to sign in with these credentials.';
+  static const String invalidCredential = 'Incorrect username or password.';
   static const String userDisabled =
       'Your account has been disabled. Contact support.';
   static const String userNotFound = 'Account not found. Try again.';
   static const String googleSignInCancelled = 'Google sign-in canceled.';
+  static const String requiresRecentLogin =
+      'Please sign in again and retry this action.';
   static const String completePartyDetails =
       'Complete all party details before creating.';
   static const String selectLanguageFirst = 'Select a language to continue.';
@@ -293,14 +363,34 @@ abstract final class AppStrings {
   static const String roomCreated = 'Created';
   static const String roomJoined = 'Joined';
   static const String profileDetails = 'Profile Details';
-  static const String queueName = 'Name';
-  static const String queueNameHint = 'Enter your queue display name';
+  static const String queueName = 'Username';
+  static const String queueNameHint = 'Enter your username';
   static const String preferredQueueLanguage = 'Preferred Queue Language';
   static const String queuePreferenceHint =
       'These preferences help you find better queue matches.';
   static const String changeAvatar = 'Change Profile Avatar';
   static const String saveChanges = 'Save Changes';
   static const String profileSaved = 'Profile preferences saved';
+  static const String profileMenuHint =
+      'Manage your profile, security, and app details from here.';
+  static const String editProfile = 'Edit Profile';
+  static const String editProfileSubtitle =
+      'Username, avatar, language, and recovery email';
+  static const String changePasswordSubtitle =
+      'Update the password you use to sign in';
+  static const String supportSubtitle = 'Report bugs and get help';
+  static const String aboutAppSubtitle =
+      'Version details, privacy policy, and legal links';
+  static const String accountActions = 'Account Actions';
+  static const String logoutSubtitle = 'Sign out on this device';
+  static const String deleteAccountSubtitle =
+      'Permanently remove your account and data';
+  static const String aboutQueueUp = 'About QueueUp';
+  static const String supportSection = 'Support';
+  static const String accountSection = 'Account';
+  static const String appVersionTitle = 'App Version';
+  static const String legalLinksTitle = 'Legal Links';
+  static const String loadingLabel = 'Loading...';
   static const String reportBug = 'Report Bug';
   static const String reportBugTitle = 'Report a bug';
   static const String reportBugHint =

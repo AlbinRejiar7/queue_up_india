@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
@@ -39,6 +40,7 @@ import '../../features/settings/data/repositories/firestore_settings_repository.
 import '../../features/settings/data/repositories/settings_repository.dart';
 import '../../features/settings/viewmodel/language_view_model.dart';
 import '../../features/settings/viewmodel/profile_view_model.dart';
+import '../network/network_status_cubit.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/app_router.dart';
 import '../services/activity_pulse_service.dart';
@@ -69,6 +71,7 @@ void _registerRepositories() {
     FirestoreMatchmakingRepository.new,
   );
   sl.registerLazySingleton<ActivityPulseService>(ActivityPulseService.new);
+  sl.registerLazySingleton<Connectivity>(Connectivity.new);
 }
 
 void _registerViewModels() {
@@ -148,6 +151,9 @@ void _registerBlocs() {
   );
   sl.registerFactory<ChatBadgeBloc>(
     () => ChatBadgeBloc(chatViewModel: sl<ChatViewModel>()),
+  );
+  sl.registerFactory<NetworkStatusCubit>(
+    () => NetworkStatusCubit(connectivity: sl<Connectivity>()),
   );
   sl.registerFactory<MatchmakingBloc>(
     () => MatchmakingBloc(

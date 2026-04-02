@@ -1,170 +1,26 @@
-import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../../../core/utils/app_preferences.dart';
 import '../../models/user_model.dart';
 import 'auth_repository.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
-  static const Duration _otpSessionTtl = Duration(minutes: 10);
-  static const String _otpExpiredMessage =
-      'OTP session expired. Please request a new code.';
-
   FirebaseAuthRepository({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
     FirebaseFirestore? firestore,
-    FirebaseFunctions? functions,
-  })  : _auth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(),
-        _db = firestore ?? FirebaseFirestore.instance,
-        _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'asia-south1');
+  }) : _auth = firebaseAuth ?? FirebaseAuth.instance,
+       _googleSignIn = googleSignIn ?? GoogleSignIn(),
+       _db = firestore ?? FirebaseFirestore.instance;
+
+  static const String _usernameAliasDomain = 'queueup.app';
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _db;
-  final FirebaseFunctions _functions;
-
-  String? _verificationId;
-  int? _forceResendingToken;
-  int _otpRequestCounter = 0;
-  final StreamController<OtpLogEvent> _otpLogController =
-      StreamController<OtpLogEvent>.broadcast();
-
-  @override
-  Stream<OtpLogEvent> get otpLogs => _otpLogController.stream;
-
-  @override
-  Future<void> sendOtp({required String phoneNumber}) async {
-    final int requestId = ++_otpRequestCounter;
-    _verificationId = null;
-    await AppPreferences.clearOtpSession();
-    developer.log(
-      'OTP session cleared before send (req=$requestId)',
-      name: 'FirebaseAuthRepository',
-      error: _maskPhone(phoneNumber),
-    );
-    final Completer<void> completer = Completer<void>();
-    developer.log(
-      'Firebase sendOtp start (req=$requestId)',
-      name: 'FirebaseAuthRepository',
-      error: _maskPhone(phoneNumber),
-    );
-
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      timeout: const Duration(seconds: 60),
-      forceResendingToken: _forceResendingToken,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        developer.log(
-          'Firebase sendOtp verificationCompleted (req=$requestId)',
-          name: 'FirebaseAuthRepository',
-        );
-        try {
-          final result = await _auth.signInWithCredential(credential);
-          final user = result.user;
-          if (user != null) {
-            await _finalizeAutoVerifiedSignIn(
-              user,
-              phoneNumber: phoneNumber,
-            );
-          }
-        } catch (_) {
-          // Ignore auto-verification sign-in failures.
-        }
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-      verificationFailed: (FirebaseAuthException error) {
-        developer.log(
-          'Firebase sendOtp failed (req=$requestId): ${error.code}',
-          name: 'FirebaseAuthRepository',
-        );
-        _emitOtpLog(
-          'OTP send error: ${_formatAuthError(error)}',
-          isError: true,
-        );
-        if (!completer.isCompleted) {
-          completer.completeError(error);
-        }
-      },
-      codeSent: (String verificationId, int? forceResendingToken) {
-        developer.log(
-          'Firebase sendOtp codeSent (req=$requestId, vid=${_maskVerificationId(verificationId)})',
-          name: 'FirebaseAuthRepository',
-        );
-        _verificationId = verificationId;
-        _forceResendingToken = forceResendingToken;
-        AppPreferences.saveOtpSession(
-          verificationId: verificationId,
-          phoneNumber: phoneNumber,
-          sentAt: DateTime.now(),
-          forceResendingToken: forceResendingToken,
-        );
-        _emitOtpLog('OTP sent (codeSent)');
-        developer.log(
-          'OTP session saved (req=$requestId, resendToken=${forceResendingToken != null})',
-          name: 'FirebaseAuthRepository',
-        );
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        developer.log(
-          'Firebase sendOtp autoRetrievalTimeout (req=$requestId, vid=${_maskVerificationId(verificationId)})',
-          name: 'FirebaseAuthRepository',
-        );
-        _verificationId = verificationId;
-        _emitOtpLog('OTP auto-retrieval timeout');
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-    );
-
-    return completer.future;
-  }
-
-  @override
-  Future<bool> isPhoneRegistered({required String phoneNumber}) async {
-    final callable = _functions.httpsCallable('checkPhoneRegistered');
-    try {
-      developer.log(
-        'checkPhoneRegistered called',
-        name: 'FirebaseAuthRepository',
-        error: _maskPhone(phoneNumber),
-      );
-      final result = await callable.call(<String, dynamic>{
-        'phoneNumber': phoneNumber,
-      });
-      final data = result.data;
-      if (data is Map && data['registered'] is bool) {
-        developer.log(
-          'checkPhoneRegistered result: ${data['registered']}',
-          name: 'FirebaseAuthRepository',
-        );
-        return data['registered'] as bool;
-      }
-      return false;
-    } on FirebaseFunctionsException catch (error) {
-      developer.log(
-        'checkPhoneRegistered error: ${error.code}',
-        name: 'FirebaseAuthRepository',
-      );
-      if (error.code == 'not-found') {
-        return false;
-      }
-      rethrow;
-    }
-  }
 
   @override
   Future<bool> isUsernameAvailable({required String username}) async {
@@ -172,156 +28,111 @@ class FirebaseAuthRepository implements AuthRepository {
     if (normalized.isEmpty) {
       return false;
     }
-    final doc =
-        await _db.collection('usernames').doc(normalized).get();
+    final doc = await _db.collection('usernames').doc(normalized).get();
     return !doc.exists;
   }
 
   @override
-  Future<UserModel> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    String? avatarUrl,
-    String? displayName,
+  Future<UserModel> signInWithUsernamePassword({
+    required String username,
+    required String password,
   }) async {
-    developer.log(
-      'Firebase verifyOtp start',
-      name: 'FirebaseAuthRepository',
-      error: _maskPhone(phoneNumber),
-    );
-    String? verificationId = _verificationId;
-    if (verificationId == null) {
-      developer.log(
-        'No in-memory verificationId, loading OTP session',
-        name: 'FirebaseAuthRepository',
-      );
-      final session = await AppPreferences.loadOtpSession();
-      if (session != null &&
-          session.phoneNumber == phoneNumber &&
-          DateTime.now().difference(session.sentAt) <= _otpSessionTtl) {
-        developer.log(
-          'OTP session restored from storage (vid=${_maskVerificationId(session.verificationId)}, hasResendToken=${session.forceResendingToken != null})',
-          name: 'FirebaseAuthRepository',
-        );
-        verificationId = session.verificationId;
-        _verificationId = session.verificationId;
-        _forceResendingToken = session.forceResendingToken;
-      } else {
-        developer.log(
-          'OTP session missing or expired, clearing',
-          name: 'FirebaseAuthRepository',
-        );
-        await AppPreferences.clearOtpSession();
-      }
+    final normalized = _normalizeUsername(username);
+    if (normalized.length < 3) {
+      throw StateError('Username is invalid.');
     }
-    if (verificationId == null) {
-      developer.log(
-        'OTP verification failed: missing verificationId',
-        name: 'FirebaseAuthRepository',
-      );
-      _emitOtpLog(
-        'OTP verify failed: verificationId is null',
-        isError: true,
-      );
-      throw StateError(_otpExpiredMessage);
-    }
+
     developer.log(
-      'OTP verification using vid=${_maskVerificationId(verificationId)}',
+      'Username/password sign-in requested for $normalized',
       name: 'FirebaseAuthRepository',
     );
+    final usernameRecord = await _loadUsernameRecord(normalized);
+    final authEmail = _resolveUsernameAuthEmail(usernameRecord, normalized);
 
-    final PhoneAuthCredential credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: otp,
+    final credential = await _auth.signInWithEmailAndPassword(
+      email: authEmail,
+      password: password,
     );
 
-    UserCredential result;
-    try {
-      result = await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (error) {
-      developer.log(
-        'Firebase verifyOtp failed: ${error.code}',
-        name: 'FirebaseAuthRepository',
-      );
-      if (error.code == 'session-expired' || error.code == 'code-expired') {
-        await AppPreferences.clearOtpSession();
-      }
-      _emitOtpLog(
-        'OTP verify error: ${_formatAuthError(error)}',
-        isError: true,
-      );
-      rethrow;
-    }
-    final User? user = result.user;
+    final user = credential.user;
     if (user == null) {
       throw StateError('Authentication failed. Please try again.');
     }
-    await AppPreferences.clearOtpSession();
-    await AppPreferences.clearOtpPendingProfile();
-    _verificationId = null;
-    _forceResendingToken = null;
+
+    return _hydrateUserModel(
+      user,
+      fallbackDisplayName: username.trim(),
+      authProvider: 'password',
+      authEmailAlias: _aliasEmailForUsername(normalized),
+      authEmail: authEmail,
+      hasLinkedEmail: !_isAliasEmail(authEmail),
+    );
+  }
+
+  @override
+  Future<UserModel> registerWithUsernamePassword({
+    required String username,
+    required String password,
+    String? avatarUrl,
+    String? recoveryEmail,
+  }) async {
+    final trimmedUsername = username.trim();
+    final normalized = _normalizeUsername(trimmedUsername);
+    if (normalized.length < 3) {
+      throw StateError('Username is invalid.');
+    }
+
+    final sanitizedRecoveryEmail = _sanitizeRecoveryEmail(recoveryEmail);
+    final aliasEmail = _aliasEmailForUsername(normalized);
+    final authEmail = sanitizedRecoveryEmail ?? aliasEmail;
+    final hasLinkedEmail = !_isAliasEmail(authEmail);
+
     developer.log(
-      'Firebase verifyOtp success',
+      'Username/password registration requested for $normalized',
       name: 'FirebaseAuthRepository',
     );
 
-    final String? trimmedName = displayName?.trim();
-    String? storedName;
-    String? storedAvatar;
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: authEmail,
+      password: password,
+    );
+
+    final user = credential.user;
+    if (user == null) {
+      throw StateError('Unable to create your account right now.');
+    }
+
     try {
-      final snapshot = await _db.collection('users').doc(user.uid).get();
-      final data = snapshot.data();
-      storedName = (data?['displayName'] as String?)?.trim();
-      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
-    } catch (_) {}
-
-    final resolvedName =
-        trimmedName != null && trimmedName.isNotEmpty
-            ? trimmedName
-            : (storedName != null && storedName.isNotEmpty
-                ? storedName
-                : (user.displayName ?? 'QueuePlayer'));
-    final resolvedAvatar =
-        avatarUrl ??
-        (storedAvatar != null && storedAvatar.isNotEmpty
-            ? storedAvatar
-            : user.photoURL);
-
-    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
+      if ((user.displayName ?? '').trim() != trimmedUsername) {
+        await user.updateDisplayName(trimmedUsername);
+      }
+      await user.reload();
+      await _claimUsername(
+        trimmedUsername,
+        user.uid,
+        aliasEmail: aliasEmail,
+        authEmail: authEmail,
+        hasEmail: hasLinkedEmail,
+      );
+      return _hydrateUserModel(
+        _auth.currentUser ?? user,
+        fallbackDisplayName: trimmedUsername,
+        avatarUrl: avatarUrl,
+        authProvider: 'password',
+        authEmailAlias: aliasEmail,
+        authEmail: authEmail,
+        hasLinkedEmail: hasLinkedEmail,
+        recoveryEmail: sanitizedRecoveryEmail,
+      );
+    } catch (error) {
       try {
-        await user.updateDisplayName(resolvedName);
+        await (_auth.currentUser ?? user).delete();
       } catch (_) {}
+      try {
+        await _auth.signOut();
+      } catch (_) {}
+      rethrow;
     }
-
-    await user.reload();
-    final User? refreshed = _auth.currentUser;
-    await _upsertUserProfile(
-      refreshed ?? user,
-      displayName: resolvedName,
-      avatarUrl: resolvedAvatar,
-    );
-    if (trimmedName != null && trimmedName.isNotEmpty) {
-      await _claimUsername(trimmedName, user.uid);
-    }
-    await _db
-        .collection('users')
-        .doc(user.uid)
-        .collection('private')
-        .doc('profile')
-        .set(
-          <String, dynamic>{
-            'phoneNumber': phoneNumber,
-            'phoneNumberDigits': _normalizePhoneDigits(phoneNumber),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-
-    return UserModel(
-      id: refreshed?.uid ?? user.uid,
-      displayName: resolvedName,
-      avatarUrl: resolvedAvatar,
-    );
   }
 
   @override
@@ -340,156 +151,143 @@ class FirebaseAuthRepository implements AuthRepository {
       idToken: auth.idToken,
     );
 
-    final UserCredential result =
-        await _auth.signInWithCredential(credential);
+    final UserCredential result = await _auth.signInWithCredential(credential);
     final User? user = result.user;
     if (user == null) {
       throw StateError('Google sign-in failed.');
     }
 
-    String? storedName;
-    String? storedAvatar;
-    try {
-      final snapshot = await _db.collection('users').doc(user.uid).get();
-      final data = snapshot.data();
-      storedName = (data?['displayName'] as String?)?.trim();
-      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
-    } catch (_) {}
+    return _hydrateUserModel(
+      user,
+      fallbackDisplayName: user.displayName ?? 'QueuePlayer',
+      avatarUrl: user.photoURL,
+      authProvider: 'google',
+    );
+  }
 
-    final resolvedName =
-        storedName != null && storedName.isNotEmpty
-            ? storedName
-            : (user.displayName ?? 'QueuePlayer');
-    final resolvedAvatar =
-        storedAvatar != null && storedAvatar.isNotEmpty
-            ? storedAvatar
-            : user.photoURL;
+  Future<UserModel> _hydrateUserModel(
+    User user, {
+    required String fallbackDisplayName,
+    String? avatarUrl,
+    String? authProvider,
+    String? authEmailAlias,
+    String? authEmail,
+    bool? hasLinkedEmail,
+    String? recoveryEmail,
+  }) async {
+    final syncedUser = await _syncAuthEmailState(
+      user,
+      fallbackDisplayName: fallbackDisplayName,
+    );
+    final snapshot = await _db.collection('users').doc(syncedUser.uid).get();
+    final data = snapshot.data();
+    final storedName = (data?['displayName'] as String?)?.trim();
+    final storedAvatar = (data?['avatarUrl'] as String?)?.trim();
 
-    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
+    final resolvedName = storedName != null && storedName.isNotEmpty
+        ? storedName
+        : ((syncedUser.displayName ?? '').trim().isNotEmpty
+              ? syncedUser.displayName!.trim()
+              : fallbackDisplayName);
+    final resolvedAvatar = avatarUrl ?? storedAvatar ?? syncedUser.photoURL;
+
+    if ((syncedUser.displayName ?? '').trim() != resolvedName.trim()) {
       try {
-        await user.updateDisplayName(resolvedName);
+        await syncedUser.updateDisplayName(resolvedName);
       } catch (_) {}
     }
 
-    await user.reload();
-
     await _upsertUserProfile(
-      _auth.currentUser ?? user,
+      syncedUser,
       displayName: resolvedName,
       avatarUrl: resolvedAvatar,
+      authProvider: authProvider,
+      authEmailAlias: authEmailAlias,
+      authEmail: authEmail,
+      hasLinkedEmail: hasLinkedEmail,
+      recoveryEmail: recoveryEmail,
     );
 
     return UserModel(
-      id: user.uid,
+      id: syncedUser.uid,
       displayName: resolvedName,
       avatarUrl: resolvedAvatar,
     );
   }
 
-  @override
   Future<void> _upsertUserProfile(
     User user, {
-    String? displayName,
+    required String displayName,
     String? avatarUrl,
+    String? authProvider,
+    String? authEmailAlias,
+    String? authEmail,
+    bool? hasLinkedEmail,
+    String? recoveryEmail,
   }) async {
     final docRef = _db.collection('users').doc(user.uid);
     final snapshot = await docRef.get();
 
-    final String resolvedName =
-        displayName?.trim().isNotEmpty == true
-            ? displayName!.trim()
-            : (user.displayName ?? 'QueuePlayer');
-
-    final data = <String, dynamic>{
-      'displayName': resolvedName,
+    final publicData = <String, dynamic>{
+      'displayName': displayName,
       'avatarUrl': avatarUrl ?? user.photoURL,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    if (authEmail != null && authEmail.trim().isNotEmpty) {
+      publicData['authEmail'] = authEmail.trim().toLowerCase();
+    }
+    if (hasLinkedEmail != null) {
+      publicData['hasEmail'] = hasLinkedEmail;
+    }
 
     if (!snapshot.exists) {
-      data['createdAt'] = FieldValue.serverTimestamp();
+      publicData['createdAt'] = FieldValue.serverTimestamp();
     }
 
-    await docRef.set(data, SetOptions(merge: true));
+    await docRef.set(publicData, SetOptions(merge: true));
+
+    final privateData = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (authProvider != null && authProvider.trim().isNotEmpty) {
+      privateData['authProvider'] = authProvider;
+    }
+    if (authEmailAlias != null && authEmailAlias.trim().isNotEmpty) {
+      privateData['usernameAliasEmail'] = authEmailAlias;
+    }
+    if (authEmail != null && authEmail.trim().isNotEmpty) {
+      privateData['authEmail'] = authEmail.trim().toLowerCase();
+    }
+    if (hasLinkedEmail != null) {
+      privateData['hasEmail'] = hasLinkedEmail;
+    }
+    if (recoveryEmail != null) {
+      privateData['recoveryEmail'] = recoveryEmail;
+    }
+
+    if (privateData.length > 1) {
+      await docRef
+          .collection('private')
+          .doc('profile')
+          .set(privateData, SetOptions(merge: true));
+    }
   }
 
-  Future<void> _finalizeAutoVerifiedSignIn(
-    User user, {
-    required String phoneNumber,
+  Future<void> _claimUsername(
+    String username,
+    String uid, {
+    String? aliasEmail,
+    String? authEmail,
+    bool? hasEmail,
   }) async {
-    String? storedName;
-    String? storedAvatar;
-    try {
-      final snapshot = await _db.collection('users').doc(user.uid).get();
-      final data = snapshot.data();
-      storedName = (data?['displayName'] as String?)?.trim();
-      storedAvatar = (data?['avatarUrl'] as String?)?.trim();
-    } catch (_) {}
-
-    final pending = await AppPreferences.loadOtpPendingProfile();
-    final pendingName = pending?.displayName?.trim();
-    final resolvedName =
-        pendingName != null && pendingName.isNotEmpty
-            ? pendingName
-            : (storedName != null && storedName.isNotEmpty
-                ? storedName
-                : (user.displayName ?? 'QueuePlayer'));
-    final resolvedAvatar =
-        pending?.avatarUrl ??
-        (storedAvatar != null && storedAvatar.isNotEmpty
-            ? storedAvatar
-            : user.photoURL);
-
-    if ((user.displayName ?? '').trim() != resolvedName.trim()) {
-      try {
-        await user.updateDisplayName(resolvedName);
-      } catch (_) {}
-    }
-
-    await user.reload();
-    final User? refreshed = _auth.currentUser;
-    await _upsertUserProfile(
-      refreshed ?? user,
-      displayName: resolvedName,
-      avatarUrl: resolvedAvatar,
-    );
-
-    if (pending?.isRegistration == true &&
-        pendingName != null &&
-        pendingName.isNotEmpty) {
-      try {
-        await _claimUsername(pendingName, user.uid);
-      } catch (_) {}
-    }
-
-    await _db
-        .collection('users')
-        .doc(user.uid)
-        .collection('private')
-        .doc('profile')
-        .set(
-          <String, dynamic>{
-            'phoneNumber': phoneNumber,
-            'phoneNumberDigits': _normalizePhoneDigits(phoneNumber),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-
-    await AppPreferences.setLoggedIn(true);
-    await AppPreferences.clearOtpSession();
-    await AppPreferences.clearOtpPendingProfile();
-    _verificationId = null;
-    _forceResendingToken = null;
-  }
-
-  Future<void> _claimUsername(String username, String uid) async {
     final normalized = _normalizeUsername(username);
     if (normalized.isEmpty) {
       throw StateError('Username is invalid.');
     }
 
     final docRef = _db.collection('usernames').doc(normalized);
+    final trimmedAliasEmail = aliasEmail?.trim();
+    final trimmedAuthEmail = authEmail?.trim().toLowerCase();
     await _db.runTransaction((tx) async {
       final snapshot = await tx.get(docRef);
       if (snapshot.exists) {
@@ -498,33 +296,78 @@ class FirebaseAuthRepository implements AuthRepository {
           throw StateError('Username already taken');
         }
       }
-      tx.set(
-        docRef,
-        <String, dynamic>{
-          'uid': uid,
-          'username': username.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      final payload = <String, dynamic>{
+        'uid': uid,
+        'username': username.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (trimmedAliasEmail != null && trimmedAliasEmail.isNotEmpty) {
+        payload['authEmailAlias'] = trimmedAliasEmail;
+      }
+      if (trimmedAuthEmail != null && trimmedAuthEmail.isNotEmpty) {
+        payload['authEmail'] = trimmedAuthEmail;
+      }
+      if (hasEmail != null) {
+        payload['hasEmail'] = hasEmail;
+      }
+      tx.set(docRef, payload, SetOptions(merge: true));
     });
   }
 
-  void _emitOtpLog(String message, {bool isError = false}) {
-    _otpLogController.add(
-      OtpLogEvent(
-        message: message,
-        isError: isError,
-      ),
-    );
+  @override
+  Future<bool> canSendPasswordReset({required String username}) async {
+    final normalized = _normalizeUsername(username);
+    if (normalized.length < 3) {
+      return false;
+    }
+
+    final record = await _loadUsernameRecord(normalized);
+    final authEmail = (record['authEmail'] as String?)?.trim().toLowerCase();
+    final hasEmail = (record['hasEmail'] as bool?) ?? false;
+    return hasEmail && authEmail != null && authEmail.isNotEmpty;
   }
 
-  String _formatAuthError(FirebaseAuthException error) {
-    final details = error.message?.trim();
-    if (details == null || details.isEmpty) {
-      return error.code;
+  @override
+  Future<void> sendPasswordReset({required String username}) async {
+    final normalized = _normalizeUsername(username);
+    if (normalized.length < 3) {
+      throw StateError('Username is invalid.');
     }
-    return '${error.code}: $details';
+
+    final record = await _loadUsernameRecord(normalized);
+    final authEmail = (record['authEmail'] as String?)?.trim().toLowerCase();
+    final hasEmail = (record['hasEmail'] as bool?) ?? false;
+    if (!hasEmail || authEmail == null || authEmail.isEmpty) {
+      throw StateError('No linked email.');
+    }
+
+    try {
+      developer.log(
+        'Sending password reset email for $normalized -> $authEmail',
+        name: 'FirebaseAuthRepository',
+      );
+      await _auth.sendPasswordResetEmail(email: authEmail);
+      developer.log(
+        'Password reset email accepted by Firebase for $normalized -> $authEmail',
+        name: 'FirebaseAuthRepository',
+      );
+    } on FirebaseAuthException catch (error, stackTrace) {
+      developer.log(
+        'Password reset email failed for $normalized -> $authEmail: ${error.code} ${error.message}',
+        name: 'FirebaseAuthRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Unexpected password reset failure for $normalized -> $authEmail: $error',
+        name: 'FirebaseAuthRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   String _normalizeUsername(String username) {
@@ -532,32 +375,123 @@ class FirebaseAuthRepository implements AuthRepository {
     if (trimmed.isEmpty) {
       return '';
     }
-    final normalized =
-        trimmed.replaceAll(RegExp(r'[^a-z0-9_]'), '');
-    return normalized;
+    return trimmed.replaceAll(RegExp(r'[^a-z0-9_]'), '');
   }
 
-  String _normalizePhoneDigits(String phoneNumber) {
-    return phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+  Future<Map<String, dynamic>> _loadUsernameRecord(
+    String normalizedUsername,
+  ) async {
+    final snapshot = await _db
+        .collection('usernames')
+        .doc(normalizedUsername)
+        .get();
+    final data = snapshot.data();
+    final uid = data?['uid'] as String?;
+    if (uid == null || uid.trim().isEmpty) {
+      throw StateError('Account not found. Try again.');
+    }
+    return data!;
   }
 
-  String _maskPhone(String phoneNumber) {
-    final digits = _normalizePhoneDigits(phoneNumber);
-    if (digits.length <= 4) {
-      return phoneNumber;
+  String _aliasEmailForUsername(String username) {
+    final normalized = _normalizeUsername(username);
+    if (normalized.isEmpty) {
+      throw StateError('Username is invalid.');
     }
-    final tail = digits.substring(digits.length - 4);
-    return '+••••$tail';
+    return '$normalized@$_usernameAliasDomain';
   }
 
-  String _maskVerificationId(String? verificationId) {
-    if (verificationId == null || verificationId.isEmpty) {
-      return 'null';
+  String? _sanitizeRecoveryEmail(String? email) {
+    final trimmed = email?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return null;
     }
-    if (verificationId.length <= 6) {
-      return 'len=${verificationId.length}';
+    final isValid = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmed);
+    if (!isValid) {
+      throw StateError('Recovery email is invalid.');
     }
-    final tail = verificationId.substring(verificationId.length - 6);
-    return 'len=${verificationId.length}...$tail';
+    return trimmed.toLowerCase();
+  }
+
+  String _resolveUsernameAuthEmail(
+    Map<String, dynamic> usernameRecord,
+    String normalizedUsername,
+  ) {
+    final authEmail = (usernameRecord['authEmail'] as String?)?.trim();
+    if (authEmail != null && authEmail.isNotEmpty) {
+      return authEmail.toLowerCase();
+    }
+
+    final aliasEmail = (usernameRecord['authEmailAlias'] as String?)?.trim();
+    if (aliasEmail != null && aliasEmail.isNotEmpty) {
+      return aliasEmail.toLowerCase();
+    }
+
+    return _aliasEmailForUsername(normalizedUsername);
+  }
+
+  bool _isAliasEmail(String? email) {
+    final trimmed = email?.trim().toLowerCase() ?? '';
+    return trimmed.endsWith('@$_usernameAliasDomain');
+  }
+
+  Future<User> _syncAuthEmailState(
+    User user, {
+    required String fallbackDisplayName,
+  }) async {
+    await user.reload();
+    final refreshedUser = _auth.currentUser ?? user;
+    final authEmail = refreshedUser.email?.trim().toLowerCase() ?? '';
+    final isAliasEmail = _isAliasEmail(authEmail);
+    final hasLinkedEmail = authEmail.isNotEmpty && !isAliasEmail;
+    final userRef = _db.collection('users').doc(refreshedUser.uid);
+    final privateRef = userRef.collection('private').doc('profile');
+    final privateSnapshot = await privateRef.get();
+    final privateData = privateSnapshot.data() ?? <String, dynamic>{};
+    final pendingAuthEmail =
+        (privateData['pendingAuthEmail'] as String?)?.trim().toLowerCase() ??
+        '';
+    final currentDisplayName = (refreshedUser.displayName ?? '').trim().isEmpty
+        ? fallbackDisplayName
+        : refreshedUser.displayName!.trim();
+
+    final updates = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+      'authEmail': authEmail,
+      'hasEmail': hasLinkedEmail,
+      'usernameAliasEmail': _aliasEmailForUsername(currentDisplayName),
+    };
+
+    if (hasLinkedEmail && pendingAuthEmail == authEmail) {
+      updates['pendingAuthEmail'] = FieldValue.delete();
+      updates['emailVerifiedAt'] = FieldValue.serverTimestamp();
+    }
+
+    if (privateSnapshot.exists || updates.length > 1) {
+      await privateRef.set(updates, SetOptions(merge: true));
+    }
+
+    await userRef.set(<String, dynamic>{
+      'authEmail': authEmail,
+      'hasEmail': hasLinkedEmail,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final normalizedUsername = _normalizeUsername(currentDisplayName);
+    if (normalizedUsername.isNotEmpty) {
+      await _db
+          .collection('usernames')
+          .doc(normalizedUsername)
+          .set(<String, dynamic>{
+            'uid': refreshedUser.uid,
+            'username': currentDisplayName,
+            'authEmailAlias': _aliasEmailForUsername(normalizedUsername),
+            'authEmail': authEmail,
+            'hasEmail': hasLinkedEmail,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    }
+
+    return refreshedUser;
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_options.dart';
 import '../theme/app_text_styles.dart';
+import 'app_network_image.dart';
 
 class RankTagChip extends StatelessWidget {
   const RankTagChip({
@@ -65,12 +66,16 @@ class _RankImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (path.startsWith('http')) {
-      return Image.network(
-        path,
+      return AppNetworkImage(
+        imageUrl: path,
         width: size,
         height: size,
         fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => _fallback(),
+        placeholderIcon: Icons.workspace_premium,
+        placeholderIconSize: size,
+        iconColor: AppColors.textSecondary,
+        backgroundColor: Colors.transparent,
+        showLoadingIndicator: false,
       );
     }
 
@@ -84,6 +89,10 @@ class _RankImage extends StatelessWidget {
   }
 
   Widget _fallback() {
-    return Icon(Icons.workspace_premium, size: size, color: AppColors.textSecondary);
+    return Icon(
+      Icons.workspace_premium,
+      size: size,
+      color: AppColors.textSecondary,
+    );
   }
 }
