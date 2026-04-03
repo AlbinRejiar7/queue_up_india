@@ -13,13 +13,15 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final align =
-        message.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final align = message.isMe
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final bubbleColor = message.isMe
         ? AppColors.electricBlue.withValues(alpha: 0.18)
         : AppColors.surface.withValues(alpha: 0.8);
-    final textColor =
-        message.isMe ? AppColors.textPrimary : AppColors.textSecondary;
+    final textColor = message.isMe
+        ? AppColors.textPrimary
+        : AppColors.textSecondary;
 
     return Padding(
       padding: EdgeInsets.only(bottom: 10.h),
@@ -43,7 +45,7 @@ class ChatBubble extends StatelessWidget {
               crossAxisAlignment: align,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
+                SelectableText(
                   message.message,
                   textAlign: message.isMe ? TextAlign.right : TextAlign.left,
                   style: AppTextStyles.bodyMedium.copyWith(color: textColor),
