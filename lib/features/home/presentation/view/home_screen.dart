@@ -16,6 +16,7 @@ import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/widgets/pull_to_refresh_hint.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../../game_selection/bloc/game_bloc.dart';
@@ -51,6 +52,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final NotificationsBloc _notificationsBloc;
   bool _wasActive = false;
+  int _activityPulseRefreshSeed = 0;
 
   @override
   void initState() {
@@ -106,6 +108,27 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
+  Future<void> _handleRefresh(HomeAvailabilityState state) async {
+    final selectedGameId =
+        state.selectedGameId ?? widget.selectedGameId ?? AppOptions.valorantId;
+
+    context.read<HomeAvailabilityBloc>().add(
+      HomeAvailabilityInitialized(gameId: selectedGameId),
+    );
+    _notificationsBloc.add(const NotificationsRefreshRequested());
+    final chatBadgeBloc = context.read<ChatBadgeBloc>();
+    chatBadgeBloc.add(const ChatBadgeStopped());
+    chatBadgeBloc.add(const ChatBadgeStarted());
+
+    if (mounted) {
+      setState(() {
+        _activityPulseRefreshSeed++;
+      });
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+  }
+
   @override
   void dispose() {
     _notificationsBloc.close();
@@ -145,401 +168,424 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }
 
-                        return Column(
-                          children: <Widget>[
-                            Padding(
-                              padding: contentPadding,
-                              child: Column(
-                                children: <Widget>[
-                                  SizedBox(height: 4.h),
-                                  Row(
+                        final waveSectionHeight = min(
+                          max(constraints.maxHeight * 0.34, 250.h),
+                          340.h,
+                        );
+                        final minSide = min(
+                          constraints.maxWidth,
+                          waveSectionHeight,
+                        );
+                        final maxDiameter =
+                            minSide / AvailabilityWaveButton.waveScale;
+                        final target = min(maxDiameter, 236.w);
+                        final safeMin = 132.w;
+                        final diameter = maxDiameter < safeMin
+                            ? maxDiameter
+                            : max(safeMin, target);
+
+                        return PullToRefreshHint(
+                          preferenceKey: 'home_screen',
+                          topPadding: 14,
+                          child: RefreshIndicator(
+                            onRefresh: () => _handleRefresh(state),
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              children: <Widget>[
+                                Padding(
+                                  padding: contentPadding,
+                                  child: Column(
                                     children: <Widget>[
-                                      SizedBox(
-                                        width: max(48, 48.w),
-                                        child: Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: showBackButton
-                                              ? const SafeBackButton(
-                                                  fallbackRoute:
-                                                      AppRoutes.gameSelection,
-                                                )
-                                              : const SizedBox.shrink(),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          AppStrings.home,
-                                          textAlign: TextAlign.center,
-                                          style: AppTextStyles.pageTitle,
-                                        ),
-                                      ),
+                                      SizedBox(height: 4.h),
                                       Row(
-                                        mainAxisSize: MainAxisSize.min,
                                         children: <Widget>[
-                                          BlocBuilder<
-                                            ChatBadgeBloc,
-                                            ChatBadgeState
-                                          >(
-                                            builder: (context, chatState) {
-                                              return IconButton(
-                                                padding: EdgeInsets.zero,
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                constraints: BoxConstraints(
-                                                  minWidth: 40.w,
-                                                  minHeight: 40.w,
-                                                ),
-                                                onPressed: () {
-                                                  context.push(
-                                                    AppRoutes.chatHistory,
-                                                  );
-                                                },
-                                                icon: Stack(
-                                                  clipBehavior: Clip.none,
-                                                  children: <Widget>[
-                                                    Icon(
-                                                      Icons.chat_bubble_outline,
-                                                      size: 22.sp,
-                                                      color:
-                                                          AppColors.textPrimary,
-                                                    ),
-                                                    if (chatState.hasUnread)
-                                                      Positioned(
-                                                        right: -1,
-                                                        top: -1,
-                                                        child: Container(
-                                                          width: 8.r,
-                                                          height: 8.r,
-                                                          decoration:
-                                                              BoxDecoration(
-                                                                color: AppColors
-                                                                    .success,
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
+                                          SizedBox(
+                                            width: max(48, 48.w),
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: showBackButton
+                                                  ? const SafeBackButton(
+                                                      fallbackRoute: AppRoutes
+                                                          .gameSelection,
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
                                           ),
-                                          BlocBuilder<
-                                            NotificationsBloc,
-                                            NotificationsState
-                                          >(
-                                            builder: (context, notifications) {
-                                              final hasBadge =
-                                                  notifications
-                                                      .hasPendingRequests ||
-                                                  notifications.hasUnread;
-                                              return IconButton(
-                                                padding: EdgeInsets.zero,
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                constraints: BoxConstraints(
-                                                  minWidth: 40.w,
-                                                  minHeight: 40.w,
-                                                ),
-                                                onPressed: () {
-                                                  context.push(
-                                                    AppRoutes.notifications,
-                                                  );
-                                                },
-                                                icon: Stack(
-                                                  clipBehavior: Clip.none,
-                                                  children: <Widget>[
-                                                    Icon(
-                                                      Icons.notifications_none,
-                                                      size: 22.sp,
-                                                      color:
-                                                          AppColors.textPrimary,
+                                          Expanded(
+                                            child: Text(
+                                              AppStrings.home,
+                                              textAlign: TextAlign.center,
+                                              style: AppTextStyles.pageTitle,
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: <Widget>[
+                                              BlocBuilder<
+                                                ChatBadgeBloc,
+                                                ChatBadgeState
+                                              >(
+                                                builder: (context, chatState) {
+                                                  return IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    constraints: BoxConstraints(
+                                                      minWidth: 40.w,
+                                                      minHeight: 40.w,
                                                     ),
-                                                    if (hasBadge)
-                                                      Positioned(
-                                                        right: -1,
-                                                        top: -1,
-                                                        child: Container(
-                                                          width: 8.r,
-                                                          height: 8.r,
-                                                          decoration:
-                                                              BoxDecoration(
+                                                    onPressed: () {
+                                                      context.push(
+                                                        AppRoutes.chatHistory,
+                                                      );
+                                                    },
+                                                    icon: Stack(
+                                                      clipBehavior: Clip.none,
+                                                      children: <Widget>[
+                                                        Icon(
+                                                          Icons
+                                                              .chat_bubble_outline,
+                                                          size: 22.sp,
+                                                          color: AppColors
+                                                              .textPrimary,
+                                                        ),
+                                                        if (chatState.hasUnread)
+                                                          Positioned(
+                                                            right: -1,
+                                                            top: -1,
+                                                            child: Container(
+                                                              width: 8.r,
+                                                              height: 8.r,
+                                                              decoration: const BoxDecoration(
                                                                 color: AppColors
                                                                     .success,
                                                                 shape: BoxShape
                                                                     .circle,
                                                               ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                              BlocBuilder<
+                                                NotificationsBloc,
+                                                NotificationsState
+                                              >(
+                                                builder: (context, notifications) {
+                                                  final hasBadge =
+                                                      notifications
+                                                          .hasPendingRequests ||
+                                                      notifications.hasUnread;
+                                                  return IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    constraints: BoxConstraints(
+                                                      minWidth: 40.w,
+                                                      minHeight: 40.w,
+                                                    ),
+                                                    onPressed: () {
+                                                      context.push(
+                                                        AppRoutes.notifications,
+                                                      );
+                                                    },
+                                                    icon: Stack(
+                                                      clipBehavior: Clip.none,
+                                                      children: <Widget>[
+                                                        Icon(
+                                                          Icons
+                                                              .notifications_none,
+                                                          size: 22.sp,
+                                                          color: AppColors
+                                                              .textPrimary,
                                                         ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
+                                                        if (hasBadge)
+                                                          Positioned(
+                                                            right: -1,
+                                                            top: -1,
+                                                            child: Container(
+                                                              width: 8.r,
+                                                              height: 8.r,
+                                                              decoration: const BoxDecoration(
+                                                                color: AppColors
+                                                                    .success,
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 8.h),
-                                  Text(
-                                    AppStrings.homeTitle,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.sectionTitle.copyWith(
-                                      fontSize: 26.sp,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2.h),
-                                  Text(
-                                    AppStrings.homeSubtitle,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.caption.copyWith(
-                                      fontSize: 12.sp,
-                                    ),
-                                  ),
-                                  BlocBuilder<ChatBadgeBloc, ChatBadgeState>(
-                                    builder: (context, chatState) {
-                                      return BlocBuilder<
-                                        NotificationsBloc,
-                                        NotificationsState
+                                      SizedBox(height: 8.h),
+                                      Text(
+                                        AppStrings.homeTitle,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.sectionTitle
+                                            .copyWith(fontSize: 26.sp),
+                                      ),
+                                      SizedBox(height: 2.h),
+                                      Text(
+                                        AppStrings.homeSubtitle,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize: 12.sp,
+                                        ),
+                                      ),
+                                      BlocBuilder<
+                                        ChatBadgeBloc,
+                                        ChatBadgeState
                                       >(
-                                        builder: (context, notificationsState) {
-                                          final hasRequests = notificationsState
-                                              .hasPendingRequests;
-                                          final hasMessages =
-                                              chatState.hasUnread;
-                                          String? hint;
-                                          if (hasRequests && hasMessages) {
-                                            hint = AppStrings
-                                                .newRequestsAndMessagesHint;
-                                          } else if (hasRequests) {
-                                            hint = AppStrings.newRequestsHint;
-                                          } else if (hasMessages) {
-                                            hint = AppStrings.newMessagesHint;
-                                          }
-                                          if (hint == null) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return Padding(
-                                            padding: EdgeInsets.only(top: 6.h),
-                                            child: Text(
-                                              hint,
-                                              textAlign: TextAlign.center,
-                                              style: AppTextStyles.caption
-                                                  .copyWith(
-                                                    color: AppColors.success,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
+                                        builder: (context, chatState) {
+                                          return BlocBuilder<
+                                            NotificationsBloc,
+                                            NotificationsState
+                                          >(
+                                            builder: (context, notificationsState) {
+                                              final hasRequests =
+                                                  notificationsState
+                                                      .hasPendingRequests;
+                                              final hasMessages =
+                                                  chatState.hasUnread;
+                                              String? hint;
+                                              if (hasRequests && hasMessages) {
+                                                hint = AppStrings
+                                                    .newRequestsAndMessagesHint;
+                                              } else if (hasRequests) {
+                                                hint =
+                                                    AppStrings.newRequestsHint;
+                                              } else if (hasMessages) {
+                                                hint =
+                                                    AppStrings.newMessagesHint;
+                                              }
+                                              if (hint == null) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              return Padding(
+                                                padding: EdgeInsets.only(
+                                                  top: 6.h,
+                                                ),
+                                                child: Text(
+                                                  hint,
+                                                  textAlign: TextAlign.center,
+                                                  style: AppTextStyles.caption
+                                                      .copyWith(
+                                                        color:
+                                                            AppColors.success,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                ),
+                                              );
+                                            },
                                           );
                                         },
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder:
-                                    (
-                                      BuildContext context,
-                                      BoxConstraints boxConstraints,
-                                    ) {
-                                      final minSide = min(
-                                        boxConstraints.maxWidth,
-                                        boxConstraints.maxHeight,
-                                      );
-                                      final maxDiameter =
-                                          minSide /
-                                          AvailabilityWaveButton.waveScale;
-                                      final target = min(maxDiameter, 236.w);
-                                      final safeMin = 132.w;
-                                      final diameter = maxDiameter < safeMin
-                                          ? maxDiameter
-                                          : max(safeMin, target);
-
-                                      return Center(
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.translucent,
-                                          onTap: () {
-                                            if (!state.canToggleAvailability) {
-                                              AppSnackBar.showInfo(
-                                                context,
-                                                AppStrings
-                                                    .completeAvailabilitySelection,
+                                ),
+                                SizedBox(
+                                  height: waveSectionHeight,
+                                  child: Center(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.translucent,
+                                      onTap: () {
+                                        if (!state.canToggleAvailability) {
+                                          AppSnackBar.showInfo(
+                                            context,
+                                            AppStrings
+                                                .completeAvailabilitySelection,
+                                          );
+                                          return;
+                                        }
+                                        context
+                                            .read<HomeAvailabilityBloc>()
+                                            .add(
+                                              const HomeAvailabilityToggled(),
+                                            );
+                                      },
+                                      child: AvailabilityWaveButton(
+                                        isAvailable: state.isAvailable,
+                                        enabled: state.canToggleAvailability,
+                                        diameter: diameter,
+                                        onPressed: () {
+                                          context
+                                              .read<HomeAvailabilityBloc>()
+                                              .add(
+                                                const HomeAvailabilityToggled(),
                                               );
-                                              return;
-                                            }
-                                            context
-                                                .read<HomeAvailabilityBloc>()
-                                                .add(
-                                                  const HomeAvailabilityToggled(),
-                                                );
-                                          },
-                                          child: AvailabilityWaveButton(
-                                            isAvailable: state.isAvailable,
-                                            enabled:
-                                                state.canToggleAvailability,
-                                            diameter: diameter,
-                                            onPressed: () {
-                                              context
-                                                  .read<HomeAvailabilityBloc>()
-                                                  .add(
-                                                    const HomeAvailabilityToggled(),
-                                                  );
-                                            },
-                                          ),
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    contentPadding.left,
+                                    0,
+                                    contentPadding.right,
+                                    10.h,
+                                  ),
+                                  child: Text(
+                                    !state.canToggleAvailability
+                                        ? AppStrings
+                                              .completeAvailabilitySelection
+                                        : state.isAvailable
+                                        ? AppStrings.availabilityHintOn
+                                        : AppStrings.availabilityHintOff,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      fontSize: 13.sp,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    contentPadding.left,
+                                    0,
+                                    contentPadding.right,
+                                    6.h,
+                                  ),
+                                  child: AvailabilityFiltersCard(
+                                    compact: true,
+                                    selectedGameId: state.selectedGameId,
+                                    selectedLanguage: state.selectedLanguage,
+                                    selectedRank: state.selectedRank,
+                                    onGameChanged: (String? value) async {
+                                      if (value == null ||
+                                          value == state.selectedGameId) {
+                                        return;
+                                      }
+                                      final availabilityBloc = context
+                                          .read<HomeAvailabilityBloc>();
+                                      final gameBloc = context.read<GameBloc>();
+                                      final canChange =
+                                          await _canChangeAvailabilityPreferences(
+                                            state,
+                                          );
+                                      if (!canChange || !mounted) {
+                                        return;
+                                      }
+                                      availabilityBloc.add(
+                                        HomeAvailabilityGameChanged(
+                                          gameId: value,
+                                        ),
+                                      );
+                                      gameBloc.add(GameSelected(gameId: value));
+                                    },
+                                    onLanguageChanged: (String? value) async {
+                                      if (value == state.selectedLanguage) {
+                                        return;
+                                      }
+                                      final availabilityBloc = context
+                                          .read<HomeAvailabilityBloc>();
+                                      final canChange =
+                                          await _canChangeAvailabilityPreferences(
+                                            state,
+                                          );
+                                      if (!canChange || !mounted) {
+                                        return;
+                                      }
+                                      availabilityBloc.add(
+                                        HomeAvailabilityLanguageChanged(
+                                          language: value,
                                         ),
                                       );
                                     },
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                contentPadding.left,
-                                0,
-                                contentPadding.right,
-                                6.h,
-                              ),
-                              child: AvailabilityFiltersCard(
-                                compact: true,
-                                selectedGameId: state.selectedGameId,
-                                selectedLanguage: state.selectedLanguage,
-                                selectedRank: state.selectedRank,
-                                onGameChanged: (String? value) async {
-                                  if (value == null ||
-                                      value == state.selectedGameId) {
-                                    return;
-                                  }
-                                  final availabilityBloc =
-                                      context.read<HomeAvailabilityBloc>();
-                                  final gameBloc = context.read<GameBloc>();
-                                  final canChange =
-                                      await _canChangeAvailabilityPreferences(
-                                        state,
+                                    onRankChanged: (String? value) async {
+                                      if (value == state.selectedRank) {
+                                        return;
+                                      }
+                                      final availabilityBloc = context
+                                          .read<HomeAvailabilityBloc>();
+                                      final canChange =
+                                          await _canChangeAvailabilityPreferences(
+                                            state,
+                                          );
+                                      if (!canChange || !mounted) {
+                                        return;
+                                      }
+                                      availabilityBloc.add(
+                                        HomeAvailabilityRankChanged(
+                                          rank: value,
+                                        ),
                                       );
-                                  if (!canChange || !mounted) {
-                                    return;
-                                  }
-                                  availabilityBloc.add(
-                                    HomeAvailabilityGameChanged(gameId: value),
-                                  );
-                                  gameBloc.add(GameSelected(gameId: value));
-                                },
-                                onLanguageChanged: (String? value) async {
-                                  if (value == state.selectedLanguage) {
-                                    return;
-                                  }
-                                  final availabilityBloc =
-                                      context.read<HomeAvailabilityBloc>();
-                                  final canChange =
-                                      await _canChangeAvailabilityPreferences(
-                                        state,
-                                      );
-                                  if (!canChange || !mounted) {
-                                    return;
-                                  }
-                                  availabilityBloc.add(
-                                    HomeAvailabilityLanguageChanged(
-                                      language: value,
-                                    ),
-                                  );
-                                },
-                                onRankChanged: (String? value) async {
-                                  if (value == state.selectedRank) {
-                                    return;
-                                  }
-                                  final availabilityBloc =
-                                      context.read<HomeAvailabilityBloc>();
-                                  final canChange =
-                                      await _canChangeAvailabilityPreferences(
-                                        state,
-                                      );
-                                  if (!canChange || !mounted) {
-                                    return;
-                                  }
-                                  availabilityBloc.add(
-                                    HomeAvailabilityRankChanged(rank: value),
-                                  );
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                contentPadding.left,
-                                0,
-                                contentPadding.right,
-                                6.h,
-                              ),
-                              child: ActivityPulsePanel(
-                                compact: true,
-                                showHint: false,
-                                gameId:
-                                    state.selectedGameId ??
-                                    AppOptions.valorantId,
-                                onSoloPlayersTap: () {
-                                  final gameId =
-                                      state.selectedGameId ??
-                                      AppOptions.valorantId;
-                                  context.push(
-                                    '${AppRoutes.availablePlayers}?gameId=$gameId',
-                                  );
-                                },
-                                onOpenPartiesTap: () {
-                                  final gameId =
-                                      state.selectedGameId ??
-                                      AppOptions.valorantId;
-                                  context.push(AppRoutes.partyListPath(gameId));
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                contentPadding.left,
-                                0,
-                                contentPadding.right,
-                                6.h,
-                              ),
-                              child: PrimaryButton(
-                                label: AppStrings.findSquadAction,
-                                icon: Icons.bolt_rounded,
-                                enabled: false,
-                                onDisabledPressed: () {
-                                  AppSnackBar.showInfo(
-                                    context,
-                                    AppStrings.findSquadComingSoon,
-                                  );
-                                },
-                                onPressed: () {
-                                  AppSnackBar.showInfo(
-                                    context,
-                                    AppStrings.findSquadComingSoon,
-                                  );
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                contentPadding.left,
-                                0,
-                                contentPadding.right,
-                                8.h,
-                              ),
-                              child: Text(
-                                !state.canToggleAvailability
-                                    ? AppStrings.completeAvailabilitySelection
-                                    : state.isAvailable
-                                    ? AppStrings.availabilityHintOn
-                                    : AppStrings.availabilityHintOff,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.bodyMedium.copyWith(
-                                  fontSize: 13.sp,
+                                    },
+                                  ),
                                 ),
-                              ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    contentPadding.left,
+                                    0,
+                                    contentPadding.right,
+                                    6.h,
+                                  ),
+                                  child: ActivityPulsePanel(
+                                    key: ValueKey<String>(
+                                      '${state.selectedGameId ?? AppOptions.valorantId}_$_activityPulseRefreshSeed',
+                                    ),
+                                    compact: true,
+                                    showHint: false,
+                                    gameId:
+                                        state.selectedGameId ??
+                                        AppOptions.valorantId,
+                                    onSoloPlayersTap: () {
+                                      final gameId =
+                                          state.selectedGameId ??
+                                          AppOptions.valorantId;
+                                      context.push(
+                                        '${AppRoutes.availablePlayers}?gameId=$gameId',
+                                      );
+                                    },
+                                    onOpenPartiesTap: () {
+                                      final gameId =
+                                          state.selectedGameId ??
+                                          AppOptions.valorantId;
+                                      context.push(
+                                        AppRoutes.partyListPath(gameId),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    contentPadding.left,
+                                    0,
+                                    contentPadding.right,
+                                    6.h,
+                                  ),
+                                  child: PrimaryButton(
+                                    label: AppStrings.findSquadAction,
+                                    icon: Icons.bolt_rounded,
+                                    enabled: false,
+                                    onDisabledPressed: () {
+                                      AppSnackBar.showInfo(
+                                        context,
+                                        AppStrings.findSquadComingSoon,
+                                      );
+                                    },
+                                    onPressed: () {
+                                      AppSnackBar.showInfo(
+                                        context,
+                                        AppStrings.findSquadComingSoon,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         );
                       },
                     );

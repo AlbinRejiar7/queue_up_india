@@ -7,6 +7,7 @@ abstract final class AppPreferences {
   static const String _selectedGameIdKey = 'selected_game_id';
   static const String _selectedLanguageKey = 'selected_language';
   static const String _selectedRankPrefix = 'selected_rank_';
+  static const String _pullToRefreshHintPrefix = 'pull_to_refresh_hint_seen_';
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,5 +80,15 @@ abstract final class AppPreferences {
   static Future<void> clearSelectedRank(String gameId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('$_selectedRankPrefix$gameId');
+  }
+
+  static Future<bool> hasSeenPullToRefreshHint(String screenKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('$_pullToRefreshHintPrefix$screenKey') ?? false;
+  }
+
+  static Future<void> markPullToRefreshHintSeen(String screenKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$_pullToRefreshHintPrefix$screenKey', true);
   }
 }

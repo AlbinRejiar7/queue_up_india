@@ -22,6 +22,8 @@ class ChatHistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasUnread = thread.unreadCount > 0;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22.r),
@@ -29,72 +31,104 @@ class ChatHistoryTile extends StatelessWidget {
         borderRadius: 22.r,
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                CircleAvatar(
-                  radius: 22.r,
-                  backgroundColor: AppColors.navSurface,
-                  backgroundImage: _avatarProvider(thread.peerAvatarUrl),
-                ),
-                if (thread.unreadCount > 0)
-                  Positioned(
-                    right: -1.r,
-                    top: -1.r,
-                    child: Container(
-                      width: 10.r,
-                      height: 10.r,
-                      decoration: BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.navSurface,
-                          width: 2.r,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            CircleAvatar(
+              radius: 22.r,
+              backgroundColor: AppColors.navSurface,
+              backgroundImage: _avatarProvider(thread.peerAvatarUrl),
             ),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    thread.peerName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
-                      fontSize: 15.sp,
-                    ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          thread.peerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontSize: 15.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 4.h),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.caption.copyWith(
+                            color: hasUnread
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                            fontWeight: hasUnread
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            SizedBox(width: 8.w),
-            Text(
-              formatChatListTime(context, thread.lastMessageAt),
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            SizedBox(width: 10.w),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                if (hasUnread)
+                  Container(
+                    constraints: BoxConstraints(minWidth: 22.w),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 7.w,
+                      vertical: 3.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: BorderRadius.circular(999.r),
+                    ),
+                    child: Text(
+                      _formatUnreadCount(thread.unreadCount),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                  ),
+                if (hasUnread) SizedBox(height: 6.h),
+                if (!hasUnread) SizedBox(height: 2.h),
+                Text(
+                  formatChatListTime(context, thread.lastMessageAt),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+}
+
+String _formatUnreadCount(int count) {
+  if (count > 99) {
+    return '99+';
+  }
+  return '$count';
 }
 
 ImageProvider _avatarProvider(String url) {

@@ -41,6 +41,8 @@ class PlayerChatScreen extends StatefulWidget {
 class _PlayerChatScreenState extends State<PlayerChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _stickToBottom = true;
+  bool _hasAnchoredInitialMessages = false;
+  int _lastObservedMessageCount = 0;
   bool _showAllQuickMessages = false;
   bool _isBlocked = false;
   bool _isBlocking = false;
@@ -84,13 +86,18 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animated = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) {
         return;
       }
+      final targetOffset = _scrollController.position.minScrollExtent;
+      if (!animated) {
+        _scrollController.jumpTo(targetOffset);
+        return;
+      }
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        targetOffset,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
@@ -1108,9 +1115,20 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                 sendError,
                                               );
                                             }
-                                            if (_stickToBottom &&
+                                            final messageCountChanged =
+                                                _lastObservedMessageCount !=
+                                                state.messages.length;
+                                            _lastObservedMessageCount =
+                                                state.messages.length;
+                                            if (messageCountChanged &&
+                                                _stickToBottom &&
                                                 !state.isLoadingMore) {
-                                              _scrollToBottom();
+                                              _scrollToBottom(
+                                                animated:
+                                                    _hasAnchoredInitialMessages,
+                                              );
+                                              _hasAnchoredInitialMessages =
+                                                  true;
                                             }
                                           },
                                           child: BlocBuilder<ChatBloc, ChatState>(
@@ -1127,12 +1145,24 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                   final metrics =
                                                       notification.metrics;
                                                   final distanceToBottom =
-                                                      metrics.maxScrollExtent -
-                                                      metrics.pixels;
+                                                      metrics.pixels -
+                                                      metrics.minScrollExtent;
                                                   _stickToBottom =
                                                       distanceToBottom <= 120.h;
 
-                                                  if (metrics.pixels <= 120.h) {
+                                                  final shouldLoadOlder =
+                                                      notification
+                                                          is ScrollUpdateNotification &&
+                                                      notification
+                                                              .dragDetails !=
+                                                          null &&
+                                                      metrics.pixels >=
+                                                          metrics.maxScrollExtent -
+                                                              120.h &&
+                                                      state.hasMore &&
+                                                      !state.isLoadingMore;
+
+                                                  if (shouldLoadOlder) {
                                                     context.read<ChatBloc>().add(
                                                       const ChatLoadOlderRequested(),
                                                     );
@@ -1141,6 +1171,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                 },
                                                 child: ListView.builder(
                                                   controller: _scrollController,
+                                                  reverse: true,
                                                   itemCount: itemCount,
                                                   itemBuilder:
                                                       (
@@ -1149,11 +1180,12 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                       ) {
                                                         if (state
                                                                 .isLoadingMore &&
-                                                            index == 0) {
+                                                            index ==
+                                                                itemCount - 1) {
                                                           return Padding(
                                                             padding:
                                                                 EdgeInsets.only(
-                                                                  bottom: 8.h,
+                                                                  top: 8.h,
                                                                 ),
                                                             child: const Center(
                                                               child:
@@ -1162,9 +1194,9 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                                           );
                                                         }
                                                         final messageIndex =
-                                                            state.isLoadingMore
-                                                            ? index - 1
-                                                            : index;
+                                                            messages.length -
+                                                            1 -
+                                                            index;
                                                         return ChatBubble(
                                                           message:
                                                               messages[messageIndex],

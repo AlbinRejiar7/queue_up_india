@@ -4,14 +4,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/utils/paged_result.dart';
 import '../models/chat_thread.dart';
+import '../utils/direct_chat_firebase_debug.dart';
 import '../viewmodel/chat_view_model.dart';
 import 'chat_history_event.dart';
 import 'chat_history_state.dart';
 
 class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
   ChatHistoryBloc({required ChatViewModel chatViewModel})
-      : _chatViewModel = chatViewModel,
-        super(const ChatHistoryState.initial()) {
+    : _chatViewModel = chatViewModel,
+      super(const ChatHistoryState.initial()) {
     on<ChatHistoryStarted>(_onStarted);
     on<ChatHistoryLoadMoreRequested>(_onLoadMore);
     on<ChatHistoryRefreshRequested>(_onRefresh);
@@ -37,6 +38,7 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
     if (state.isLoading || state.threads.isNotEmpty) {
       return;
     }
+    DirectChatFirebaseDebug.info('ChatHistoryBloc._onStarted', 'initial load');
     await _reload(emit);
   }
 
@@ -53,15 +55,16 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
       return;
     }
     emit(state.copyWith(isLoadingMore: true));
+    DirectChatFirebaseDebug.info(
+      'ChatHistoryBloc._onLoadMore',
+      'request older threads cursorType=${cursor.runtimeType}',
+    );
     try {
       final page = await _chatViewModel.fetchDirectThreadsPage(
         cursor: cursor,
         limit: _pageSize,
       );
-      _olderThreads = <ChatThread>[
-        ..._olderThreads,
-        ...page.items,
-      ];
+      _olderThreads = <ChatThread>[..._olderThreads, ...page.items];
       _olderCursor = page.nextCursor;
       _olderHasMore = page.hasMore;
       final combined = _mergeThreads(_liveThreads, _olderThreads);
@@ -82,6 +85,10 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
     ChatHistoryRefreshRequested event,
     Emitter<ChatHistoryState> emit,
   ) async {
+    DirectChatFirebaseDebug.info(
+      'ChatHistoryBloc._onRefresh',
+      'manual refresh',
+    );
     await _reload(emit);
   }
 
@@ -101,10 +108,10 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
     }
 
     final combined = _mergeThreads(_liveThreads, _olderThreads);
-    final effectiveCursor =
-        _olderThreads.isEmpty ? _liveCursor : _olderCursor;
-    final effectiveHasMore =
-        _olderThreads.isEmpty ? _liveHasMore : _olderHasMore;
+    final effectiveCursor = _olderThreads.isEmpty ? _liveCursor : _olderCursor;
+    final effectiveHasMore = _olderThreads.isEmpty
+        ? _liveHasMore
+        : _olderHasMore;
 
     emit(
       state.copyWith(
@@ -113,6 +120,10 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
         hasMore: effectiveHasMore,
         isLoading: false,
       ),
+    );
+    DirectChatFirebaseDebug.info(
+      'ChatHistoryBloc._onLiveUpdated',
+      'threads=${combined.length} hasMore=$effectiveHasMore',
     );
   }
 
@@ -139,8 +150,8 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
     _liveSubscription = _chatViewModel
         .watchDirectThreadsPage(limit: _pageSize)
         .listen((page) {
-      add(ChatHistoryLivePageUpdated(page: page));
-    });
+          add(ChatHistoryLivePageUpdated(page: page));
+        });
   }
 
   List<ChatThread> _mergeThreads(
@@ -155,9 +166,7 @@ class ChatHistoryBloc extends Bloc<ChatHistoryEvent, ChatHistoryState> {
       byId.putIfAbsent(thread.id, () => thread);
     }
     final combined = byId.values.toList();
-    combined.sort(
-      (a, b) => b.lastMessageAt.compareTo(a.lastMessageAt),
-    );
+    combined.sort((a, b) => b.lastMessageAt.compareTo(a.lastMessageAt));
     return combined;
   }
 

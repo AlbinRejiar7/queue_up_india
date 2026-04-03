@@ -1515,6 +1515,7 @@ exports.onDirectMessageCreate = onDocumentCreated(
     const chatId = event.params.chatId;
     const chatRef = db.collection("direct_chats").doc(chatId);
     const senderId = data.senderId || null;
+    const clientSynced = data.clientSynced === true;
     let participants = parseDirectChatParticipants(chatId);
     if (!participants.length) {
       const chatSnap = await chatRef.get();
@@ -1523,23 +1524,25 @@ exports.onDirectMessageCreate = onDocumentCreated(
         : [];
     }
 
-    const updates = {
-      lastMessage: data.text || "",
-      lastMessageAt: FieldValue.serverTimestamp(),
-      lastMessageSenderId: senderId
-    };
+    if (!clientSynced) {
+      const updates = {
+        lastMessage: data.text || "",
+        lastMessageAt: FieldValue.serverTimestamp(),
+        lastMessageSenderId: senderId
+      };
 
-    participants.forEach((uid) => {
-      if (!uid) return;
-      if (senderId && uid === senderId) {
-        updates[`unreadCounts.${uid}`] = 0;
-        updates[`lastReadAt.${uid}`] = FieldValue.serverTimestamp();
-      } else {
-        updates[`unreadCounts.${uid}`] = FieldValue.increment(1);
-      }
-    });
+      participants.forEach((uid) => {
+        if (!uid) return;
+        if (senderId && uid === senderId) {
+          updates[`unreadCounts.${uid}`] = 0;
+          updates[`lastReadAt.${uid}`] = FieldValue.serverTimestamp();
+        } else {
+          updates[`unreadCounts.${uid}`] = FieldValue.increment(1);
+        }
+      });
 
-    await chatRef.set(updates, { merge: true });
+      await chatRef.set(updates, { merge: true });
+    }
 
     const senderName = data.senderName || "Player";
     const messageText = data.text || "";

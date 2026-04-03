@@ -97,6 +97,10 @@ class ChatViewModel {
     return _repository.sendDirectMessage(peerId: targetId, message: message);
   }
 
+  Future<int> getDirectChatUnreadCount({required String peerId}) {
+    return _repository.getDirectChatUnreadCount(peerId: peerId);
+  }
+
   Future<void> markDirectChatRead({required String peerId}) {
     return _repository.markDirectChatRead(peerId: peerId);
   }

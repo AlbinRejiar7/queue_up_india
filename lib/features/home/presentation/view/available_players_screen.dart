@@ -10,6 +10,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
+import '../../../../core/widgets/pull_to_refresh_hint.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/available_players_bloc.dart';
@@ -45,9 +46,9 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
     _initializedFromRoute = true;
     final gameId = GoRouterState.of(context).uri.queryParameters['gameId'];
     if (gameId != null && gameId.isNotEmpty) {
-      context
-          .read<AvailablePlayersBloc>()
-          .add(AvailablePlayersGameChanged(gameId: gameId));
+      context.read<AvailablePlayersBloc>().add(
+        AvailablePlayersGameChanged(gameId: gameId),
+      );
     }
   }
 
@@ -63,9 +64,9 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
     }
     final position = _scrollController.position;
     if (position.maxScrollExtent - position.pixels <= 200.h) {
-      context
-          .read<AvailablePlayersBloc>()
-          .add(const AvailablePlayersLoadMoreRequested());
+      context.read<AvailablePlayersBloc>().add(
+        const AvailablePlayersLoadMoreRequested(),
+      );
     }
   }
 
@@ -90,7 +91,10 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                   BoxConstraints constraints,
                   EdgeInsets contentPadding,
                 ) {
-                  return BlocBuilder<AvailablePlayersBloc, AvailablePlayersState>(
+                  return BlocBuilder<
+                    AvailablePlayersBloc,
+                    AvailablePlayersState
+                  >(
                     builder: (BuildContext context, AvailablePlayersState state) {
                       final players = state.players;
                       final currentUserId =
@@ -109,7 +113,8 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                           if (message == null) {
                             return;
                           }
-                          final messageType = state.requestMessageType ??
+                          final messageType =
+                              state.requestMessageType ??
                               (state.requestSuccess == true
                                   ? RequestMessageType.success
                                   : RequestMessageType.error);
@@ -123,9 +128,7 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                 if (!context.mounted) {
                                   return;
                                 }
-                                context.push(
-                                  AppRoutes.playerChatPath(peerId),
-                                );
+                                context.push(AppRoutes.playerChatPath(peerId));
                               },
                               type: _mapSnackBarType(messageType),
                             );
@@ -143,31 +146,31 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                             }
                           }
                           context.read<AvailablePlayersBloc>().add(
-                                const AvailablePlayersRequestMessageCleared(),
-                              );
+                            const AvailablePlayersRequestMessageCleared(),
+                          );
                         },
                         child: Column(
                           children: <Widget>[
                             Padding(
                               padding: contentPadding,
                               child: Column(
-                              children: <Widget>[
-                                SizedBox(height: 6.h),
-                                Row(
-                                  children: <Widget>[
-                                    const SafeBackButton(
-                                      fallbackRoute: AppRoutes.home,
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        AppStrings.availablePlayersTitle,
-                                        textAlign: TextAlign.center,
-                                        style: AppTextStyles.pageTitle,
+                                children: <Widget>[
+                                  SizedBox(height: 6.h),
+                                  Row(
+                                    children: <Widget>[
+                                      const SafeBackButton(
+                                        fallbackRoute: AppRoutes.home,
                                       ),
-                                    ),
-                                    SizedBox(width: 48.w),
-                                  ],
-                                ),
+                                      Expanded(
+                                        child: Text(
+                                          AppStrings.availablePlayersTitle,
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.pageTitle,
+                                        ),
+                                      ),
+                                      SizedBox(width: 48.w),
+                                    ],
+                                  ),
                                   SizedBox(height: 8.h),
                                   Text(
                                     AppStrings.availablePlayersSubtitle,
@@ -175,74 +178,75 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                     style: AppTextStyles.bodyMedium,
                                   ),
                                   SizedBox(height: 10.h),
-                                AvailablePlayersFilters(
-                                  selectedGameId: state.selectedGameId,
-                                  selectedRank: state.selectedRank,
-                                  selectedLanguage: state.selectedLanguage,
-                                  onRankChanged: (String? value) {
-                                    context.read<AvailablePlayersBloc>().add(
-                                          AvailablePlayersRankChanged(
-                                            rank: value,
-                                            ),
-                                          );
+                                  AvailablePlayersFilters(
+                                    selectedGameId: state.selectedGameId,
+                                    selectedRank: state.selectedRank,
+                                    selectedLanguage: state.selectedLanguage,
+                                    onRankChanged: (String? value) {
+                                      context.read<AvailablePlayersBloc>().add(
+                                        AvailablePlayersRankChanged(
+                                          rank: value,
+                                        ),
+                                      );
                                     },
                                     onLanguageChanged: (String? value) {
                                       context.read<AvailablePlayersBloc>().add(
-                                            AvailablePlayersLanguageChanged(
-                                              language: value,
-                                            ),
-                                          );
+                                        AvailablePlayersLanguageChanged(
+                                          language: value,
+                                        ),
+                                      );
                                     },
                                     onReset: () {
-                                      context
-                                          .read<AvailablePlayersBloc>()
-                                          .add(const AvailablePlayersReset());
+                                      context.read<AvailablePlayersBloc>().add(
+                                        const AvailablePlayersReset(),
+                                      );
                                     },
                                   ),
                                 ],
                               ),
                             ),
                             Expanded(
-                              child: RefreshIndicator(
-                                onRefresh: _handleRefresh,
-                                child: state.isLoading && players.isEmpty
-                                    ? ListView(
-                                        physics:
-                                            const AlwaysScrollableScrollPhysics(),
-                                        padding: EdgeInsets.fromLTRB(
-                                          contentPadding.left,
-                                          120.h,
-                                          contentPadding.right,
-                                          20.h,
-                                        ),
-                                        children: const <Widget>[
-                                          Center(
-                                            child:
-                                                CircularProgressIndicator(),
+                              child: PullToRefreshHint(
+                                preferenceKey: 'available_players_screen',
+                                child: RefreshIndicator(
+                                  onRefresh: _handleRefresh,
+                                  child: state.isLoading && players.isEmpty
+                                      ? ListView(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          padding: EdgeInsets.fromLTRB(
+                                            contentPadding.left,
+                                            120.h,
+                                            contentPadding.right,
+                                            20.h,
                                           ),
-                                        ],
-                                      )
-                                    : players.isEmpty
-                                        ? ListView(
-                                            physics:
-                                                const AlwaysScrollableScrollPhysics(),
-                                            padding: EdgeInsets.fromLTRB(
-                                              contentPadding.left,
-                                              120.h,
-                                              contentPadding.right,
-                                              20.h,
+                                          children: const <Widget>[
+                                            Center(
+                                              child:
+                                                  CircularProgressIndicator(),
                                             ),
-                                            children: <Widget>[
-                                              Center(
-                                                child: Text(
-                                                  AppStrings.noAvailablePlayers,
-                                                  style:
-                                                      AppTextStyles.bodyMedium,
-                                                ),
+                                          ],
+                                        )
+                                      : players.isEmpty
+                                      ? ListView(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          padding: EdgeInsets.fromLTRB(
+                                            contentPadding.left,
+                                            120.h,
+                                            contentPadding.right,
+                                            20.h,
+                                          ),
+                                          children: <Widget>[
+                                            Center(
+                                              child: Text(
+                                                AppStrings.noAvailablePlayers,
+                                                style: AppTextStyles.bodyMedium,
                                               ),
-                                            ],
-                                          )
-                                        : (isTablet
+                                            ),
+                                          ],
+                                        )
+                                      : (isTablet
                                             ? GridView.builder(
                                                 controller: _scrollController,
                                                 physics:
@@ -253,20 +257,19 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                   contentPadding.right,
                                                   20.h,
                                                 ),
-                                                itemCount: players.length +
+                                                itemCount:
+                                                    players.length +
                                                     (state.isLoadingMore
                                                         ? 1
                                                         : 0),
                                                 gridDelegate:
                                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                                  crossAxisCount: 2,
-                                                  mainAxisExtent: 140.h,
-                                                  mainAxisSpacing: 12.h,
-                                                  crossAxisSpacing: 12.w,
-                                                ),
-                                                itemBuilder:
-                                                    (BuildContext context,
-                                                        int index) {
+                                                      crossAxisCount: 2,
+                                                      mainAxisExtent: 140.h,
+                                                      mainAxisSpacing: 12.h,
+                                                      crossAxisSpacing: 12.w,
+                                                    ),
+                                                itemBuilder: (BuildContext context, int index) {
                                                   if (index >= players.length) {
                                                     return const Center(
                                                       child:
@@ -279,7 +282,7 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                       player.id ==
                                                           currentUserId;
                                                   Future<void>
-                                                      handleRequestTap() async {
+                                                  handleRequestTap() async {
                                                     if (isSelf) {
                                                       AppSnackBar.showError(
                                                         context,
@@ -288,16 +291,14 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                       );
                                                       return;
                                                     }
-                                                    final confirmed =
-                                                        await AppDialog
-                                                            .showConfirm(
+                                                    final confirmed = await AppDialog.showConfirm(
                                                       context,
                                                       title: AppStrings
                                                           .sendChatRequestTitle,
-                                                      message: AppStrings
-                                                          .sendChatRequestMessage(
-                                                        player.name,
-                                                      ),
+                                                      message:
+                                                          AppStrings.sendChatRequestMessage(
+                                                            player.name,
+                                                          ),
                                                       confirmLabel: AppStrings
                                                           .sendChatRequestAction,
                                                       cancelLabel: AppStrings
@@ -311,7 +312,8 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                     }
                                                     context
                                                         .read<
-                                                            AvailablePlayersBloc>()
+                                                          AvailablePlayersBloc
+                                                        >()
                                                         .add(
                                                           AvailablePlayersRequestSent(
                                                             player: player,
@@ -337,37 +339,34 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                   contentPadding.right,
                                                   20.h,
                                                 ),
-                                                itemCount: players.length +
+                                                itemCount:
+                                                    players.length +
                                                     (state.isLoadingMore
                                                         ? 1
                                                         : 0),
                                                 separatorBuilder:
                                                     (context, index) =>
                                                         SizedBox(height: 10.h),
-                                                itemBuilder: (
-                                                  BuildContext context,
-                                                  int index,
-                                                ) {
+                                                itemBuilder: (BuildContext context, int index) {
                                                   if (index >= players.length) {
                                                     return Padding(
                                                       padding:
                                                           EdgeInsets.symmetric(
-                                                        vertical: 8.h,
-                                                      ),
+                                                            vertical: 8.h,
+                                                          ),
                                                       child: const Center(
                                                         child:
                                                             CircularProgressIndicator(),
                                                       ),
                                                     );
                                                   }
-                                                  final player =
-                                                      players[index];
+                                                  final player = players[index];
                                                   final isSelf =
                                                       currentUserId != null &&
                                                       player.id ==
                                                           currentUserId;
                                                   Future<void>
-                                                      handleRequestTap() async {
+                                                  handleRequestTap() async {
                                                     if (isSelf) {
                                                       AppSnackBar.showError(
                                                         context,
@@ -376,16 +375,14 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                       );
                                                       return;
                                                     }
-                                                    final confirmed =
-                                                        await AppDialog
-                                                            .showConfirm(
+                                                    final confirmed = await AppDialog.showConfirm(
                                                       context,
                                                       title: AppStrings
                                                           .sendChatRequestTitle,
-                                                      message: AppStrings
-                                                          .sendChatRequestMessage(
-                                                        player.name,
-                                                      ),
+                                                      message:
+                                                          AppStrings.sendChatRequestMessage(
+                                                            player.name,
+                                                          ),
                                                       confirmLabel: AppStrings
                                                           .sendChatRequestAction,
                                                       cancelLabel: AppStrings
@@ -399,7 +396,8 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                     }
                                                     context
                                                         .read<
-                                                            AvailablePlayersBloc>()
+                                                          AvailablePlayersBloc
+                                                        >()
                                                         .add(
                                                           AvailablePlayersRequestSent(
                                                             player: player,
@@ -415,6 +413,7 @@ class _AvailablePlayersScreenState extends State<AvailablePlayersScreen> {
                                                   );
                                                 },
                                               )),
+                                ),
                               ),
                             ),
                           ],

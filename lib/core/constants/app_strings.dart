@@ -524,6 +524,7 @@ abstract final class AppStrings {
   static const String loading = 'Loading...';
   static const String errorTitle = 'Something went wrong';
   static const String retry = 'Retry';
+  static const String pullToRefreshHint = 'Pull down to refresh';
   static const String authFailed = 'Unable to sign in. Please try again.';
   static const String gameLoadFailed = 'Unable to load games right now.';
   static const String partyLoadFailed = 'Unable to load parties right now.';

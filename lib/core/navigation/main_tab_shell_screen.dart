@@ -20,6 +20,8 @@ import '../../features/settings/bloc/profile_state.dart';
 import '../../features/settings/presentation/view/profile_screen.dart';
 import '../constants/app_options.dart';
 import '../constants/app_strings.dart';
+import '../di/injection_container.dart';
+import '../services/direct_chat_monitor_service.dart';
 import '../services/in_app_alert_service.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/bloc/main_tab_event.dart';
@@ -46,13 +48,12 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   static const Duration _slideDuration = Duration(milliseconds: 260);
 
   late final PageController _pageController;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _directChatSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _hostPartySub;
   StreamSubscription<bool>? _availabilitySub;
-  final Map<String, DateTime> _lastChatSeenAt = <String, DateTime>{};
+  late final DirectChatMonitorService _directChatMonitorService =
+      sl<DirectChatMonitorService>();
   final Map<String, int> _lastPartyCount = <String, int>{};
   bool _isAppActive = true;
-  bool _directChatPrimed = false;
   bool _hostPartyPrimed = false;
 
   @override
@@ -75,6 +76,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
         .listen((_) {
           _refreshInAppAlerts();
         });
+    _directChatMonitorService.start();
     _refreshInAppAlerts();
   }
 
@@ -91,9 +93,10 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _directChatSub?.cancel();
     _hostPartySub?.cancel();
     _availabilitySub?.cancel();
+    _directChatMonitorService.setAlertsEnabled(false);
+    unawaited(_directChatMonitorService.stop());
     _pageController.dispose();
     super.dispose();
   }
@@ -117,6 +120,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   }
 
   void _refreshInAppAlerts() {
+    _directChatMonitorService.setAlertsEnabled(_shouldListenForAlerts());
     if (_shouldListenForAlerts()) {
       _startInAppAlerts();
     } else {
@@ -129,17 +133,6 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     if (uid == null) {
       _stopInAppAlerts();
       return;
-    }
-
-    if (_directChatSub == null) {
-      _directChatPrimed = false;
-      _directChatSub = FirebaseFirestore.instance
-          .collection('direct_chats')
-          .where('participants', arrayContains: uid)
-          .orderBy('lastMessageAt', descending: true)
-          .limit(20)
-          .snapshots()
-          .listen(_handleDirectChatSnapshot);
     }
 
     if (_hostPartySub == null) {
@@ -155,49 +148,10 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
   }
 
   void _stopInAppAlerts() {
-    _directChatSub?.cancel();
-    _directChatSub = null;
     _hostPartySub?.cancel();
     _hostPartySub = null;
-    _directChatPrimed = false;
     _hostPartyPrimed = false;
-    _lastChatSeenAt.clear();
     _lastPartyCount.clear();
-  }
-
-  void _handleDirectChatSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    if (!_shouldNotify()) {
-      return;
-    }
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (!_directChatPrimed) {
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final rawTime = data['lastMessageAt'];
-        final lastMessageAt = rawTime is Timestamp
-            ? rawTime.toDate()
-            : DateTime.now();
-        _lastChatSeenAt[doc.id] = lastMessageAt;
-      }
-      _directChatPrimed = true;
-      return;
-    }
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final senderId = data['lastMessageSenderId'] as String?;
-      if (senderId == null || senderId == uid) {
-        continue;
-      }
-      final rawTime = data['lastMessageAt'];
-      final lastMessageAt = rawTime is Timestamp
-          ? rawTime.toDate()
-          : DateTime.now();
-      final previous = _lastChatSeenAt[doc.id];
-      if (previous == null || lastMessageAt.isAfter(previous)) {
-        _lastChatSeenAt[doc.id] = lastMessageAt;
-        InAppAlertService.notify();
-      }
-    }
   }
 
   void _handleHostPartySnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {

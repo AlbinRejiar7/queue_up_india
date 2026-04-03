@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/widgets/pull_to_refresh_hint.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/party_bloc.dart';
@@ -287,157 +288,164 @@ class _PartyListScreenState extends State<PartyListScreen> {
                           ),
                           SizedBox(height: 12.h),
                           Expanded(
-                            child: RefreshIndicator(
-                              onRefresh: _handleRefresh,
-                              child: state is PartyLoading && parties.isEmpty
-                                  ? ListView(
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      padding: EdgeInsets.fromLTRB(
-                                        contentPadding.left,
-                                        120.h,
-                                        contentPadding.right,
-                                        24.h,
-                                      ),
-                                      children: const <Widget>[
-                                        Center(
-                                          child: CircularProgressIndicator(),
+                            child: PullToRefreshHint(
+                              preferenceKey: 'party_list_screen',
+                              child: RefreshIndicator(
+                                onRefresh: _handleRefresh,
+                                child: state is PartyLoading && parties.isEmpty
+                                    ? ListView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          120.h,
+                                          contentPadding.right,
+                                          24.h,
                                         ),
-                                      ],
-                                    )
-                                  : parties.isEmpty
-                                  ? ListView(
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      padding: EdgeInsets.fromLTRB(
-                                        contentPadding.left,
-                                        120.h,
-                                        contentPadding.right,
-                                        24.h,
-                                      ),
-                                      children: <Widget>[
-                                        Center(
-                                          child: Text(
-                                            AppStrings.noPartiesAvailable,
-                                            style: AppTextStyles.bodyMedium,
-                                            textAlign: TextAlign.center,
+                                        children: const <Widget>[
+                                          Center(
+                                            child: CircularProgressIndicator(),
                                           ),
+                                        ],
+                                      )
+                                    : parties.isEmpty
+                                    ? ListView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.fromLTRB(
+                                          contentPadding.left,
+                                          120.h,
+                                          contentPadding.right,
+                                          24.h,
                                         ),
-                                      ],
-                                    )
-                                  : (isTablet
-                                        ? GridView.builder(
-                                            controller: _scrollController,
-                                            physics:
-                                                const AlwaysScrollableScrollPhysics(),
-                                            padding: EdgeInsets.fromLTRB(
-                                              contentPadding.left,
-                                              4.h,
-                                              contentPadding.right,
-                                              24.h,
+                                        children: <Widget>[
+                                          Center(
+                                            child: Text(
+                                              AppStrings.noPartiesAvailable,
+                                              style: AppTextStyles.bodyMedium,
+                                              textAlign: TextAlign.center,
                                             ),
-                                            itemCount:
-                                                parties.length +
-                                                (isLoadingMore ? 1 : 0),
-                                            gridDelegate:
-                                                SliverGridDelegateWithFixedCrossAxisCount(
-                                                  crossAxisCount: 2,
-                                                  mainAxisExtent: 320.h,
-                                                  mainAxisSpacing: 14.h,
-                                                  crossAxisSpacing: 14.w,
-                                                ),
-                                            itemBuilder:
-                                                (
-                                                  BuildContext context,
-                                                  int index,
-                                                ) {
-                                                  if (index >= parties.length) {
-                                                    return const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    );
-                                                  }
-                                                  final party = parties[index];
-                                                  return PartyCard(
-                                                    party: party,
-                                                    isJoining: _pendingJoinIds
-                                                        .contains(party.id),
-                                                    onJoin: () {
-                                                      final isOwner =
-                                                          currentUserId !=
-                                                              null &&
-                                                          party.hostId ==
-                                                              currentUserId;
-                                                      if (isOwner) {
-                                                        AppSnackBar.showError(
-                                                          context,
-                                                          AppStrings
-                                                              .cannotJoinOwnParty,
-                                                        );
-                                                        return;
-                                                      }
-                                                      _handleJoin(party.id);
-                                                    },
-                                                  );
-                                                },
-                                          )
-                                        : ListView.separated(
-                                            controller: _scrollController,
-                                            physics:
-                                                const AlwaysScrollableScrollPhysics(),
-                                            padding: EdgeInsets.fromLTRB(
-                                              contentPadding.left,
-                                              4.h,
-                                              contentPadding.right,
-                                              24.h,
-                                            ),
-                                            itemCount:
-                                                parties.length +
-                                                (isLoadingMore ? 1 : 0),
-                                            separatorBuilder:
-                                                (context, index) =>
-                                                    SizedBox(height: 14.h),
-                                            itemBuilder:
-                                                (
-                                                  BuildContext context,
-                                                  int index,
-                                                ) {
-                                                  if (index >= parties.length) {
-                                                    return Padding(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                            vertical: 8.h,
-                                                          ),
-                                                      child: const Center(
+                                          ),
+                                        ],
+                                      )
+                                    : (isTablet
+                                          ? GridView.builder(
+                                              controller: _scrollController,
+                                              physics:
+                                                  const AlwaysScrollableScrollPhysics(),
+                                              padding: EdgeInsets.fromLTRB(
+                                                contentPadding.left,
+                                                4.h,
+                                                contentPadding.right,
+                                                24.h,
+                                              ),
+                                              itemCount:
+                                                  parties.length +
+                                                  (isLoadingMore ? 1 : 0),
+                                              gridDelegate:
+                                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                                    crossAxisCount: 2,
+                                                    mainAxisExtent: 320.h,
+                                                    mainAxisSpacing: 14.h,
+                                                    crossAxisSpacing: 14.w,
+                                                  ),
+                                              itemBuilder:
+                                                  (
+                                                    BuildContext context,
+                                                    int index,
+                                                  ) {
+                                                    if (index >=
+                                                        parties.length) {
+                                                      return const Center(
                                                         child:
                                                             CircularProgressIndicator(),
-                                                      ),
+                                                      );
+                                                    }
+                                                    final party =
+                                                        parties[index];
+                                                    return PartyCard(
+                                                      party: party,
+                                                      isJoining: _pendingJoinIds
+                                                          .contains(party.id),
+                                                      onJoin: () {
+                                                        final isOwner =
+                                                            currentUserId !=
+                                                                null &&
+                                                            party.hostId ==
+                                                                currentUserId;
+                                                        if (isOwner) {
+                                                          AppSnackBar.showError(
+                                                            context,
+                                                            AppStrings
+                                                                .cannotJoinOwnParty,
+                                                          );
+                                                          return;
+                                                        }
+                                                        _handleJoin(party.id);
+                                                      },
                                                     );
-                                                  }
-                                                  final party = parties[index];
-                                                  return PartyCard(
-                                                    party: party,
-                                                    isJoining: _pendingJoinIds
-                                                        .contains(party.id),
-                                                    onJoin: () {
-                                                      final isOwner =
-                                                          currentUserId !=
-                                                              null &&
-                                                          party.hostId ==
-                                                              currentUserId;
-                                                      if (isOwner) {
-                                                        AppSnackBar.showError(
-                                                          context,
-                                                          AppStrings
-                                                              .cannotJoinOwnParty,
-                                                        );
-                                                        return;
-                                                      }
-                                                      _handleJoin(party.id);
-                                                    },
-                                                  );
-                                                },
-                                          )),
+                                                  },
+                                            )
+                                          : ListView.separated(
+                                              controller: _scrollController,
+                                              physics:
+                                                  const AlwaysScrollableScrollPhysics(),
+                                              padding: EdgeInsets.fromLTRB(
+                                                contentPadding.left,
+                                                4.h,
+                                                contentPadding.right,
+                                                24.h,
+                                              ),
+                                              itemCount:
+                                                  parties.length +
+                                                  (isLoadingMore ? 1 : 0),
+                                              separatorBuilder:
+                                                  (context, index) =>
+                                                      SizedBox(height: 14.h),
+                                              itemBuilder:
+                                                  (
+                                                    BuildContext context,
+                                                    int index,
+                                                  ) {
+                                                    if (index >=
+                                                        parties.length) {
+                                                      return Padding(
+                                                        padding:
+                                                            EdgeInsets.symmetric(
+                                                              vertical: 8.h,
+                                                            ),
+                                                        child: const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
+                                                        ),
+                                                      );
+                                                    }
+                                                    final party =
+                                                        parties[index];
+                                                    return PartyCard(
+                                                      party: party,
+                                                      isJoining: _pendingJoinIds
+                                                          .contains(party.id),
+                                                      onJoin: () {
+                                                        final isOwner =
+                                                            currentUserId !=
+                                                                null &&
+                                                            party.hostId ==
+                                                                currentUserId;
+                                                        if (isOwner) {
+                                                          AppSnackBar.showError(
+                                                            context,
+                                                            AppStrings
+                                                                .cannotJoinOwnParty,
+                                                          );
+                                                          return;
+                                                        }
+                                                        _handleJoin(party.id);
+                                                      },
+                                                    );
+                                                  },
+                                            )),
+                              ),
                             ),
                           ),
                         ],

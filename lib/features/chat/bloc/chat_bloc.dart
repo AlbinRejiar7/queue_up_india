@@ -47,9 +47,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .listen((page) {
           add(ChatLatestPageUpdated(page: page));
         });
-    if (_scope == ChatScope.direct) {
-      await _markDirectRead();
-    }
   }
 
   Future<void> _onMessageSent(
@@ -96,7 +93,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) {
     final latest = event.page.items;
-    final shouldMarkReadForInitialDirectPage =
+    final shouldCheckUnreadForInitialDirectPage =
         _scope == ChatScope.direct &&
         state.messages.isEmpty &&
         latest.any((message) => !message.isMe);
@@ -110,8 +107,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
       _hasSeeded = true;
-      if (shouldMarkReadForInitialDirectPage) {
-        _markDirectRead();
+      if (shouldCheckUnreadForInitialDirectPage) {
+        _markDirectReadIfUnread();
       }
       return;
     }
@@ -198,6 +195,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _markDirectRead() async {
     try {
       await _chatViewModel.markDirectChatRead(peerId: _targetId);
+    } catch (_) {}
+  }
+
+  Future<void> _markDirectReadIfUnread() async {
+    try {
+      final unreadCount = await _chatViewModel.getDirectChatUnreadCount(
+        peerId: _targetId,
+      );
+      if (unreadCount > 0) {
+        await _chatViewModel.markDirectChatRead(peerId: _targetId);
+      }
     } catch (_) {}
   }
 

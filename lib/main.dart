@@ -6,17 +6,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app.dart';
 import 'core/di/injection_container.dart';
 import 'core/services/availability_session_manager.dart';
 import 'core/services/push_notification_service.dart';
+import 'features/chat/data/local/direct_chat_cache_store.dart';
 import 'features/party/viewmodel/party_view_model.dart';
 import 'features/settings/viewmodel/profile_view_model.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   await dotenv.load(fileName: '.env');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
@@ -29,6 +32,7 @@ Future<void> main() async {
   };
 
   setupDependencies();
+  await sl<DirectChatCacheStore>().initialize();
   if (FirebaseAuth.instance.currentUser != null) {
     try {
       await AvailabilitySessionManager.clearAvailabilityOnStartup();

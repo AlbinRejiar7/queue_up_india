@@ -47,5 +47,7 @@ abstract class ChatRepository {
     required String message,
   });
 
+  Future<int> getDirectChatUnreadCount({required String peerId});
+
   Future<void> markDirectChatRead({required String peerId});
 }

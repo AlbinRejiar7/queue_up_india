@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
+import '../../../../core/widgets/pull_to_refresh_hint.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/notifications_bloc.dart';
@@ -334,70 +335,76 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 ),
                               ),
                               Expanded(
-                                child: RefreshIndicator(
-                                  onRefresh: _handleRefresh,
-                                  child: items.isEmpty
-                                      ? ListView(
-                                          physics:
-                                              const AlwaysScrollableScrollPhysics(),
-                                          padding: EdgeInsets.fromLTRB(
-                                            contentPadding.left,
-                                            120.h,
-                                            contentPadding.right,
-                                            24.h,
-                                          ),
-                                          children: <Widget>[
-                                            Center(
-                                              child: Text(
-                                                AppStrings.noNotifications,
-                                                style: AppTextStyles.bodyMedium,
-                                              ),
+                                child: PullToRefreshHint(
+                                  preferenceKey: 'notification_center_screen',
+                                  child: RefreshIndicator(
+                                    onRefresh: _handleRefresh,
+                                    child: items.isEmpty
+                                        ? ListView(
+                                            physics:
+                                                const AlwaysScrollableScrollPhysics(),
+                                            padding: EdgeInsets.fromLTRB(
+                                              contentPadding.left,
+                                              120.h,
+                                              contentPadding.right,
+                                              24.h,
                                             ),
-                                          ],
-                                        )
-                                      : (isTablet
-                                            ? GridView.builder(
-                                                physics:
-                                                    const AlwaysScrollableScrollPhysics(),
-                                                padding: EdgeInsets.fromLTRB(
-                                                  contentPadding.left,
-                                                  16.h,
-                                                  contentPadding.right,
-                                                  24.h,
+                                            children: <Widget>[
+                                              Center(
+                                                child: Text(
+                                                  AppStrings.noNotifications,
+                                                  style:
+                                                      AppTextStyles.bodyMedium,
                                                 ),
-                                                itemCount: items.length,
-                                                gridDelegate:
-                                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                                      crossAxisCount: 2,
-                                                      mainAxisExtent: 200.h,
-                                                      mainAxisSpacing: 12.h,
-                                                      crossAxisSpacing: 12.w,
-                                                    ),
-                                                itemBuilder: (context, index) {
-                                                  return buildNotificationTile(
-                                                    items[index],
-                                                  );
-                                                },
-                                              )
-                                            : ListView.separated(
-                                                physics:
-                                                    const AlwaysScrollableScrollPhysics(),
-                                                padding: EdgeInsets.fromLTRB(
-                                                  contentPadding.left,
-                                                  16.h,
-                                                  contentPadding.right,
-                                                  24.h,
-                                                ),
-                                                itemCount: items.length,
-                                                separatorBuilder:
-                                                    (context, index) =>
-                                                        SizedBox(height: 10.h),
-                                                itemBuilder: (context, index) {
-                                                  return buildNotificationTile(
-                                                    items[index],
-                                                  );
-                                                },
-                                              )),
+                                              ),
+                                            ],
+                                          )
+                                        : (isTablet
+                                              ? GridView.builder(
+                                                  physics:
+                                                      const AlwaysScrollableScrollPhysics(),
+                                                  padding: EdgeInsets.fromLTRB(
+                                                    contentPadding.left,
+                                                    16.h,
+                                                    contentPadding.right,
+                                                    24.h,
+                                                  ),
+                                                  itemCount: items.length,
+                                                  gridDelegate:
+                                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                                        crossAxisCount: 2,
+                                                        mainAxisExtent: 200.h,
+                                                        mainAxisSpacing: 12.h,
+                                                        crossAxisSpacing: 12.w,
+                                                      ),
+                                                  itemBuilder: (context, index) {
+                                                    return buildNotificationTile(
+                                                      items[index],
+                                                    );
+                                                  },
+                                                )
+                                              : ListView.separated(
+                                                  physics:
+                                                      const AlwaysScrollableScrollPhysics(),
+                                                  padding: EdgeInsets.fromLTRB(
+                                                    contentPadding.left,
+                                                    16.h,
+                                                    contentPadding.right,
+                                                    24.h,
+                                                  ),
+                                                  itemCount: items.length,
+                                                  separatorBuilder:
+                                                      (context, index) =>
+                                                          SizedBox(
+                                                            height: 10.h,
+                                                          ),
+                                                  itemBuilder: (context, index) {
+                                                    return buildNotificationTile(
+                                                      items[index],
+                                                    );
+                                                  },
+                                                )),
+                                  ),
                                 ),
                               ),
                             ],

@@ -7,6 +7,7 @@ import '../../features/auth/bloc/registration_bloc.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/data/repositories/firebase_auth_repository.dart';
 import '../../features/chat/data/repositories/chat_repository.dart';
+import '../../features/chat/data/local/direct_chat_cache_store.dart';
 import '../../features/chat/data/repositories/firestore_chat_repository.dart';
 import '../../features/chat/bloc/chat_badge_bloc.dart';
 import '../../features/chat/viewmodel/chat_view_model.dart';
@@ -44,6 +45,7 @@ import '../network/network_status_cubit.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/app_router.dart';
 import '../services/activity_pulse_service.dart';
+import '../services/direct_chat_monitor_service.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -63,7 +65,15 @@ void _registerRepositories() {
   sl.registerLazySingleton<AvailabilityRepository>(
     FirestoreAvailabilityRepository.new,
   );
-  sl.registerLazySingleton<ChatRepository>(FirestoreChatRepository.new);
+  sl.registerLazySingleton<DirectChatCacheStore>(DirectChatCacheStore.new);
+  sl.registerLazySingleton<DirectChatMonitorService>(
+    DirectChatMonitorService.new,
+  );
+  sl.registerLazySingleton<ChatRepository>(
+    () => FirestoreChatRepository(
+      directChatCacheStore: sl<DirectChatCacheStore>(),
+    ),
+  );
   sl.registerLazySingleton<NotificationsRepository>(
     FirestoreNotificationsRepository.new,
   );
@@ -150,7 +160,8 @@ void _registerBlocs() {
     ),
   );
   sl.registerFactory<ChatBadgeBloc>(
-    () => ChatBadgeBloc(chatViewModel: sl<ChatViewModel>()),
+    () =>
+        ChatBadgeBloc(directChatMonitorService: sl<DirectChatMonitorService>()),
   );
   sl.registerFactory<NetworkStatusCubit>(
     () => NetworkStatusCubit(connectivity: sl<Connectivity>()),
