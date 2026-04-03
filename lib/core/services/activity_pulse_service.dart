@@ -14,12 +14,15 @@ class ActivityPulseService {
       return const ActivityPulseModel(availableSoloPlayers: 0, openParties: 0);
     }
 
+    final cutoff = DateTime.now().subtract(AppTimeouts.availabilityTtl);
     try {
       final results = await Future.wait<dynamic>([
         _db
             .collection('availability')
             .where('isAvailable', isEqualTo: true)
             .where('gameId', isEqualTo: gameId)
+            .where('updatedAt', isGreaterThan: Timestamp.fromDate(cutoff))
+            .count()
             .get(),
         _db
             .collection('parties')
@@ -29,35 +32,61 @@ class ActivityPulseService {
             .get(),
       ]);
 
-      final availableSnapshot =
-          results[0] as QuerySnapshot<Map<String, dynamic>>;
+      final availableSnapshot = results[0];
       final openPartiesSnapshot = results[1];
-      final cutoff = DateTime.now().subtract(AppTimeouts.availabilityTtl);
-      final availableCount = availableSnapshot.docs.where((doc) {
-        final data = doc.data();
-        final updatedAt = data['updatedAt'];
-        if (updatedAt is Timestamp) {
-          return updatedAt.toDate().isAfter(cutoff);
-        }
-        if (updatedAt is DateTime) {
-          return updatedAt.isAfter(cutoff);
-        }
-        final availableSince = data['availableSince'];
-        if (availableSince is Timestamp) {
-          return availableSince.toDate().isAfter(cutoff);
-        }
-        if (availableSince is DateTime) {
-          return availableSince.isAfter(cutoff);
-        }
-        return false;
-      }).length;
 
       return ActivityPulseModel(
-        availableSoloPlayers: availableCount,
+        availableSoloPlayers: availableSnapshot.count ?? 0,
         openParties: openPartiesSnapshot.count ?? 0,
       );
     } catch (_) {
-      return const ActivityPulseModel(availableSoloPlayers: 0, openParties: 0);
+      try {
+        final fallbackResults = await Future.wait<dynamic>([
+          _db
+              .collection('availability')
+              .where('isAvailable', isEqualTo: true)
+              .where('gameId', isEqualTo: gameId)
+              .get(),
+          _db
+              .collection('parties')
+              .where('gameId', isEqualTo: gameId)
+              .where('status', isEqualTo: 'open')
+              .count()
+              .get(),
+        ]);
+
+        final availableDocs =
+            fallbackResults[0] as QuerySnapshot<Map<String, dynamic>>;
+        final openPartiesSnapshot = fallbackResults[1];
+        final availableCount = availableDocs.docs.where((doc) {
+          final data = doc.data();
+          final updatedAt = data['updatedAt'];
+          if (updatedAt is Timestamp) {
+            return updatedAt.toDate().isAfter(cutoff);
+          }
+          if (updatedAt is DateTime) {
+            return updatedAt.isAfter(cutoff);
+          }
+          final availableSince = data['availableSince'];
+          if (availableSince is Timestamp) {
+            return availableSince.toDate().isAfter(cutoff);
+          }
+          if (availableSince is DateTime) {
+            return availableSince.isAfter(cutoff);
+          }
+          return false;
+        }).length;
+
+        return ActivityPulseModel(
+          availableSoloPlayers: availableCount,
+          openParties: openPartiesSnapshot.count ?? 0,
+        );
+      } catch (_) {
+        return const ActivityPulseModel(
+          availableSoloPlayers: 0,
+          openParties: 0,
+        );
+      }
     }
   }
 }

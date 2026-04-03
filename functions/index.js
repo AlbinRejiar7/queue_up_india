@@ -329,6 +329,50 @@ async function sendPushToUser(uid, payload) {
   await pruneInvalidTokens(uid, tokens, response);
 }
 
+exports.claimFcmToken = onCall({ region, invoker: "public" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const uid = request.auth.uid;
+  const token = String(request.data?.token || "").trim();
+  const platform = String(request.data?.platform || "").trim() || "unknown";
+
+  if (!token) {
+    throw new HttpsError("invalid-argument", "token is required.");
+  }
+
+  const snapshot = await db
+    .collectionGroup("fcmTokens")
+    .where("token", "==", token)
+    .get();
+
+  const batch = db.batch();
+  let removedFrom = 0;
+
+  snapshot.docs.forEach((doc) => {
+    const ownerRef = doc.ref.parent.parent;
+    const ownerUid = ownerRef ? ownerRef.id : "";
+    if (ownerUid && ownerUid !== uid) {
+      batch.delete(doc.ref);
+      removedFrom += 1;
+    }
+  });
+
+  batch.set(
+    db.collection("users").doc(uid).collection("fcmTokens").doc(token),
+    {
+      token,
+      platform,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await batch.commit();
+  return { claimed: true, removedFrom };
+});
+
 function clearSoloMatchmakingSession(tx, participant) {
   tx.set(
     userMatchmakingRef(participant.uid),

@@ -3,13 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_options.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snackbar.dart';
-import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
@@ -19,10 +16,7 @@ import '../../bloc/game_state.dart';
 import 'widgets/game_tile.dart';
 
 class GameSelectionScreen extends StatefulWidget {
-  const GameSelectionScreen({
-    super.key,
-    this.showBackButton = true,
-  });
+  const GameSelectionScreen({super.key, this.showBackButton = true});
 
   final bool showBackButton;
 
@@ -59,7 +53,6 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                     },
                     builder: (BuildContext context, GameState state) {
                       final games = state.data.games;
-                      final selectedGameId = state.data.selectedGameId;
                       final bool isTablet = constraints.maxWidth >= 600;
 
                       return Column(
@@ -120,26 +113,28 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                       itemCount: games.length,
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisExtent: 180.h,
-                                        mainAxisSpacing: 16.h,
-                                        crossAxisSpacing: 16.w,
-                                      ),
+                                            crossAxisCount: 2,
+                                            mainAxisExtent: 180.h,
+                                            mainAxisSpacing: 16.h,
+                                            crossAxisSpacing: 16.w,
+                                          ),
                                       itemBuilder:
                                           (BuildContext context, int index) {
-                                        final game = games[index];
-                                        return GameTile(
-                                          game: game,
-                                          onTap: () {
-                                            context.read<GameBloc>().add(
-                                              GameSelected(gameId: game.id),
-                                            );
-                                            context.push(
-                                              AppRoutes.partyListPath(game.id),
+                                            final game = games[index];
+                                            return GameTile(
+                                              game: game,
+                                              onTap: () {
+                                                context.read<GameBloc>().add(
+                                                  GameSelected(gameId: game.id),
+                                                );
+                                                context.push(
+                                                  AppRoutes.partyListPath(
+                                                    game.id,
+                                                  ),
+                                                );
+                                              },
                                             );
                                           },
-                                        );
-                                      },
                                     )
                                   else
                                     ...games.map(

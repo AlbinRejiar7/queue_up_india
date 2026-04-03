@@ -15,6 +15,7 @@ class FirestoreChatRepository implements ChatRepository {
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final Map<String, _PeerProfile> _peerProfileCache = <String, _PeerProfile>{};
 
   @override
   Stream<PagedResult<ChatMessage>> watchLatestPartyMessages({
@@ -114,6 +115,31 @@ class FirestoreChatRepository implements ChatRepository {
         );
       },
     );
+  }
+
+  @override
+  Stream<bool> watchHasUnreadDirectThreads({int limit = 20}) {
+    final uid = _requireUserId();
+    return _db
+        .collection('direct_chats')
+        .where('participants', arrayContains: uid)
+        .orderBy('lastMessageAt', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          for (final doc in snapshot.docs) {
+            final unreadMap = doc.data()['unreadCounts'];
+            if (unreadMap is Map) {
+              final rawUnread = unreadMap[uid];
+              final unreadCount = rawUnread is num ? rawUnread.toInt() : 0;
+              if (unreadCount > 0) {
+                return true;
+              }
+            }
+          }
+          return false;
+        });
   }
 
   @override
@@ -291,7 +317,6 @@ class FirestoreChatRepository implements ChatRepository {
     final chatRef = _db.collection('direct_chats').doc(chatId);
     await chatRef.set(<String, dynamic>{
       'participants': <String>[uid, peerId]..sort(),
-      'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     await chatRef.collection('messages').add(<String, dynamic>{
@@ -373,6 +398,21 @@ class FirestoreChatRepository implements ChatRepository {
       return const <ChatThread>[];
     }
     final uid = _auth.currentUser?.uid;
+    final peerIds = docs
+        .map((doc) {
+          final participants =
+              (doc.data()['participants'] as List?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const <String>[];
+          return participants.firstWhere(
+            (id) => uid == null || id != uid,
+            orElse: () => '',
+          );
+        })
+        .where((peerId) => peerId.isNotEmpty)
+        .toSet();
+    final peerProfiles = await _resolvePeerProfiles(peerIds);
 
     final futures = docs.map((doc) async {
       final data = doc.data();
@@ -399,7 +439,9 @@ class FirestoreChatRepository implements ChatRepository {
         }
       }
 
-      final profile = await _resolvePeerProfile(peerId);
+      final profile =
+          peerProfiles[peerId] ??
+          const _PeerProfile(name: 'Player', avatarUrl: AppImages.avatarHost);
 
       return ChatThread(
         id: doc.id,
@@ -415,23 +457,59 @@ class FirestoreChatRepository implements ChatRepository {
     return Future.wait(futures);
   }
 
-  Future<_PeerProfile> _resolvePeerProfile(String peerId) async {
-    if (peerId.isEmpty) {
-      return const _PeerProfile(
-        name: 'Player',
-        avatarUrl: AppImages.avatarHost,
+  Future<Map<String, _PeerProfile>> _resolvePeerProfiles(
+    Set<String> peerIds,
+  ) async {
+    if (peerIds.isEmpty) {
+      return const <String, _PeerProfile>{};
+    }
+
+    final resolved = <String, _PeerProfile>{};
+    final missingIds = <String>[];
+
+    for (final peerId in peerIds) {
+      final cached = _peerProfileCache[peerId];
+      if (cached != null) {
+        resolved[peerId] = cached;
+      } else {
+        missingIds.add(peerId);
+      }
+    }
+
+    for (var index = 0; index < missingIds.length; index += 10) {
+      final end = (index + 10) > missingIds.length
+          ? missingIds.length
+          : index + 10;
+      final chunk = missingIds.sublist(index, end);
+      final snapshot = await _db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final name = (data['displayName'] as String?)?.trim();
+        final avatarUrl = (data['avatarUrl'] as String?)?.trim();
+        final profile = _PeerProfile(
+          name: (name == null || name.isEmpty) ? 'Player' : name,
+          avatarUrl: (avatarUrl == null || avatarUrl.isEmpty)
+              ? AppImages.avatarHost
+              : avatarUrl,
+        );
+        _peerProfileCache[doc.id] = profile;
+        resolved[doc.id] = profile;
+      }
+    }
+
+    for (final peerId in peerIds) {
+      resolved.putIfAbsent(
+        peerId,
+        () =>
+            const _PeerProfile(name: 'Player', avatarUrl: AppImages.avatarHost),
       );
     }
-    final snapshot = await _db.collection('users').doc(peerId).get();
-    final data = snapshot.data();
-    final name = (data?['displayName'] as String?)?.trim();
-    final avatarUrl = (data?['avatarUrl'] as String?)?.trim();
-    return _PeerProfile(
-      name: (name == null || name.isEmpty) ? 'Player' : name,
-      avatarUrl: (avatarUrl == null || avatarUrl.isEmpty)
-          ? AppImages.avatarHost
-          : avatarUrl,
-    );
+
+    return resolved;
   }
 }
 

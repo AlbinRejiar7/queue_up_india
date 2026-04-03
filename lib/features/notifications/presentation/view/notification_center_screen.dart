@@ -36,7 +36,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     super.initState();
     _bloc = sl<NotificationsBloc>();
     _bloc.add(const NotificationsStarted());
-    _bloc.add(const NotificationsMarkAllReadRequested());
   }
 
   @override
@@ -90,14 +89,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                         }
                         if (message != null || chatPlayer != null) {
                           context.read<NotificationsBloc>().add(
-                                const NotificationsActionCleared(),
-                              );
+                            const NotificationsActionCleared(),
+                          );
                         }
                       },
-                      child:
-                          BlocBuilder<NotificationsBloc, NotificationsState>(
-                        builder:
-                            (BuildContext context, NotificationsState state) {
+                      child: BlocBuilder<NotificationsBloc, NotificationsState>(
+                        builder: (BuildContext context, NotificationsState state) {
                           final items = state.notifications;
                           final bool isTablet = constraints.maxWidth >= 600;
 
@@ -121,15 +118,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                         vertical: 4.h,
                                       ),
                                       alignment: Alignment.centerRight,
-                                      padding: EdgeInsets.only(
-                                        right: 20.w,
-                                      ),
+                                      padding: EdgeInsets.only(right: 20.w),
                                       decoration: BoxDecoration(
                                         color: AppColors.danger.withValues(
                                           alpha: 0.2,
                                         ),
-                                        borderRadius:
-                                            BorderRadius.circular(24.r),
+                                        borderRadius: BorderRadius.circular(
+                                          24.r,
+                                        ),
                                       ),
                                       child: Icon(
                                         Icons.delete_outline,
@@ -140,10 +136,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                   : const SizedBox.shrink(),
                               onDismissed: (_) {
                                 context.read<NotificationsBloc>().add(
-                                      NotificationDismissed(
-                                        notificationId: item.id,
-                                      ),
-                                    );
+                                  NotificationDismissed(
+                                    notificationId: item.id,
+                                  ),
+                                );
                               },
                               child: GlassContainer(
                                 borderRadius: 24.r,
@@ -151,13 +147,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 onTap: !isRequest
                                     ? () {
                                         if (!item.isRead) {
-                                          context
-                                              .read<NotificationsBloc>()
-                                              .add(
-                                                NotificationReadRequested(
-                                                  notificationId: item.id,
-                                                ),
-                                              );
+                                          context.read<NotificationsBloc>().add(
+                                            NotificationReadRequested(
+                                              notificationId: item.id,
+                                            ),
+                                          );
                                         }
                                       }
                                     : null,
@@ -167,10 +161,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                       children: <Widget>[
                                         CircleAvatar(
                                           radius: 18.r,
-                                          backgroundColor:
-                                              AppColors.electricBlue.withValues(
-                                            alpha: 0.2,
-                                          ),
+                                          backgroundColor: AppColors
+                                              .electricBlue
+                                              .withValues(alpha: 0.2),
                                           backgroundImage: _avatarProvider(
                                             avatar,
                                           ),
@@ -185,8 +178,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                                 title,
                                                 style: AppTextStyles.bodyMedium
                                                     .copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                               ),
                                               if (item.body.isNotEmpty)
                                                 Padding(
@@ -207,7 +201,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                             item.isRead
                                                 ? Icons.notifications_none
                                                 : Icons
-                                                    .notifications_active_outlined,
+                                                      .notifications_active_outlined,
                                             size: 22.sp,
                                             color: Colors.white,
                                           ),
@@ -264,6 +258,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                               ),
                             );
                           }
+
                           return Column(
                             children: <Widget>[
                               Padding(
@@ -290,19 +285,18 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                                 ? null
                                                 : () async {
                                                     final confirmed =
-                                                        await AppDialog
-                                                            .showConfirm(
-                                                      context,
-                                                      title: AppStrings
-                                                          .confirmClearNotificationsTitle,
-                                                      message: AppStrings
-                                                          .confirmClearNotificationsMessage,
-                                                      confirmLabel: AppStrings
-                                                          .clearNotifications,
-                                                      cancelLabel:
-                                                          AppStrings
-                                                              .cancelAction,
-                                                    );
+                                                        await AppDialog.showConfirm(
+                                                          context,
+                                                          title: AppStrings
+                                                              .confirmClearNotificationsTitle,
+                                                          message: AppStrings
+                                                              .confirmClearNotificationsMessage,
+                                                          confirmLabel: AppStrings
+                                                              .clearNotifications,
+                                                          cancelLabel:
+                                                              AppStrings
+                                                                  .cancelAction,
+                                                        );
                                                     if (!context.mounted) {
                                                       return;
                                                     }
@@ -311,7 +305,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                                     }
                                                     context
                                                         .read<
-                                                            NotificationsBloc>()
+                                                          NotificationsBloc
+                                                        >()
                                                         .add(
                                                           const NotificationsClearedRequested(),
                                                         );
@@ -355,55 +350,54 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                             Center(
                                               child: Text(
                                                 AppStrings.noNotifications,
-                                                style:
-                                                    AppTextStyles.bodyMedium,
+                                                style: AppTextStyles.bodyMedium,
                                               ),
-                                              ),
-                                            ],
-                                          )
+                                            ),
+                                          ],
+                                        )
                                       : (isTablet
-                                          ? GridView.builder(
-                                              physics:
-                                                  const AlwaysScrollableScrollPhysics(),
-                                              padding: EdgeInsets.fromLTRB(
-                                                contentPadding.left,
-                                                16.h,
-                                                contentPadding.right,
-                                                24.h,
-                                              ),
-                                              itemCount: items.length,
-                                              gridDelegate:
-                                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 2,
-                                                mainAxisExtent: 200.h,
-                                                mainAxisSpacing: 12.h,
-                                                crossAxisSpacing: 12.w,
-                                              ),
-                                              itemBuilder: (context, index) {
-                                                return buildNotificationTile(
-                                                  items[index],
-                                                );
-                                              },
-                                            )
-                                          : ListView.separated(
-                                              physics:
-                                                  const AlwaysScrollableScrollPhysics(),
-                                              padding: EdgeInsets.fromLTRB(
-                                                contentPadding.left,
-                                                16.h,
-                                                contentPadding.right,
-                                                24.h,
-                                              ),
-                                              itemCount: items.length,
-                                              separatorBuilder:
-                                                  (context, index) =>
-                                                      SizedBox(height: 10.h),
-                                              itemBuilder: (context, index) {
-                                                return buildNotificationTile(
-                                                  items[index],
-                                                );
-                                              },
-                                            )),
+                                            ? GridView.builder(
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  16.h,
+                                                  contentPadding.right,
+                                                  24.h,
+                                                ),
+                                                itemCount: items.length,
+                                                gridDelegate:
+                                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                                      crossAxisCount: 2,
+                                                      mainAxisExtent: 200.h,
+                                                      mainAxisSpacing: 12.h,
+                                                      crossAxisSpacing: 12.w,
+                                                    ),
+                                                itemBuilder: (context, index) {
+                                                  return buildNotificationTile(
+                                                    items[index],
+                                                  );
+                                                },
+                                              )
+                                            : ListView.separated(
+                                                physics:
+                                                    const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.fromLTRB(
+                                                  contentPadding.left,
+                                                  16.h,
+                                                  contentPadding.right,
+                                                  24.h,
+                                                ),
+                                                itemCount: items.length,
+                                                separatorBuilder:
+                                                    (context, index) =>
+                                                        SizedBox(height: 10.h),
+                                                itemBuilder: (context, index) {
+                                                  return buildNotificationTile(
+                                                    items[index],
+                                                  );
+                                                },
+                                              )),
                                 ),
                               ),
                             ],

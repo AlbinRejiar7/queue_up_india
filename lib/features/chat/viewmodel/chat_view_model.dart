@@ -66,14 +66,15 @@ class ChatViewModel {
     return _repository.watchDirectThreadsPage(limit: limit);
   }
 
+  Stream<bool> watchHasUnreadDirectThreads({int limit = 20}) {
+    return _repository.watchHasUnreadDirectThreads(limit: limit);
+  }
+
   Future<PagedResult<ChatThread>> fetchDirectThreadsPage({
     Object? cursor,
     int limit = 10,
   }) {
-    return _repository.fetchDirectThreadsPage(
-      cursor: cursor,
-      limit: limit,
-    );
+    return _repository.fetchDirectThreadsPage(cursor: cursor, limit: limit);
   }
 
   Future<bool> hasDirectChat({required String peerId}) {
@@ -86,10 +87,7 @@ class ChatViewModel {
     required String message,
   }) {
     if (scope == ChatScope.party) {
-      return _repository.sendPartyMessage(
-        partyId: targetId,
-        message: message,
-      );
+      return _repository.sendPartyMessage(partyId: targetId, message: message);
     }
     return _repository.sendDirectMessage(peerId: targetId, message: message);
   }

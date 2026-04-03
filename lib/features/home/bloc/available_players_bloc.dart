@@ -1,11 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/constants/app_options.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/utils/paged_result.dart';
 import '../models/available_player_model.dart';
 import '../viewmodel/available_players_view_model.dart';
 import '../../notifications/viewmodel/notifications_view_model.dart';
@@ -25,7 +22,6 @@ class AvailablePlayersBloc
        super(const AvailablePlayersState.initial()) {
     on<AvailablePlayersLoaded>(_onLoaded);
     on<AvailablePlayersLoadMoreRequested>(_onLoadMore);
-    on<AvailablePlayersLivePageUpdated>(_onLivePageUpdated);
     on<AvailablePlayersGameChanged>(_onGameChanged);
     on<AvailablePlayersRankChanged>(_onRankChanged);
     on<AvailablePlayersLanguageChanged>(_onLanguageChanged);
@@ -39,13 +35,6 @@ class AvailablePlayersBloc
   final NotificationsViewModel _notificationsViewModel;
   final ChatViewModel _chatViewModel;
   static const int _pageSize = 10;
-  StreamSubscription<PagedResult<AvailablePlayerModel>>? _liveSubscription;
-  List<AvailablePlayerModel> _livePlayers = const <AvailablePlayerModel>[];
-  List<AvailablePlayerModel> _olderPlayers = const <AvailablePlayerModel>[];
-  Object? _liveCursor;
-  Object? _olderCursor;
-  bool _liveHasMore = true;
-  bool _olderHasMore = true;
 
   Future<void> _onLoaded(
     AvailablePlayersLoaded event,
@@ -64,7 +53,7 @@ class AvailablePlayersBloc
     if (state.isLoadingMore || state.isLoading || !state.hasMore) {
       return;
     }
-    final cursor = _olderPlayers.isEmpty ? _liveCursor : _olderCursor;
+    final cursor = state.cursor;
     if (cursor == null) {
       emit(state.copyWith(hasMore: false, isLoadingMore: false));
       return;
@@ -78,15 +67,12 @@ class AvailablePlayersBloc
         cursor: cursor,
         limit: _pageSize,
       );
-      _olderPlayers = <AvailablePlayerModel>[..._olderPlayers, ...page.items];
-      _olderCursor = page.nextCursor;
-      _olderHasMore = page.hasMore;
-      final combined = _mergePlayers(_livePlayers, _olderPlayers);
+      final combined = _mergePlayers(state.players, page.items);
       emit(
         state.copyWith(
           players: combined,
-          cursor: _olderCursor ?? _liveCursor,
-          hasMore: _olderHasMore,
+          cursor: page.nextCursor,
+          hasMore: page.hasMore,
           isLoadingMore: false,
         ),
       );
@@ -295,47 +281,7 @@ class AvailablePlayersBloc
     );
   }
 
-  void _onLivePageUpdated(
-    AvailablePlayersLivePageUpdated event,
-    Emitter<AvailablePlayersState> emit,
-  ) {
-    _livePlayers = event.page.items;
-    _liveCursor = event.page.nextCursor;
-    _liveHasMore = event.page.hasMore;
-
-    if (_livePlayers.isNotEmpty && _olderPlayers.isNotEmpty) {
-      final liveIds = _livePlayers.map((player) => player.id).toSet();
-      _olderPlayers = _olderPlayers
-          .where((player) => !liveIds.contains(player.id))
-          .toList();
-    }
-
-    final combined = _mergePlayers(_livePlayers, _olderPlayers);
-    final effectiveCursor = _olderPlayers.isEmpty ? _liveCursor : _olderCursor;
-    final effectiveHasMore = _olderPlayers.isEmpty
-        ? _liveHasMore
-        : _olderHasMore;
-
-    emit(
-      state.copyWith(
-        players: combined,
-        cursor: effectiveCursor,
-        hasMore: effectiveHasMore,
-        isLoading: false,
-      ),
-    );
-  }
-
   Future<void> _reloadWithFilters(Emitter<AvailablePlayersState> emit) async {
-    await _liveSubscription?.cancel();
-    _liveSubscription = null;
-    _livePlayers = const <AvailablePlayerModel>[];
-    _olderPlayers = const <AvailablePlayerModel>[];
-    _liveCursor = null;
-    _olderCursor = null;
-    _liveHasMore = true;
-    _olderHasMore = true;
-
     emit(
       state.copyWith(
         isLoading: true,
@@ -346,16 +292,31 @@ class AvailablePlayersBloc
       ),
     );
 
-    _liveSubscription = _availablePlayersViewModel
-        .watchAvailablePlayersPage(
-          gameId: state.selectedGameId,
-          rank: state.selectedRank,
-          language: state.selectedLanguage,
-          limit: _pageSize,
-        )
-        .listen((page) {
-          add(AvailablePlayersLivePageUpdated(page: page));
-        });
+    try {
+      final page = await _availablePlayersViewModel.loadAvailablePlayersPage(
+        gameId: state.selectedGameId,
+        rank: state.selectedRank,
+        language: state.selectedLanguage,
+        limit: _pageSize,
+      );
+      emit(
+        state.copyWith(
+          players: page.items,
+          cursor: page.nextCursor,
+          hasMore: page.hasMore,
+          isLoading: false,
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          players: const <AvailablePlayerModel>[],
+          clearCursor: true,
+          hasMore: false,
+          isLoading: false,
+        ),
+      );
+    }
   }
 
   List<AvailablePlayerModel> _mergePlayers(
@@ -375,11 +336,5 @@ class AvailablePlayersBloc
       }
     }
     return combined;
-  }
-
-  @override
-  Future<void> close() async {
-    await _liveSubscription?.cancel();
-    return super.close();
   }
 }

@@ -50,3 +50,7 @@ class HomeAvailabilityToggled extends HomeAvailabilityEvent {
 class HomeAvailabilityExpired extends HomeAvailabilityEvent {
   const HomeAvailabilityExpired();
 }
+
+class HomeAvailabilitySyncRequested extends HomeAvailabilityEvent {
+  const HomeAvailabilitySyncRequested();
+}

@@ -165,9 +165,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     _lastPartyCount.clear();
   }
 
-  void _handleDirectChatSnapshot(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
-  ) {
+  void _handleDirectChatSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
     if (!_shouldNotify()) {
       return;
     }
@@ -176,8 +174,9 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final rawTime = data['lastMessageAt'];
-        final lastMessageAt =
-            rawTime is Timestamp ? rawTime.toDate() : DateTime.now();
+        final lastMessageAt = rawTime is Timestamp
+            ? rawTime.toDate()
+            : DateTime.now();
         _lastChatSeenAt[doc.id] = lastMessageAt;
       }
       _directChatPrimed = true;
@@ -190,8 +189,9 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
         continue;
       }
       final rawTime = data['lastMessageAt'];
-      final lastMessageAt =
-          rawTime is Timestamp ? rawTime.toDate() : DateTime.now();
+      final lastMessageAt = rawTime is Timestamp
+          ? rawTime.toDate()
+          : DateTime.now();
       final previous = _lastChatSeenAt[doc.id];
       if (previous == null || lastMessageAt.isAfter(previous)) {
         _lastChatSeenAt[doc.id] = lastMessageAt;
@@ -200,9 +200,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
     }
   }
 
-  void _handleHostPartySnapshot(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
-  ) {
+  void _handleHostPartySnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
     if (!_shouldNotify()) {
       return;
     }
@@ -240,8 +238,12 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) {
+          return;
+        }
         final shouldExit = await AppDialog.showConfirm(
           context,
           title: AppStrings.confirmExitTitle,
@@ -252,7 +254,6 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
         if (shouldExit) {
           SystemNavigator.pop();
         }
-        return false;
       },
       child: Scaffold(
         bottomNavigationBar: BlocBuilder<GameBloc, GameState>(
@@ -272,16 +273,16 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
                       profileAvatarUrl: profileState.data.avatarUrl,
                       onTabSelected: (AppBottomTab tab) {
                         final nextIndex = _indexForTab(tab);
-                        context
-                            .read<MainTabBloc>()
-                            .add(MainTabIndexChanged(index: nextIndex));
+                        context.read<MainTabBloc>().add(
+                          MainTabIndexChanged(index: nextIndex),
+                        );
                         _animateToIndex(nextIndex);
                       },
                       onCenterActionPressed: () {
                         final nextIndex = _indexForTab(AppBottomTab.create);
-                        context
-                            .read<MainTabBloc>()
-                            .add(MainTabIndexChanged(index: nextIndex));
+                        context.read<MainTabBloc>().add(
+                          MainTabIndexChanged(index: nextIndex),
+                        );
                         _animateToIndex(nextIndex);
                       },
                     );
@@ -303,9 +304,9 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
                   controller: _pageController,
                   itemCount: 5,
                   onPageChanged: (int pageIndex) {
-                    context
-                        .read<MainTabBloc>()
-                        .add(MainTabIndexChanged(index: pageIndex));
+                    context.read<MainTabBloc>().add(
+                      MainTabIndexChanged(index: pageIndex),
+                    );
                   },
                   itemBuilder: (BuildContext context, int index) {
                     if (index == 0) {
@@ -318,9 +319,7 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
                     }
 
                     if (index == 1) {
-                      return const GameSelectionScreen(
-                        showBackButton: false,
-                      );
+                      return const GameSelectionScreen(showBackButton: false);
                     }
 
                     if (index == 2) {
@@ -332,14 +331,10 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
                     }
 
                     if (index == 3) {
-                      return const MyRoomsScreen(
-                        showBackButton: false,
-                      );
+                      return const MyRoomsScreen(showBackButton: false);
                     }
 
-                    return const ProfileScreen(
-                      showBackButton: false,
-                    );
+                    return const ProfileScreen(showBackButton: false);
                   },
                 );
               },

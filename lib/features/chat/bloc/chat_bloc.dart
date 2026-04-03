@@ -15,10 +15,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required ChatViewModel chatViewModel,
     required ChatScope scope,
     required String targetId,
-  })  : _chatViewModel = chatViewModel,
-        _scope = scope,
-        _targetId = targetId,
-        super(const ChatState()) {
+  }) : _chatViewModel = chatViewModel,
+       _scope = scope,
+       _targetId = targetId,
+       super(const ChatState()) {
     on<ChatStarted>(_onStarted);
     on<ChatMessageSent>(_onMessageSent);
     on<ChatLatestPageUpdated>(_onLatestPageUpdated);
@@ -33,10 +33,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   bool _hasSeeded = false;
   static const int _pageSize = 10;
 
-  Future<void> _onStarted(
-    ChatStarted event,
-    Emitter<ChatState> emit,
-  ) async {
+  Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
     _subscription ??= _chatViewModel
         .watchLatestMessages(
           scope: _scope,
@@ -71,6 +68,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) {
     final latest = event.page.items;
+    final shouldMarkReadForInitialDirectPage =
+        _scope == ChatScope.direct &&
+        state.messages.isEmpty &&
+        latest.any((message) => !message.isMe);
     if (state.messages.isEmpty) {
       emit(
         state.copyWith(
@@ -81,6 +82,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
       _hasSeeded = true;
+      if (shouldMarkReadForInitialDirectPage) {
+        _markDirectRead();
+      }
       return;
     }
 
@@ -111,7 +115,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     if (_scope == ChatScope.direct) {
-      _markDirectRead();
+      final hasIncoming = newMessages.any((message) => !message.isMe);
+      if (hasIncoming) {
+        _markDirectRead();
+      }
       return;
     }
 

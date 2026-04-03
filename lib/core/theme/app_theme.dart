@@ -21,17 +21,15 @@ abstract final class AppTheme {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(18),
     );
-    final overlayColor = MaterialStateProperty.resolveWith<Color?>(
-      (states) {
-        if (states.contains(MaterialState.pressed)) {
-          return AppColors.softPurple.withValues(alpha: 0.22);
-        }
-        if (states.contains(MaterialState.hovered)) {
-          return AppColors.softPurple.withValues(alpha: 0.12);
-        }
-        return null;
-      },
-    );
+    final overlayColor = WidgetStateProperty.resolveWith<Color?>((states) {
+      if (states.contains(WidgetState.pressed)) {
+        return AppColors.softPurple.withValues(alpha: 0.22);
+      }
+      if (states.contains(WidgetState.hovered)) {
+        return AppColors.softPurple.withValues(alpha: 0.12);
+      }
+      return null;
+    });
 
     return base.copyWith(
       textTheme: GoogleFonts.spaceGroteskTextTheme(base.textTheme).apply(
@@ -74,8 +72,9 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.electricBlueBright,
           foregroundColor: AppColors.textPrimary,
-          disabledBackgroundColor:
-              AppColors.electricBlueBright.withValues(alpha: 0.4),
+          disabledBackgroundColor: AppColors.electricBlueBright.withValues(
+            alpha: 0.4,
+          ),
           disabledForegroundColor: AppColors.textPrimary.withValues(alpha: 0.6),
           shape: buttonShape,
           elevation: 14,
@@ -86,8 +85,9 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.electricBlueBright,
           foregroundColor: AppColors.textPrimary,
-          disabledBackgroundColor:
-              AppColors.electricBlueBright.withValues(alpha: 0.4),
+          disabledBackgroundColor: AppColors.electricBlueBright.withValues(
+            alpha: 0.4,
+          ),
           disabledForegroundColor: AppColors.textPrimary.withValues(alpha: 0.6),
           shape: buttonShape,
         ).copyWith(overlayColor: overlayColor),

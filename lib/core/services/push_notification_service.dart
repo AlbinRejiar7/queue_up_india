@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +40,9 @@ class PushNotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-south1',
+  );
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -84,19 +88,25 @@ class PushNotificationService {
       _currentUid = newUid;
       if (newUid != null) {
         await _syncToken(newUid);
+      } else {
+        await _clearLocalDeviceToken();
       }
     });
 
-    _messaging.onTokenRefresh.listen((token) {
+    _messaging.onTokenRefresh.listen((token) async {
       final uid = _auth.currentUser?.uid;
       if (uid != null) {
-        _saveToken(uid, token);
+        await _syncToken(uid, tokenOverride: token);
       }
     });
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleNotificationTap(initialMessage.data);
+    }
+
+    if (_auth.currentUser == null) {
+      await _clearLocalDeviceToken();
     }
   }
 
@@ -115,11 +125,11 @@ class PushNotificationService {
     _activePartyId = isExpanded ? partyId : null;
   }
 
-  Future<void> _syncToken(String uid) async {
+  Future<void> _syncToken(String uid, {String? tokenOverride}) async {
     if (_tokenSyncInFlight) {
       return;
     }
-    final token = await _messaging.getToken();
+    final token = tokenOverride ?? await _messaging.getToken();
     if (token == null) {
       debugPrint('[Push] FCM token not available yet.');
       return;
@@ -134,11 +144,27 @@ class PushNotificationService {
     _tokenSyncInFlight = true;
     try {
       debugPrint('[Push] syncing token for $uid');
-      await _saveToken(uid, token);
+      await _claimToken(uid, token);
       _lastSyncedToken = token;
       _lastSyncAt = now;
     } finally {
       _tokenSyncInFlight = false;
+    }
+  }
+
+  Future<void> _claimToken(String uid, String token) async {
+    debugPrint('[Push] claiming token for $uid');
+    try {
+      final result = await _functions.httpsCallable('claimFcmToken').call(<String, dynamic>{
+        'token': token,
+        'platform': Platform.operatingSystem,
+      });
+      debugPrint('[Push] token claim result for $uid: ${result.data}');
+    } catch (error, stack) {
+      debugPrint('[Push] token claim failed for $uid: $error');
+      debugPrintStack(stackTrace: stack);
+      debugPrint('[Push] falling back to direct token save for $uid');
+      await _saveToken(uid, token);
     }
   }
 
@@ -169,24 +195,40 @@ class PushNotificationService {
   Future<void> removeCurrentUserToken() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
+      await _clearLocalDeviceToken();
       return;
     }
 
     final token = await _messaging.getToken();
     if (token == null) {
       debugPrint('[Push] no token available to delete for $uid');
+      await _clearLocalDeviceToken();
       return;
     }
 
     try {
       await _deleteToken(uid, token);
-      if (_lastSyncedToken == token) {
-        _lastSyncedToken = null;
-        _lastSyncAt = null;
-      }
     } catch (error, stack) {
       debugPrint('[Push] token cleanup skipped for $uid: $error');
       debugPrintStack(stackTrace: stack);
+    } finally {
+      await _clearLocalDeviceToken();
+    }
+  }
+
+  Future<void> _clearLocalDeviceToken() async {
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) {
+        debugPrint('[Push] deleting local device token');
+      }
+      await _messaging.deleteToken();
+    } catch (error, stack) {
+      debugPrint('[Push] local device token delete skipped: $error');
+      debugPrintStack(stackTrace: stack);
+    } finally {
+      _lastSyncedToken = null;
+      _lastSyncAt = null;
     }
   }
 

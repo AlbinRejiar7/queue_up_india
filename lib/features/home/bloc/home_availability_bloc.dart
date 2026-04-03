@@ -25,11 +25,14 @@ class HomeAvailabilityBloc
     on<HomeAvailabilityRankChanged>(_onRankChanged);
     on<HomeAvailabilityToggled>(_onToggled);
     on<HomeAvailabilityExpired>(_onExpired);
+    on<HomeAvailabilitySyncRequested>(_onSyncRequested);
   }
 
   final AvailabilityViewModel _availabilityViewModel;
   final ProfileViewModel _profileViewModel;
+  static const Duration _availabilitySyncDebounce = Duration(milliseconds: 600);
   Timer? _availabilityExpiryTimer;
+  Timer? _availabilitySyncTimer;
 
   Future<void> _onInitialized(
     HomeAvailabilityInitialized event,
@@ -110,12 +113,9 @@ class HomeAvailabilityBloc
     await AppPreferences.saveSelectedGameId(gameId);
 
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState, startedNow: false);
-      if (!ok) {
-        emit(nextState.copyWith(isAvailable: false));
-        _clearAvailabilityExpiryTimer();
-      }
+      _scheduleAvailabilitySync();
     } else if (state.isAvailable && !nextState.isAvailable) {
+      _clearAvailabilitySyncTimer();
       await _updateAvailability(nextState, startedNow: false);
     }
   }
@@ -137,12 +137,9 @@ class HomeAvailabilityBloc
       await AppPreferences.saveSelectedLanguage(event.language!);
     }
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState, startedNow: false);
-      if (!ok) {
-        emit(nextState.copyWith(isAvailable: false));
-        _clearAvailabilityExpiryTimer();
-      }
+      _scheduleAvailabilitySync();
     } else if (state.isAvailable && !nextState.isAvailable) {
+      _clearAvailabilitySyncTimer();
       await _updateAvailability(nextState, startedNow: false);
     }
   }
@@ -167,12 +164,9 @@ class HomeAvailabilityBloc
       }
     }
     if (nextState.isAvailable && nextState.canToggleAvailability) {
-      final ok = await _updateAvailability(nextState, startedNow: false);
-      if (!ok) {
-        emit(nextState.copyWith(isAvailable: false));
-        _clearAvailabilityExpiryTimer();
-      }
+      _scheduleAvailabilitySync();
     } else if (state.isAvailable && !nextState.isAvailable) {
+      _clearAvailabilitySyncTimer();
       await _updateAvailability(nextState, startedNow: false);
     }
   }
@@ -186,6 +180,7 @@ class HomeAvailabilityBloc
       return;
     }
 
+    _clearAvailabilitySyncTimer();
     final nextState = state.copyWith(isAvailable: !state.isAvailable);
     emit(nextState);
     final ok = await _updateAvailability(
@@ -209,7 +204,25 @@ class HomeAvailabilityBloc
 
     final nextState = state.copyWith(isAvailable: false);
     emit(nextState);
+    _clearAvailabilitySyncTimer();
     await _updateAvailability(nextState, startedNow: false);
+  }
+
+  Future<void> _onSyncRequested(
+    HomeAvailabilitySyncRequested event,
+    Emitter<HomeAvailabilityState> emit,
+  ) async {
+    _clearAvailabilitySyncTimer();
+    final current = state;
+    if (!current.isAvailable || !current.canToggleAvailability) {
+      return;
+    }
+
+    final ok = await _updateAvailability(current, startedNow: false);
+    if (!ok && !isClosed) {
+      emit(current.copyWith(isAvailable: false));
+      _clearAvailabilityExpiryTimer();
+    }
   }
 
   HomeAvailabilityState _syncAvailability(HomeAvailabilityState nextState) {
@@ -338,9 +351,24 @@ class HomeAvailabilityBloc
     _availabilityExpiryTimer = null;
   }
 
+  void _scheduleAvailabilitySync() {
+    _availabilitySyncTimer?.cancel();
+    _availabilitySyncTimer = Timer(_availabilitySyncDebounce, () {
+      if (!isClosed) {
+        add(const HomeAvailabilitySyncRequested());
+      }
+    });
+  }
+
+  void _clearAvailabilitySyncTimer() {
+    _availabilitySyncTimer?.cancel();
+    _availabilitySyncTimer = null;
+  }
+
   @override
   Future<void> close() async {
     _clearAvailabilityExpiryTimer();
+    _clearAvailabilitySyncTimer();
     return super.close();
   }
 }

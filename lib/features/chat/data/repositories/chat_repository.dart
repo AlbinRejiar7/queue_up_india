@@ -27,6 +27,8 @@ abstract class ChatRepository {
 
   Stream<PagedResult<ChatThread>> watchDirectThreadsPage({int limit = 10});
 
+  Stream<bool> watchHasUnreadDirectThreads({int limit = 20});
+
   Future<PagedResult<ChatThread>> fetchDirectThreadsPage({
     Object? cursor,
     int limit = 10,

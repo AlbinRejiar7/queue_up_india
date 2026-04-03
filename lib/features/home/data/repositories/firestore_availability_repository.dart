@@ -17,6 +17,7 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  _CachedAvailabilityProfile? _cachedProfile;
 
   @override
   Future<void> setAvailability({
@@ -34,13 +35,12 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
       return;
     }
 
-    final displayName = await _resolveDisplayName(uid);
-    final avatarUrl = await _resolveAvatarUrl(uid);
+    final profile = await _resolveCurrentProfile(uid);
 
     final payload = <String, dynamic>{
       'uid': uid,
-      'displayName': displayName,
-      'avatarUrl': avatarUrl,
+      'displayName': profile.displayName,
+      'avatarUrl': profile.avatarUrl,
       'gameId': gameId,
       'rankId': rank,
       'languageId': language,
@@ -253,32 +253,32 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     return uid;
   }
 
-  Future<String> _resolveDisplayName(String uid) async {
-    final user = _auth.currentUser;
-    final snapshot = await _db.collection('users').doc(uid).get();
-    final data = snapshot.data();
-    final name = data == null ? null : data['displayName'] as String?;
-    if (name != null && name.trim().isNotEmpty) {
-      return name;
+  Future<_CachedAvailabilityProfile> _resolveCurrentProfile(String uid) async {
+    final cached = _cachedProfile;
+    if (cached != null && cached.uid == uid) {
+      return cached;
     }
-    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
-      return user.displayName!;
-    }
-    return 'QueuePlayer';
-  }
 
-  Future<String> _resolveAvatarUrl(String uid) async {
+    final user = _auth.currentUser;
     final snapshot = await _db.collection('users').doc(uid).get();
     final data = snapshot.data();
-    final avatarUrl = data == null ? null : data['avatarUrl'] as String?;
-    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
-      return avatarUrl;
-    }
-    final user = _auth.currentUser;
-    if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
-      return user.photoURL!;
-    }
-    return AppImages.avatarHost;
+    final displayName = (data?['displayName'] as String?)?.trim();
+    final avatarUrl = (data?['avatarUrl'] as String?)?.trim();
+    final resolved = _CachedAvailabilityProfile(
+      uid: uid,
+      displayName: (displayName != null && displayName.isNotEmpty)
+          ? displayName
+          : ((user?.displayName ?? '').trim().isNotEmpty
+                ? user!.displayName!.trim()
+                : 'QueuePlayer'),
+      avatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty)
+          ? avatarUrl
+          : ((user?.photoURL ?? '').trim().isNotEmpty
+                ? user!.photoURL!.trim()
+                : AppImages.avatarHost),
+    );
+    _cachedProfile = resolved;
+    return resolved;
   }
 
   AvailablePlayerModel _mapAvailablePlayer(
@@ -332,4 +332,16 @@ class FirestoreAvailabilityRepository implements AvailabilityRepository {
     }
     return DateTime.now().subtract(AppTimeouts.availabilityTtl);
   }
+}
+
+class _CachedAvailabilityProfile {
+  const _CachedAvailabilityProfile({
+    required this.uid,
+    required this.displayName,
+    required this.avatarUrl,
+  });
+
+  final String uid;
+  final String displayName;
+  final String avatarUrl;
 }

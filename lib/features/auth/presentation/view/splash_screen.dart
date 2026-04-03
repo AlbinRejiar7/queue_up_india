@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -84,12 +85,16 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
     _hasNavigated = true;
-    final bool isLoggedIn = await AppPreferences.isLoggedIn();
+    final bool savedLoggedIn = await AppPreferences.isLoggedIn();
+    final bool hasAuthSession = FirebaseAuth.instance.currentUser != null;
+    if (savedLoggedIn != hasAuthSession) {
+      await AppPreferences.setLoggedIn(hasAuthSession);
+    }
     await AppPreferences.markFirstLaunchComplete();
     if (!mounted) {
       return;
     }
-    context.go(isLoggedIn ? AppRoutes.home : AppRoutes.login);
+    context.go(hasAuthSession ? AppRoutes.home : AppRoutes.login);
   }
 
   @override

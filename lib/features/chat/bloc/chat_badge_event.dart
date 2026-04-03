@@ -1,8 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../core/utils/paged_result.dart';
-import '../models/chat_thread.dart';
-
 abstract class ChatBadgeEvent extends Equatable {
   const ChatBadgeEvent();
 
@@ -19,10 +16,10 @@ class ChatBadgeStopped extends ChatBadgeEvent {
 }
 
 class ChatBadgeUpdated extends ChatBadgeEvent {
-  const ChatBadgeUpdated({required this.page});
+  const ChatBadgeUpdated({required this.hasUnread});
 
-  final PagedResult<ChatThread> page;
+  final bool hasUnread;
 
   @override
-  List<Object?> get props => <Object?>[page];
+  List<Object?> get props => <Object?>[hasUnread];
 }

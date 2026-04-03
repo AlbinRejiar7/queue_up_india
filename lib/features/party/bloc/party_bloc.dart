@@ -8,7 +8,6 @@ import 'package:queue_up_india/features/party/models/party_model.dart';
 
 import '../../../core/constants/app_options.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/utils/paged_result.dart';
 import '../../auth/models/user_model.dart';
 import '../models/create_party_form_model.dart';
 import '../viewmodel/party_view_model.dart';
@@ -24,7 +23,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     on<PartyListRequested>(_onPartyListRequested);
     on<PartyListRefreshRequested>(_onPartyListRefreshRequested);
     on<PartyListLoadMoreRequested>(_onPartyListLoadMoreRequested);
-    on<PartyListLivePageUpdated>(_onPartyListLivePageUpdated);
     on<PartyRoomsRequested>(_onPartyRoomsRequested);
     on<PartyDetailsRequested>(_onPartyDetailsRequested);
     on<PartyMembersLiveUpdated>(_onPartyMembersLiveUpdated);
@@ -49,14 +47,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
   static const int _partyPageSize = 10;
 
   final PartyViewModel _partyViewModel;
-  StreamSubscription<PagedResult<PartyModel>>? _liveSubscription;
   StreamSubscription<List<PartyPlayerModel>>? _partyMembersSubscription;
-  List<PartyModel> _liveParties = const <PartyModel>[];
-  List<PartyModel> _olderParties = const <PartyModel>[];
-  Object? _liveCursor;
-  Object? _olderCursor;
-  bool _liveHasMore = true;
-  bool _olderHasMore = true;
 
   Future<void> _onSessionChecked(
     PartySessionChecked event,
@@ -110,7 +101,7 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       return;
     }
 
-    final cursor = _olderParties.isEmpty ? _liveCursor : _olderCursor;
+    final cursor = state.data.partiesCursor;
     if (cursor == null) {
       emit(
         PartySuccess(
@@ -133,22 +124,17 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
         cursor: cursor,
         limit: _partyPageSize,
       );
+      final mergedParties = _mergeParties(state.data.parties, page.items);
       emit(
         PartySuccess(
           data: state.data.copyWith(
-            parties: _mergeParties(_liveParties, <PartyModel>[
-              ..._olderParties,
-              ...page.items,
-            ]),
+            parties: mergedParties,
             partiesCursor: page.nextCursor,
             hasMoreParties: page.hasMore,
             isLoadingMoreParties: false,
           ),
         ),
       );
-      _olderParties = <PartyModel>[..._olderParties, ...page.items];
-      _olderCursor = page.nextCursor;
-      _olderHasMore = page.hasMore;
     } catch (e, s) {
       debugPrint('[PartyBloc] Party load failed in list load more: $e');
       debugPrintStack(stackTrace: s);
@@ -177,39 +163,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     );
     emit(PartyLoading(data: nextData));
     await _reloadPartiesWithFilters(nextData, emit);
-  }
-
-  void _onPartyListLivePageUpdated(
-    PartyListLivePageUpdated event,
-    Emitter<PartyState> emit,
-  ) {
-    _liveParties = event.page.items;
-    _liveCursor = event.page.nextCursor;
-    _liveHasMore = event.page.hasMore;
-
-    if (_liveParties.isNotEmpty && _olderParties.isNotEmpty) {
-      final liveIds = _liveParties.map((party) => party.id).toSet();
-      _olderParties = _olderParties
-          .where((party) => !liveIds.contains(party.id))
-          .toList();
-    }
-
-    final combined = _mergeParties(_liveParties, _olderParties);
-    final effectiveCursor = _olderParties.isEmpty ? _liveCursor : _olderCursor;
-    final effectiveHasMore = _olderParties.isEmpty
-        ? _liveHasMore
-        : _olderHasMore;
-
-    emit(
-      PartySuccess(
-        data: state.data.copyWith(
-          parties: combined,
-          partiesCursor: effectiveCursor,
-          hasMoreParties: effectiveHasMore,
-          isLoadingMoreParties: false,
-        ),
-      ),
-    );
   }
 
   Future<void> _onPartyRoomsRequested(
@@ -735,15 +688,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
     PartyViewData data,
     Emitter<PartyState> emit,
   ) async {
-    await _liveSubscription?.cancel();
-    _liveSubscription = null;
-    _liveParties = const <PartyModel>[];
-    _olderParties = const <PartyModel>[];
-    _liveCursor = null;
-    _olderCursor = null;
-    _liveHasMore = true;
-    _olderHasMore = true;
-
     emit(
       PartyLoading(
         data: data.copyWith(
@@ -755,16 +699,28 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
       ),
     );
 
-    _liveSubscription = _partyViewModel
-        .watchPartiesPage(
-          gameId: data.activeGameId,
-          rankFilter: data.selectedRankFilter,
-          languageFilter: data.selectedLanguageFilter,
-          limit: _partyPageSize,
-        )
-        .listen((page) {
-          add(PartyListLivePageUpdated(page: page));
-        });
+    try {
+      final page = await _partyViewModel.loadPartiesPage(
+        gameId: data.activeGameId,
+        rankFilter: data.selectedRankFilter,
+        languageFilter: data.selectedLanguageFilter,
+        limit: _partyPageSize,
+      );
+      emit(
+        PartySuccess(
+          data: data.copyWith(
+            parties: page.items,
+            partiesCursor: page.nextCursor,
+            hasMoreParties: page.hasMore,
+            isLoadingMoreParties: false,
+          ),
+        ),
+      );
+    } catch (e, s) {
+      debugPrint('[PartyBloc] Party load failed in reload: $e');
+      debugPrintStack(stackTrace: s);
+      emit(PartyError(message: AppStrings.partyLoadFailed, data: data));
+    }
   }
 
   String _normalizeGameId(String gameId) {
@@ -839,7 +795,6 @@ class PartyBloc extends Bloc<PartyEvent, PartyState> {
 
   @override
   Future<void> close() async {
-    await _liveSubscription?.cancel();
     await _partyMembersSubscription?.cancel();
     return super.close();
   }
