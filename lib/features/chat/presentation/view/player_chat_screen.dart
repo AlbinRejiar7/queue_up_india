@@ -26,6 +26,7 @@ import '../../../home/viewmodel/available_players_view_model.dart';
 import '../../bloc/chat_bloc.dart';
 import '../../bloc/chat_event.dart';
 import '../../bloc/chat_state.dart';
+import '../../utils/direct_chat_firebase_debug.dart';
 import '../../viewmodel/chat_view_model.dart';
 import '../widgets/chat_bubble.dart';
 
@@ -73,6 +74,13 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
   void initState() {
     super.initState();
     _player = widget.player;
+    DirectChatFirebaseDebug.resetSession('direct-chat:${_player.id}');
+    final openActionId = DirectChatFirebaseDebug.startAction('openDirectChat');
+    DirectChatFirebaseDebug.summarizeActionAfterDelay(
+      openActionId,
+      reason: 'initial screen open',
+      delay: const Duration(milliseconds: 1400),
+    );
     PushNotificationService.instance.setActiveDirectChatId(_player.id);
     _syncAvailability();
     _loadCustomQuickMessages();
@@ -81,6 +89,7 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
 
   @override
   void dispose() {
+    DirectChatFirebaseDebug.summarizeSession('direct chat screen disposed');
     PushNotificationService.instance.setActiveDirectChatId(null);
     _scrollController.dispose();
     super.dispose();

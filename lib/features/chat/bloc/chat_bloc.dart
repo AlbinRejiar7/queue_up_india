@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/services/in_app_alert_service.dart';
 import '../models/chat_message.dart';
+import '../utils/direct_chat_firebase_debug.dart';
 import '../viewmodel/chat_view_model.dart';
 import '../../../core/utils/paged_result.dart';
 import 'chat_event.dart';
@@ -58,6 +59,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
     emit(state.copyWith(clearSendErrorMessage: true));
+    final actionId = _scope == ChatScope.direct
+        ? DirectChatFirebaseDebug.startAction('sendDirectMessage')
+        : -1;
     try {
       await _chatViewModel.sendMessage(
         scope: _scope,
@@ -65,7 +69,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         message: text,
         targetLabel: _targetLabel,
       );
+      DirectChatFirebaseDebug.summarizeActionAfterDelay(
+        actionId,
+        reason: 'message sent chars=${text.length}',
+      );
     } on StateError catch (error) {
+      DirectChatFirebaseDebug.summarizeActionAfterDelay(
+        actionId,
+        reason: 'message blocked/error chars=${text.length}',
+      );
       final message = error.message.toString();
       emit(
         state.copyWith(
@@ -75,6 +87,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
     } on FirebaseException catch (error) {
+      DirectChatFirebaseDebug.summarizeActionAfterDelay(
+        actionId,
+        reason: 'firebase error ${error.code} chars=${text.length}',
+      );
       emit(
         state.copyWith(
           sendErrorMessage:
@@ -84,6 +100,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
     } catch (_) {
+      DirectChatFirebaseDebug.summarizeActionAfterDelay(
+        actionId,
+        reason: 'unknown send failure chars=${text.length}',
+      );
       emit(state.copyWith(sendErrorMessage: AppStrings.chatSendFailed));
     }
   }
