@@ -54,3 +54,7 @@ class HomeAvailabilityExpired extends HomeAvailabilityEvent {
 class HomeAvailabilitySyncRequested extends HomeAvailabilityEvent {
   const HomeAvailabilitySyncRequested();
 }
+
+class HomeAvailabilityClearedExternally extends HomeAvailabilityEvent {
+  const HomeAvailabilityClearedExternally();
+}

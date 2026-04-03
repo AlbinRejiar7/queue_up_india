@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_options.dart';
 import '../../../../../core/constants/app_strings.dart';
+import '../../../../../core/constants/app_timeouts.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../../core/widgets/rank_tag_chip.dart';
@@ -11,7 +12,7 @@ import '../../../../../core/widgets/tag_chip.dart';
 import '../../../models/party_model.dart';
 
 class MyRoomCard extends StatelessWidget {
-  static const Duration _partyLifetime = Duration(hours: 24);
+  static const Duration _partyLifetime = AppTimeouts.partyTtl;
 
   const MyRoomCard({
     required this.party,
@@ -110,21 +111,33 @@ class MyRoomCard extends StatelessWidget {
           SizedBox(height: 14.h),
           Row(
             children: <Widget>[
-              Icon(Icons.group_rounded, color: AppColors.electricBlue, size: 18.sp),
+              Icon(
+                Icons.group_rounded,
+                color: AppColors.electricBlue,
+                size: 18.sp,
+              ),
               SizedBox(width: 6.w),
               Text(
                 '${party.playerCount}/${party.maxPlayers}',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
               SizedBox(width: 14.w),
-              Icon(Icons.key_rounded, color: AppColors.textSecondary, size: 17.sp),
+              Icon(
+                Icons.key_rounded,
+                color: AppColors.textSecondary,
+                size: 17.sp,
+              ),
               SizedBox(width: 4.w),
               Expanded(
                 child: Text(
                   party.partyCode,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               SizedBox(width: 10.w),

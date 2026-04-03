@@ -193,6 +193,11 @@ abstract final class AppStrings {
       'Players can now discover your queue';
   static const String availabilityHintOff =
       'Tap the button to broadcast status';
+  static const String availabilityChangeLockedTitle = 'Turn Off Go Solo First';
+  static String availabilityChangeLockedMessage(String gameName) =>
+      'You are already Go Solo available for $gameName. Turn off Go Solo first, then change your game, rank, or language.';
+  static const String availabilityDisableAction = 'Turn Off Go Solo';
+  static const String availabilityKeepCurrentAction = 'Keep Current';
   static const String availableForLabel = 'Available started for';
   static const String newMessagesHint = 'You have new messages';
   static const String newRequestsHint = 'You have new requests';
@@ -353,7 +358,7 @@ abstract final class AppStrings {
   static const String createdRooms = 'Created Parties';
   static const String joinedRooms = 'Joined Parties';
   static const String partyAutoDeleteInfo =
-      'Parties are deleted automatically 24 hours after creation.';
+      'Parties are deleted automatically 3 hours after creation.';
   static String partyAutoDeletesIn(String timeLeft) =>
       'Auto-deletes in $timeLeft';
   static const String noCreatedRooms =
@@ -455,6 +460,9 @@ abstract final class AppStrings {
   static const String chatTapToOpen = 'Tap to open chat';
   static const String chatDummyReply = 'Got it! Ready when you are.';
   static const String chatEmptyMessage = 'Type a message to send.';
+  static const String chatSendFailed = 'Unable to send message right now.';
+  static const String directChatUnavailable =
+      'You cannot message this player right now.';
   static const String directChatGreeting = 'Hey! Ready for a quick queue?';
   static const String directChatResponse = 'Yes, let us squad up!';
   static const String chatRequestAcceptedMessage =

@@ -5,6 +5,8 @@ import '../../models/party_player_model.dart';
 import '../../../../core/utils/paged_result.dart';
 
 abstract class PartyRepository {
+  Future<void> cleanupExpiredPartiesOnAppOpen();
+
   Future<String?> fetchCurrentPartyId();
 
   Future<List<PartyModel>> fetchParties({required String gameId});
@@ -30,9 +32,7 @@ abstract class PartyRepository {
 
   Future<PartyModel> fetchPartyDetails({required String partyId});
 
-  Stream<List<PartyPlayerModel>> watchPartyMembers({
-    required String partyId,
-  });
+  Stream<List<PartyPlayerModel>> watchPartyMembers({required String partyId});
 
   Future<PartyModel> createParty({
     required String gameId,

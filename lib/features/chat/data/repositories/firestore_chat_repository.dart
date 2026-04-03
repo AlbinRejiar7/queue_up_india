@@ -280,6 +280,7 @@ class FirestoreChatRepository implements ChatRepository {
   Future<void> sendPartyMessage({
     required String partyId,
     required String message,
+    String? partyName,
   }) async {
     final uid = _requireUserId();
     final senderName = await _resolveDisplayName(uid);
@@ -292,6 +293,8 @@ class FirestoreChatRepository implements ChatRepository {
         .add(<String, dynamic>{
           'senderId': uid,
           'senderName': senderName,
+          if (partyName != null && partyName.trim().isNotEmpty)
+            'partyName': partyName.trim(),
           'text': message,
           'createdAt': createdAt,
           'serverCreatedAt': FieldValue.serverTimestamp(),
@@ -315,16 +318,19 @@ class FirestoreChatRepository implements ChatRepository {
     final chatId = _chatIdForPeer(peerId);
 
     final chatRef = _db.collection('direct_chats').doc(chatId);
-    await chatRef.set(<String, dynamic>{
-      'participants': <String>[uid, peerId]..sort(),
+    final participants = <String>[uid, peerId]..sort();
+    final messageRef = chatRef.collection('messages').doc();
+    final batch = _db.batch();
+    batch.set(chatRef, <String, dynamic>{
+      'participants': participants,
     }, SetOptions(merge: true));
-
-    await chatRef.collection('messages').add(<String, dynamic>{
+    batch.set(messageRef, <String, dynamic>{
       'senderId': uid,
       'senderName': senderName,
       'text': message,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    await batch.commit();
   }
 
   @override

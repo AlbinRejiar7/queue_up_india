@@ -12,6 +12,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/activity_pulse_panel.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -80,6 +81,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<bool> _canChangeAvailabilityPreferences(
+    HomeAvailabilityState state,
+  ) async {
+    if (!state.isAvailable) {
+      return true;
+    }
+
+    final currentGameName = AppOptions.gameNameById(
+      state.selectedGameId ?? AppOptions.valorantId,
+    );
+    final shouldDisable = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.availabilityChangeLockedTitle,
+      message: AppStrings.availabilityChangeLockedMessage(currentGameName),
+      confirmLabel: AppStrings.availabilityDisableAction,
+      cancelLabel: AppStrings.availabilityKeepCurrentAction,
+    );
+    if (!shouldDisable || !mounted) {
+      return false;
+    }
+
+    context.read<HomeAvailabilityBloc>().add(const HomeAvailabilityToggled());
+    return false;
+  }
+
   @override
   void dispose() {
     _notificationsBloc.close();
@@ -112,7 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           context.read<HomeAvailabilityBloc>().add(
                             HomeAvailabilityInitialized(gameId: selectedGameId),
                           );
-                        } else if (state.selectedGameId != selectedGameId) {
+                        } else if (!state.isAvailable &&
+                            state.selectedGameId != selectedGameId) {
                           context.read<HomeAvailabilityBloc>().add(
                             HomeAvailabilityGameChanged(gameId: selectedGameId),
                           );
@@ -379,27 +406,59 @@ class _HomeScreenState extends State<HomeScreen> {
                                 selectedGameId: state.selectedGameId,
                                 selectedLanguage: state.selectedLanguage,
                                 selectedRank: state.selectedRank,
-                                onGameChanged: (String? value) {
-                                  if (value != null) {
-                                    context.read<HomeAvailabilityBloc>().add(
-                                      HomeAvailabilityGameChanged(
-                                        gameId: value,
-                                      ),
-                                    );
-                                    context.read<GameBloc>().add(
-                                      GameSelected(gameId: value),
-                                    );
+                                onGameChanged: (String? value) async {
+                                  if (value == null ||
+                                      value == state.selectedGameId) {
+                                    return;
                                   }
+                                  final availabilityBloc =
+                                      context.read<HomeAvailabilityBloc>();
+                                  final gameBloc = context.read<GameBloc>();
+                                  final canChange =
+                                      await _canChangeAvailabilityPreferences(
+                                        state,
+                                      );
+                                  if (!canChange || !mounted) {
+                                    return;
+                                  }
+                                  availabilityBloc.add(
+                                    HomeAvailabilityGameChanged(gameId: value),
+                                  );
+                                  gameBloc.add(GameSelected(gameId: value));
                                 },
-                                onLanguageChanged: (String? value) {
-                                  context.read<HomeAvailabilityBloc>().add(
+                                onLanguageChanged: (String? value) async {
+                                  if (value == state.selectedLanguage) {
+                                    return;
+                                  }
+                                  final availabilityBloc =
+                                      context.read<HomeAvailabilityBloc>();
+                                  final canChange =
+                                      await _canChangeAvailabilityPreferences(
+                                        state,
+                                      );
+                                  if (!canChange || !mounted) {
+                                    return;
+                                  }
+                                  availabilityBloc.add(
                                     HomeAvailabilityLanguageChanged(
                                       language: value,
                                     ),
                                   );
                                 },
-                                onRankChanged: (String? value) {
-                                  context.read<HomeAvailabilityBloc>().add(
+                                onRankChanged: (String? value) async {
+                                  if (value == state.selectedRank) {
+                                    return;
+                                  }
+                                  final availabilityBloc =
+                                      context.read<HomeAvailabilityBloc>();
+                                  final canChange =
+                                      await _canChangeAvailabilityPreferences(
+                                        state,
+                                      );
+                                  if (!canChange || !mounted) {
+                                    return;
+                                  }
+                                  availabilityBloc.add(
                                     HomeAvailabilityRankChanged(rank: value),
                                   );
                                 },

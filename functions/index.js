@@ -12,7 +12,7 @@ const db = getFirestore();
 const messaging = getMessaging();
 const region = "asia-south1";
 const AVAILABILITY_TTL_MINUTES = 5;
-const PARTY_TTL_HOURS = 24;
+const PARTY_TTL_HOURS = 3;
 const NOTIFICATION_CHANNEL_ID = "queueup_alerts_default_v1";
 const SOLO_MATCH_REQUIRED_PLAYERS = 4;
 const SOLO_MATCH_READY_SECONDS = 20;
@@ -99,6 +99,25 @@ function queueMetadataRef(bucketId) {
   return db.collection("match_pool").doc(bucketId).collection("metadata").doc("stats");
 }
 
+function applyQueueMetadataDelta(tx, bucketId, delta) {
+  if (!bucketId || !delta) {
+    return;
+  }
+  tx.set(
+    queueMetadataRef(bucketId),
+    {
+      activeUsers: FieldValue.increment(delta),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+function parseDirectChatParticipants(chatId) {
+  const parts = String(chatId || "").split("_").filter(Boolean);
+  return parts.length === 2 ? parts : [];
+}
+
 async function resolveUserProfile(uid) {
   const [userDoc, authUser] = await Promise.all([
     db.collection("users").doc(uid).get(),
@@ -159,14 +178,7 @@ async function attemptSoloMatchmakingForBucket(bucketId) {
       });
 
       ticketsSnap.docs.forEach((doc) => tx.delete(doc.ref));
-      tx.set(
-        queueMetadataRef(bucketId),
-        {
-          activeUsers: FieldValue.increment(-SOLO_MATCH_REQUIRED_PLAYERS),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      applyQueueMetadataDelta(tx, bucketId, -SOLO_MATCH_REQUIRED_PLAYERS);
 
       participants.forEach((participant) => {
         tx.set(
@@ -278,47 +290,113 @@ async function fetchUserTokens(uid) {
   return snapshot.docs.map((doc) => doc.id);
 }
 
-async function pruneInvalidTokens(uid, tokens, response) {
+function buildPrimaryTokenFields(token, platform) {
+  return {
+    primaryFcmToken: token,
+    primaryFcmPlatform: platform || "unknown",
+    primaryFcmUpdatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
+function buildClearPrimaryTokenFields() {
+  return {
+    primaryFcmToken: FieldValue.delete(),
+    primaryFcmPlatform: FieldValue.delete(),
+    primaryFcmUpdatedAt: FieldValue.delete(),
+  };
+}
+
+function isInvalidTokenErrorCode(code) {
+  return (
+    code === "messaging/registration-token-not-registered" ||
+    code === "messaging/invalid-registration-token"
+  );
+}
+
+async function fetchUserPushTargets(uid, excludedTokens = []) {
+  const userSnap = await db.collection("users").doc(uid).get();
+  const userData = userSnap.exists ? userSnap.data() || {} : {};
+  const primaryToken = String(userData.primaryFcmToken || "").trim();
+  const excluded = new Set(
+    excludedTokens
+      .map((token) => String(token || "").trim())
+      .filter(Boolean)
+  );
+
+  if (primaryToken && !excluded.has(primaryToken)) {
+    return {
+      tokens: [primaryToken],
+      source: "primary",
+      primaryToken,
+    };
+  }
+
+  const tokens = (await fetchUserTokens(uid)).filter(
+    (token) => token && !excluded.has(token)
+  );
+
+  return {
+    tokens: [...new Set(tokens)],
+    source: "subcollection",
+    primaryToken,
+  };
+}
+
+async function pruneInvalidTokens(uid, tokens, response, options = {}) {
   if (!response || !response.responses) {
     return;
   }
+  const primaryToken = String(options.primaryToken || "").trim();
   const batch = db.batch();
+  let hasWrites = false;
   response.responses.forEach((result, index) => {
     if (result.success) {
       return;
     }
     const code = result.error && result.error.code;
-    if (
-      code === "messaging/registration-token-not-registered" ||
-      code === "messaging/invalid-registration-token"
-    ) {
+    if (isInvalidTokenErrorCode(code)) {
+      const invalidToken = String(tokens[index] || "").trim();
+      if (!invalidToken) {
+        return;
+      }
       batch.delete(
         db
           .collection("users")
           .doc(uid)
           .collection("fcmTokens")
-          .doc(tokens[index])
+          .doc(invalidToken)
       );
+      hasWrites = true;
+      if (primaryToken && invalidToken === primaryToken) {
+        batch.set(
+          db.collection("users").doc(uid),
+          buildClearPrimaryTokenFields(),
+          { merge: true }
+        );
+      }
     }
   });
-  await batch.commit();
+  if (hasWrites) {
+    await batch.commit();
+  }
 }
 
 async function sendPushToUser(uid, payload) {
-  const tokens = await fetchUserTokens(uid);
-  if (!tokens.length) {
+  const normalizedPayload = normalizePushPayload(payload);
+  let target = await fetchUserPushTargets(uid);
+  if (!target.tokens.length) {
     console.log("[push] skip: no tokens for", uid);
     return;
   }
-  const normalizedPayload = normalizePushPayload(payload);
   console.log("[push] sending", {
     uid,
-    tokens: tokens.length,
+    tokens: target.tokens.length,
+    source: target.source,
     title: normalizedPayload?.notification?.title || "",
     body: normalizedPayload?.notification?.body || ""
   });
-  const response = await messaging.sendEachForMulticast({
-    tokens,
+  let response = await messaging.sendEachForMulticast({
+    tokens: target.tokens,
     ...normalizedPayload
   });
   console.log("[push] result", {
@@ -326,7 +404,43 @@ async function sendPushToUser(uid, payload) {
     successCount: response.successCount,
     failureCount: response.failureCount
   });
-  await pruneInvalidTokens(uid, tokens, response);
+  await pruneInvalidTokens(uid, target.tokens, response, {
+    primaryToken: target.primaryToken,
+  });
+
+  const shouldRetryWithFallback =
+    target.source === "primary" &&
+    target.tokens.length === 1 &&
+    response.responses.length === 1 &&
+    !response.responses[0].success &&
+    isInvalidTokenErrorCode(response.responses[0].error && response.responses[0].error.code);
+
+  if (!shouldRetryWithFallback) {
+    return;
+  }
+
+  target = await fetchUserPushTargets(uid, target.tokens);
+  if (!target.tokens.length) {
+    console.log("[push] no fallback tokens for", uid);
+    return;
+  }
+
+  console.log("[push] retrying with fallback tokens", {
+    uid,
+    tokens: target.tokens.length,
+  });
+  response = await messaging.sendEachForMulticast({
+    tokens: target.tokens,
+    ...normalizedPayload
+  });
+  console.log("[push] fallback result", {
+    uid,
+    successCount: response.successCount,
+    failureCount: response.failureCount
+  });
+  await pruneInvalidTokens(uid, target.tokens, response, {
+    primaryToken: target.primaryToken,
+  });
 }
 
 exports.claimFcmToken = onCall({ region, invoker: "public" }, async (request) => {
@@ -349,6 +463,7 @@ exports.claimFcmToken = onCall({ region, invoker: "public" }, async (request) =>
 
   const batch = db.batch();
   let removedFrom = 0;
+  const ownerRefsToCheck = new Map();
 
   snapshot.docs.forEach((doc) => {
     const ownerRef = doc.ref.parent.parent;
@@ -356,6 +471,17 @@ exports.claimFcmToken = onCall({ region, invoker: "public" }, async (request) =>
     if (ownerUid && ownerUid !== uid) {
       batch.delete(doc.ref);
       removedFrom += 1;
+      ownerRefsToCheck.set(ownerUid, ownerRef);
+    }
+  });
+
+  const ownerSnaps = await Promise.all(
+    Array.from(ownerRefsToCheck.values()).map((ref) => ref.get())
+  );
+  ownerSnaps.forEach((ownerSnap) => {
+    const ownerData = ownerSnap.exists ? ownerSnap.data() || {} : {};
+    if (String(ownerData.primaryFcmToken || "").trim() === token) {
+      batch.set(ownerSnap.ref, buildClearPrimaryTokenFields(), { merge: true });
     }
   });
 
@@ -366,6 +492,11 @@ exports.claimFcmToken = onCall({ region, invoker: "public" }, async (request) =>
       platform,
       updatedAt: FieldValue.serverTimestamp(),
     },
+    { merge: true }
+  );
+  batch.set(
+    db.collection("users").doc(uid),
+    buildPrimaryTokenFields(token, platform),
     { merge: true }
   );
 
@@ -449,14 +580,30 @@ async function clearPartyUserReferences(partyId) {
   await bulkWriter.close();
 }
 
+function partyExpiryCutoffMillis() {
+  return Date.now() - PARTY_TTL_HOURS * 60 * 60 * 1000;
+}
+
+function isExpiredPartyData(data) {
+  const createdAt = data?.createdAt;
+  return !!createdAt &&
+    typeof createdAt.toMillis === "function" &&
+    createdAt.toMillis() <= partyExpiryCutoffMillis();
+}
+
 async function deleteExpiredParty(partyRef) {
   const freshSnap = await partyRef.get();
   if (!freshSnap.exists) {
-    return;
+    return false;
+  }
+
+  if (!isExpiredPartyData(freshSnap.data())) {
+    return false;
   }
 
   await clearPartyUserReferences(partyRef.id);
   await db.recursiveDelete(partyRef);
+  return true;
 }
 
 exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
@@ -734,14 +881,7 @@ exports.cancelSoloMatchmaking = onCall({ region, invoker: "public" }, async (req
 
     if (status === "searching" && bucketId) {
       tx.delete(db.collection("match_pool").doc(bucketId).collection("tickets").doc(uid));
-      tx.set(
-        queueMetadataRef(bucketId),
-        {
-          activeUsers: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      applyQueueMetadataDelta(tx, bucketId, -1);
       tx.set(
         sessionRef,
         {
@@ -796,7 +936,7 @@ exports.cancelSoloMatchmaking = onCall({ region, invoker: "public" }, async (req
 
     const squad = squadSnap.data() || {};
     const participants = squad.participants || [];
-    const queueSize = 1;
+    let requeueCount = 0;
     participants.forEach((participant) => {
       if (!participant?.uid) {
         return;
@@ -805,22 +945,18 @@ exports.cancelSoloMatchmaking = onCall({ region, invoker: "public" }, async (req
         clearSoloMatchmakingSession(tx, participant);
         return;
       }
-      queueSoloParticipant(tx, participant, bucketId, queueSize);
-      tx.set(
-        queueMetadataRef(bucketId),
-        {
-          activeUsers: FieldValue.increment(1),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      requeueCount += 1;
+      queueSoloParticipant(tx, participant, bucketId, requeueCount);
     });
+    applyQueueMetadataDelta(tx, bucketId, requeueCount);
     tx.update(squadRef, {
       status: "cancelled",
       rejectedBy: uid,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    bucketToRetry = bucketId;
+    if (bucketId && requeueCount > 0) {
+      bucketToRetry = bucketId;
+    }
   });
 
   if (bucketToRetry) {
@@ -935,22 +1071,17 @@ exports.rejectSoloMatchmaking = onCall({ region, invoker: "public" }, async (req
       }
       requeueCount += 1;
       queueSoloParticipant(tx, participant, bucketId, requeueCount);
-      tx.set(
-        queueMetadataRef(bucketId),
-        {
-          activeUsers: FieldValue.increment(1),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
     });
+    applyQueueMetadataDelta(tx, bucketId, requeueCount);
 
     tx.update(squadRef, {
       status: "cancelled",
       rejectedBy: uid,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    bucketToRetry = bucketId;
+    if (bucketId && requeueCount > 0) {
+      bucketToRetry = bucketId;
+    }
   });
 
   if (bucketToRetry) {
@@ -1206,44 +1337,12 @@ exports.kickMember = onCall({ region, invoker: "public" }, async (request) => {
   return { ok: true };
 });
 
-exports.cleanupAvailability = onSchedule(
-  { schedule: "every 5 minutes", region },
-  async () => {
-    const cutoff = Timestamp.fromMillis(
-      Date.now() - AVAILABILITY_TTL_MINUTES * 60 * 1000
-    );
-
-    let lastDoc = null;
-    while (true) {
-      let query = db
-        .collection("availability")
-        .where("isAvailable", "==", true)
-        .where("updatedAt", "<", cutoff)
-        .orderBy("updatedAt")
-        .limit(500);
-
-      if (lastDoc) {
-        query = query.startAfter(lastDoc);
-      }
-
-      const snapshot = await query.get();
-      if (snapshot.empty) {
-        break;
-      }
-
-      const batch = db.batch();
-      snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-      await batch.commit();
-      lastDoc = snapshot.docs[snapshot.docs.length - 1];
-    }
-  }
-);
-
 exports.cleanupSoloMatchmaking = onSchedule(
   { schedule: "every 1 minutes", region },
   async () => {
     const cutoff = Timestamp.fromMillis(Date.now());
     let lastDoc = null;
+    const bucketsToRetry = new Set();
 
     while (true) {
       let query = db
@@ -1291,66 +1390,63 @@ exports.cleanupSoloMatchmaking = onSchedule(
             if (acceptedIds.has(participant.uid) && bucketId) {
               requeueCount += 1;
               queueSoloParticipant(tx, participant, bucketId, requeueCount);
-              tx.set(
-                queueMetadataRef(bucketId),
-                {
-                  activeUsers: FieldValue.increment(1),
-                  updatedAt: FieldValue.serverTimestamp(),
-                },
-                { merge: true }
-              );
             } else {
               clearSoloMatchmakingSession(tx, participant);
             }
           });
+          applyQueueMetadataDelta(tx, bucketId, requeueCount);
 
           tx.update(doc.ref, {
             status: "expired",
             updatedAt: FieldValue.serverTimestamp(),
           });
-          bucketToRetry = bucketId;
+          if (bucketId && requeueCount > 0) {
+            bucketToRetry = bucketId;
+          }
         });
 
         if (bucketToRetry) {
-          await attemptSoloMatchmakingForBucket(bucketToRetry);
+          bucketsToRetry.add(bucketToRetry);
         }
       }
 
       lastDoc = snapshot.docs[snapshot.docs.length - 1];
     }
+
+    for (const bucketId of bucketsToRetry) {
+      await attemptSoloMatchmakingForBucket(bucketId);
+    }
   }
 );
 
-exports.cleanupExpiredParties = onSchedule(
-  { schedule: "every 6 hours", region },
-  async () => {
-    const cutoff = Timestamp.fromMillis(
-      Date.now() - PARTY_TTL_HOURS * 60 * 60 * 1000
-    );
-    let lastDoc = null;
+exports.cleanupExpiredPartiesOnOpen = onCall(
+  { region, invoker: "public" },
+  async (request) => {
+    const requestedPartyId = String(request.data?.partyId || "").trim();
 
-    while (true) {
-      let query = db
-        .collection("parties")
-        .orderBy("createdAt")
-        .endAt(cutoff)
-        .limit(20);
+    if (requestedPartyId) {
+      const deleted = await deleteExpiredParty(
+        db.collection("parties").doc(requestedPartyId)
+      );
+      return { cleaned: deleted ? 1 : 0 };
+    }
 
-      if (lastDoc) {
-        query = query.startAfter(lastDoc);
-      }
+    const cutoff = Timestamp.fromMillis(partyExpiryCutoffMillis());
+    const snapshot = await db
+      .collection("parties")
+      .orderBy("createdAt")
+      .endAt(cutoff)
+      .limit(20)
+      .get();
 
-      const snapshot = await query.get();
-      if (snapshot.empty) {
-        break;
-      }
-
-      lastDoc = snapshot.docs[snapshot.docs.length - 1];
-
-      for (const doc of snapshot.docs) {
-        await deleteExpiredParty(doc.ref);
+    let cleaned = 0;
+    for (const doc of snapshot.docs) {
+      if (await deleteExpiredParty(doc.ref)) {
+        cleaned += 1;
       }
     }
+
+    return { cleaned };
   }
 );
 
@@ -1370,8 +1466,7 @@ exports.onPartyMessageCreate = onDocumentCreated(
       lastMessageAt: FieldValue.serverTimestamp()
     });
 
-    const partySnap = await partyRef.get();
-    const partyName = partySnap.exists ? partySnap.data().name || "Party" : "Party";
+    const partyName = String(data.partyName || "").trim() || "Party";
     const senderId = data.senderId || null;
     const senderName = data.senderName || "Player";
     const messageText = data.text || "";
@@ -1420,12 +1515,12 @@ exports.onDirectMessageCreate = onDocumentCreated(
     const chatId = event.params.chatId;
     const chatRef = db.collection("direct_chats").doc(chatId);
     const senderId = data.senderId || null;
-    const chatSnap = await chatRef.get();
-    let participants = chatSnap.exists
-      ? chatSnap.data().participants || []
-      : [];
-    if (!participants.length && chatId.includes("_")) {
-      participants = chatId.split("_");
+    let participants = parseDirectChatParticipants(chatId);
+    if (!participants.length) {
+      const chatSnap = await chatRef.get();
+      participants = chatSnap.exists
+        ? chatSnap.data().participants || []
+        : [];
     }
 
     const updates = {

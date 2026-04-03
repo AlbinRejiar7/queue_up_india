@@ -182,6 +182,7 @@ class _PartyDetailsScreenState extends State<PartyDetailsScreen> {
                           chatViewModel: sl<ChatViewModel>(),
                           scope: ChatScope.party,
                           targetId: party.id,
+                          targetLabel: party.name,
                         );
                       } else if (!canAccessPartyChat &&
                           _groupChatBloc != null) {

@@ -165,6 +165,9 @@ class MockPartyRepository implements PartyRepository {
   String? _currentPartyId;
 
   @override
+  Future<void> cleanupExpiredPartiesOnAppOpen() async {}
+
+  @override
   Future<PartyModel> createParty({
     required String gameId,
     required CreatePartyFormModel form,
@@ -222,9 +225,7 @@ class MockPartyRepository implements PartyRepository {
   }
 
   @override
-  Stream<List<PartyPlayerModel>> watchPartyMembers({
-    required String partyId,
-  }) {
+  Stream<List<PartyPlayerModel>> watchPartyMembers({required String partyId}) {
     final party = _parties.firstWhere((party) => party.id == partyId);
     return Stream<List<PartyPlayerModel>>.value(party.players);
   }

@@ -24,14 +24,14 @@ class HomeAvailabilityBloc
     on<HomeAvailabilityLanguageChanged>(_onLanguageChanged);
     on<HomeAvailabilityRankChanged>(_onRankChanged);
     on<HomeAvailabilityToggled>(_onToggled);
-    on<HomeAvailabilityExpired>(_onExpired);
     on<HomeAvailabilitySyncRequested>(_onSyncRequested);
+    on<HomeAvailabilityClearedExternally>(_onClearedExternally);
   }
 
   final AvailabilityViewModel _availabilityViewModel;
   final ProfileViewModel _profileViewModel;
   static const Duration _availabilitySyncDebounce = Duration(milliseconds: 600);
-  Timer? _availabilityExpiryTimer;
+  Timer? _availabilityHeartbeatTimer;
   Timer? _availabilitySyncTimer;
 
   Future<void> _onInitialized(
@@ -84,7 +84,10 @@ class HomeAvailabilityBloc
       language: nextState.selectedLanguage,
       rank: nextState.selectedRank,
     );
-    _syncAvailabilityExpiry(availability, isAvailable: nextState.isAvailable);
+    _syncAvailabilityHeartbeat(
+      availability,
+      isAvailable: nextState.isAvailable,
+    );
   }
 
   Future<void> _onGameChanged(
@@ -189,23 +192,8 @@ class HomeAvailabilityBloc
     );
     if (!ok) {
       emit(nextState.copyWith(isAvailable: false));
-      _clearAvailabilityExpiryTimer();
+      _clearAvailabilityHeartbeatTimer();
     }
-  }
-
-  Future<void> _onExpired(
-    HomeAvailabilityExpired event,
-    Emitter<HomeAvailabilityState> emit,
-  ) async {
-    if (!state.isAvailable) {
-      _clearAvailabilityExpiryTimer();
-      return;
-    }
-
-    final nextState = state.copyWith(isAvailable: false);
-    emit(nextState);
-    _clearAvailabilitySyncTimer();
-    await _updateAvailability(nextState, startedNow: false);
   }
 
   Future<void> _onSyncRequested(
@@ -221,8 +209,20 @@ class HomeAvailabilityBloc
     final ok = await _updateAvailability(current, startedNow: false);
     if (!ok && !isClosed) {
       emit(current.copyWith(isAvailable: false));
-      _clearAvailabilityExpiryTimer();
+      _clearAvailabilityHeartbeatTimer();
     }
+  }
+
+  Future<void> _onClearedExternally(
+    HomeAvailabilityClearedExternally event,
+    Emitter<HomeAvailabilityState> emit,
+  ) async {
+    _clearAvailabilitySyncTimer();
+    _clearAvailabilityHeartbeatTimer();
+    if (!state.isAvailable) {
+      return;
+    }
+    emit(state.copyWith(isAvailable: false));
   }
 
   HomeAvailabilityState _syncAvailability(HomeAvailabilityState nextState) {
@@ -248,14 +248,14 @@ class HomeAvailabilityBloc
         startedNow: startedNow,
       );
       if (current.isAvailable) {
-        _scheduleAvailabilityExpiry(DateTime.now());
+        _scheduleAvailabilityHeartbeat(DateTime.now());
       } else {
-        _clearAvailabilityExpiryTimer();
+        _clearAvailabilityHeartbeatTimer();
       }
       return true;
     } catch (_) {
       if (!current.isAvailable) {
-        _clearAvailabilityExpiryTimer();
+        _clearAvailabilityHeartbeatTimer();
       }
       return false;
     }
@@ -316,39 +316,38 @@ class HomeAvailabilityBloc
     }
   }
 
-  void _syncAvailabilityExpiry(
+  void _syncAvailabilityHeartbeat(
     AvailablePlayerModel? availability, {
     required bool isAvailable,
   }) {
     if (!isAvailable || availability == null) {
-      _clearAvailabilityExpiryTimer();
+      _clearAvailabilityHeartbeatTimer();
       return;
     }
-    _scheduleAvailabilityExpiry(availability.updatedAt);
+    _scheduleAvailabilityHeartbeat(availability.updatedAt);
   }
 
-  void _scheduleAvailabilityExpiry(DateTime updatedAt) {
-    _clearAvailabilityExpiryTimer();
+  void _scheduleAvailabilityHeartbeat(DateTime updatedAt) {
+    _clearAvailabilityHeartbeatTimer();
 
-    final remaining = updatedAt
-        .add(AppTimeouts.availabilityTtl)
-        .difference(DateTime.now());
+    final nextHeartbeatAt = updatedAt.add(AppTimeouts.availabilityHeartbeat);
+    final remaining = nextHeartbeatAt.difference(DateTime.now());
 
     if (remaining <= Duration.zero) {
-      add(const HomeAvailabilityExpired());
+      add(const HomeAvailabilitySyncRequested());
       return;
     }
 
-    _availabilityExpiryTimer = Timer(remaining, () {
+    _availabilityHeartbeatTimer = Timer(remaining, () {
       if (!isClosed) {
-        add(const HomeAvailabilityExpired());
+        add(const HomeAvailabilitySyncRequested());
       }
     });
   }
 
-  void _clearAvailabilityExpiryTimer() {
-    _availabilityExpiryTimer?.cancel();
-    _availabilityExpiryTimer = null;
+  void _clearAvailabilityHeartbeatTimer() {
+    _availabilityHeartbeatTimer?.cancel();
+    _availabilityHeartbeatTimer = null;
   }
 
   void _scheduleAvailabilitySync() {
@@ -367,7 +366,7 @@ class HomeAvailabilityBloc
 
   @override
   Future<void> close() async {
-    _clearAvailabilityExpiryTimer();
+    _clearAvailabilityHeartbeatTimer();
     _clearAvailabilitySyncTimer();
     return super.close();
   }

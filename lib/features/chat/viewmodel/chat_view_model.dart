@@ -85,9 +85,14 @@ class ChatViewModel {
     required ChatScope scope,
     required String targetId,
     required String message,
+    String? targetLabel,
   }) {
     if (scope == ChatScope.party) {
-      return _repository.sendPartyMessage(partyId: targetId, message: message);
+      return _repository.sendPartyMessage(
+        partyId: targetId,
+        message: message,
+        partyName: targetLabel,
+      );
     }
     return _repository.sendDirectMessage(peerId: targetId, message: message);
   }

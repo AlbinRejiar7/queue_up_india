@@ -1095,8 +1095,19 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                                       : BlocListener<ChatBloc, ChatState>(
                                           listenWhen: (previous, current) =>
                                               previous.messages.length !=
-                                              current.messages.length,
+                                                  current.messages.length ||
+                                              previous.sendErrorMessage !=
+                                                  current.sendErrorMessage,
                                           listener: (context, state) {
+                                            final sendError =
+                                                state.sendErrorMessage;
+                                            if (sendError != null &&
+                                                sendError.isNotEmpty) {
+                                              AppSnackBar.showInfo(
+                                                context,
+                                                sendError,
+                                              );
+                                            }
                                             if (_stickToBottom &&
                                                 !state.isLoadingMore) {
                                               _scrollToBottom();

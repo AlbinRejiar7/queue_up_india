@@ -11,6 +11,10 @@ class PartyViewModel {
 
   final PartyRepository _partyRepository;
 
+  Future<void> cleanupExpiredPartiesOnAppOpen() {
+    return _partyRepository.cleanupExpiredPartiesOnAppOpen();
+  }
+
   Future<String?> getCurrentPartyId() {
     return _partyRepository.fetchCurrentPartyId();
   }
@@ -83,10 +87,7 @@ class PartyViewModel {
     required String partyId,
     required String playerId,
   }) {
-    return _partyRepository.kickPlayer(
-      partyId: partyId,
-      playerId: playerId,
-    );
+    return _partyRepository.kickPlayer(partyId: partyId, playerId: playerId);
   }
 
   Future<void> leaveParty(String partyId) {

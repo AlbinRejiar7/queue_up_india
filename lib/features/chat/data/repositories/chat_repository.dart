@@ -39,6 +39,7 @@ abstract class ChatRepository {
   Future<void> sendPartyMessage({
     required String partyId,
     required String message,
+    String? partyName,
   });
 
   Future<void> sendDirectMessage({

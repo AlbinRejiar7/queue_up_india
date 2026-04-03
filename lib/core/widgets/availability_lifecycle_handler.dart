@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../services/availability_session_manager.dart';
+import '../../features/home/bloc/home_availability_bloc.dart';
+import '../../features/home/bloc/home_availability_event.dart';
 
 class AvailabilityLifecycleHandler extends StatefulWidget {
   const AvailabilityLifecycleHandler({required this.child, super.key});
@@ -13,7 +16,10 @@ class AvailabilityLifecycleHandler extends StatefulWidget {
 }
 
 class _AvailabilityLifecycleHandlerState
-    extends State<AvailabilityLifecycleHandler> with WidgetsBindingObserver {
+    extends State<AvailabilityLifecycleHandler>
+    with WidgetsBindingObserver {
+  bool _didClearForBackground = false;
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +34,22 @@ class _AvailabilityLifecycleHandlerState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.resumed) {
+      _didClearForBackground = false;
+      return;
+    }
+
+    if (_didClearForBackground) {
+      return;
+    }
+
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _didClearForBackground = true;
+      context.read<HomeAvailabilityBloc>().add(
+        const HomeAvailabilityClearedExternally(),
+      );
       AvailabilitySessionManager.clearAvailabilityOnTerminate();
     }
   }

@@ -7,6 +7,7 @@ import '../../../../../core/constants/app_strings.dart';
 import '../../../../../core/services/push_notification_service.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/utils/chat_time_formatter.dart';
+import '../../../../../core/widgets/app_snackbar.dart';
 import '../../../../../core/widgets/glass_container.dart';
 import '../../../../chat/bloc/chat_bloc.dart';
 import '../../../../chat/bloc/chat_event.dart';
@@ -78,16 +79,20 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                   Positioned.fill(
                     child: BlocListener<ChatBloc, ChatState>(
                       listenWhen: (previous, current) =>
-                          previous.messages.length !=
-                          current.messages.length,
+                          previous.messages.length != current.messages.length ||
+                          previous.sendErrorMessage != current.sendErrorMessage,
                       listener: (context, state) {
+                        final sendError = state.sendErrorMessage;
+                        if (sendError != null && sendError.isNotEmpty) {
+                          AppSnackBar.showInfo(context, sendError);
+                        }
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (!scrollController.hasClients) {
                             return;
                           }
                           final distanceToBottom =
                               scrollController.position.maxScrollExtent -
-                                  scrollController.position.pixels;
+                              scrollController.position.pixels;
                           if (distanceToBottom <= 120.h &&
                               !state.isLoadingMore) {
                             scrollController.animateTo(
@@ -103,7 +108,8 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                           final lastMessage = state.messages.isEmpty
                               ? null
                               : state.messages.last;
-                          final bool showUnreadDot = isCompact &&
+                          final bool showUnreadDot =
+                              isCompact &&
                               lastMessage != null &&
                               !lastMessage.isMe;
                           final previewText = lastMessage == null
@@ -126,16 +132,20 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                                     width: 44.w,
                                     height: 4.h,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius:
-                                          BorderRadius.circular(999.r),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        999.r,
+                                      ),
                                     ),
                                   ),
                                   SizedBox(height: 6.h),
                                   if (isCompact) ...<Widget>[
                                     Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(horizontal: 6.w),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 6.w,
+                                      ),
                                       child: Row(
                                         children: <Widget>[
                                           Expanded(
@@ -151,21 +161,20 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                                                         style: AppTextStyles
                                                             .sectionTitle
                                                             .copyWith(
-                                                          fontSize: 18.sp,
-                                                        ),
+                                                              fontSize: 18.sp,
+                                                            ),
                                                       ),
                                                     ),
-                                                    if (previewTime != null) ...<
-                                                      Widget
-                                                    >[
+                                                    if (previewTime !=
+                                                        null) ...<Widget>[
                                                       Text(
                                                         previewTime,
                                                         style: AppTextStyles
                                                             .caption
                                                             .copyWith(
-                                                          color: AppColors
-                                                              .textSecondary,
-                                                        ),
+                                                              color: AppColors
+                                                                  .textSecondary,
+                                                            ),
                                                       ),
                                                       SizedBox(width: 8.w),
                                                     ],
@@ -187,11 +196,11 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                                                               height: 8.w,
                                                               decoration:
                                                                   BoxDecoration(
-                                                                color: AppColors
-                                                                    .danger,
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                              ),
+                                                                    color: AppColors
+                                                                        .danger,
+                                                                    shape: BoxShape
+                                                                        .circle,
+                                                                  ),
                                                             ),
                                                           ),
                                                       ],
@@ -261,8 +270,8 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                               final metrics = notification.metrics;
                               if (metrics.pixels <= 120.h) {
                                 context.read<ChatBloc>().add(
-                                      const ChatLoadOlderRequested(),
-                                    );
+                                  const ChatLoadOlderRequested(),
+                                );
                               }
                               return false;
                             },
@@ -272,8 +281,9 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                                 parent: AlwaysScrollableScrollPhysics(),
                               ),
                               padding: contentPadding.copyWith(
-                                bottom:
-                                    isCompact ? contentPadding.bottom : 86.h,
+                                bottom: isCompact
+                                    ? contentPadding.bottom
+                                    : 86.h,
                               ),
                               children: items,
                             ),
@@ -309,21 +319,20 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                               emptyMessage: AppStrings.chatEmptyMessage,
                               onSend: (text) {
                                 context.read<ChatBloc>().add(
-                                      ChatMessageSent(message: text),
-                                    );
-                                WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) {
-                                    if (!scrollController.hasClients) {
-                                      return;
-                                    }
-                                    scrollController.animateTo(
-                                      scrollController.position.maxScrollExtent,
-                                      duration:
-                                          const Duration(milliseconds: 220),
-                                      curve: Curves.easeOutCubic,
-                                    );
-                                  },
+                                  ChatMessageSent(message: text),
                                 );
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (!scrollController.hasClients) {
+                                    return;
+                                  }
+                                  scrollController.animateTo(
+                                    scrollController.position.maxScrollExtent,
+                                    duration: const Duration(milliseconds: 220),
+                                    curve: Curves.easeOutCubic,
+                                  );
+                                });
                               },
                             ),
                           ),

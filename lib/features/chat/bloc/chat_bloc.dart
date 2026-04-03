@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/constants/app_strings.dart';
+import '../../../core/services/in_app_alert_service.dart';
 import '../models/chat_message.dart';
 import '../viewmodel/chat_view_model.dart';
 import '../../../core/utils/paged_result.dart';
-import '../../../core/services/in_app_alert_service.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
 
@@ -15,9 +16,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required ChatViewModel chatViewModel,
     required ChatScope scope,
     required String targetId,
+    String? targetLabel,
   }) : _chatViewModel = chatViewModel,
        _scope = scope,
        _targetId = targetId,
+       _targetLabel = targetLabel,
        super(const ChatState()) {
     on<ChatStarted>(_onStarted);
     on<ChatMessageSent>(_onMessageSent);
@@ -29,6 +32,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ChatViewModel _chatViewModel;
   final ChatScope _scope;
   final String _targetId;
+  final String? _targetLabel;
   StreamSubscription<PagedResult<ChatMessage>>? _subscription;
   bool _hasSeeded = false;
   static const int _pageSize = 10;
@@ -56,11 +60,35 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (text.isEmpty) {
       return;
     }
-    await _chatViewModel.sendMessage(
-      scope: _scope,
-      targetId: _targetId,
-      message: text,
-    );
+    emit(state.copyWith(clearSendErrorMessage: true));
+    try {
+      await _chatViewModel.sendMessage(
+        scope: _scope,
+        targetId: _targetId,
+        message: text,
+        targetLabel: _targetLabel,
+      );
+    } on StateError catch (error) {
+      final message = error.message.toString();
+      emit(
+        state.copyWith(
+          sendErrorMessage: message == 'Blocked user'
+              ? AppStrings.blockedChatDisabled
+              : AppStrings.chatSendFailed,
+        ),
+      );
+    } on FirebaseException catch (error) {
+      emit(
+        state.copyWith(
+          sendErrorMessage:
+              error.code == 'permission-denied' && _scope == ChatScope.direct
+              ? AppStrings.directChatUnavailable
+              : AppStrings.chatSendFailed,
+        ),
+      );
+    } catch (_) {
+      emit(state.copyWith(sendErrorMessage: AppStrings.chatSendFailed));
+    }
   }
 
   void _onLatestPageUpdated(

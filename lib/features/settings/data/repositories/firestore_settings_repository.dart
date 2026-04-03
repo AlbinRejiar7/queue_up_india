@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_images.dart';
+import '../../../../core/utils/username_availability_cache.dart';
 import '../../../../firebase_options.dart';
 import '../../models/language_model.dart';
 import '../../models/profile_preferences_model.dart';
@@ -135,8 +136,16 @@ class FirestoreSettingsRepository implements SettingsRepository {
       return false;
     }
 
-    final snapshot = await _db.collection('usernames').doc(normalized).get();
-    return !snapshot.exists;
+    return UsernameAvailabilityCache.getOrLoad(
+      normalizedUsername: normalized,
+      loader: () async {
+        final snapshot = await _db
+            .collection('usernames')
+            .doc(normalized)
+            .get();
+        return !snapshot.exists;
+      },
+    );
   }
 
   @override
@@ -208,6 +217,16 @@ class FirestoreSettingsRepository implements SettingsRepository {
         }
       }
     });
+    UsernameAvailabilityCache.prime(
+      normalizedUsername: normalizedName,
+      isAvailable: false,
+    );
+    if (currentNormalized.isNotEmpty && currentNormalized != normalizedName) {
+      UsernameAvailabilityCache.prime(
+        normalizedUsername: currentNormalized,
+        isAvailable: true,
+      );
+    }
 
     await userRef.set(<String, dynamic>{
       'displayName': preferences.queueName,
@@ -483,6 +502,10 @@ class FirestoreSettingsRepository implements SettingsRepository {
     if (normalized.isNotEmpty) {
       try {
         await _db.collection('usernames').doc(normalized).delete();
+        UsernameAvailabilityCache.prime(
+          normalizedUsername: normalized,
+          isAvailable: true,
+        );
       } catch (_) {}
     }
 

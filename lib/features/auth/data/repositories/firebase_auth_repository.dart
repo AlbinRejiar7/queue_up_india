@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../../core/utils/username_availability_cache.dart';
 import '../../models/user_model.dart';
 import 'auth_repository.dart';
 
@@ -28,8 +29,13 @@ class FirebaseAuthRepository implements AuthRepository {
     if (normalized.isEmpty) {
       return false;
     }
-    final doc = await _db.collection('usernames').doc(normalized).get();
-    return !doc.exists;
+    return UsernameAvailabilityCache.getOrLoad(
+      normalizedUsername: normalized,
+      loader: () async {
+        final doc = await _db.collection('usernames').doc(normalized).get();
+        return !doc.exists;
+      },
+    );
   }
 
   @override
@@ -312,6 +318,10 @@ class FirebaseAuthRepository implements AuthRepository {
       }
       tx.set(docRef, payload, SetOptions(merge: true));
     });
+    UsernameAvailabilityCache.prime(
+      normalizedUsername: normalized,
+      isAvailable: false,
+    );
   }
 
   @override

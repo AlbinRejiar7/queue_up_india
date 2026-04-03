@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/constants/app_images.dart';
 import '../../../../core/constants/app_options.dart';
+import '../../../../core/constants/app_timeouts.dart';
 import '../../../../core/utils/paged_result.dart';
 import '../../../auth/models/user_model.dart';
 import '../../models/create_party_form_model.dart';
@@ -25,12 +28,58 @@ class FirestorePartyRepository implements PartyRepository {
   final FirebaseAuth _auth;
   final FirebaseFunctions _functions;
 
+  DateTime _partyCutoff() => DateTime.now().subtract(AppTimeouts.partyTtl);
+
+  bool _isExpiredCreatedAtValue(Object? createdAt) {
+    if (createdAt is! Timestamp) {
+      return false;
+    }
+    return createdAt.toDate().isBefore(_partyCutoff());
+  }
+
+  Future<void> _requestExpiredPartyCleanup({String? partyId}) async {
+    final callable = _functions.httpsCallable('cleanupExpiredPartiesOnOpen');
+    await callable.call(<String, dynamic>{
+      if (partyId != null && partyId.trim().isNotEmpty) 'partyId': partyId,
+    });
+  }
+
+  Future<void> _clearCurrentPartyId(String uid) {
+    return _db.collection('users').doc(uid).set(<String, dynamic>{
+      'currentPartyId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> cleanupExpiredPartiesOnAppOpen() async {
+    await _requestExpiredPartyCleanup();
+  }
+
   @override
   Future<String?> fetchCurrentPartyId() async {
     final uid = _requireUserId();
     final doc = await _db.collection('users').doc(uid).get();
     final data = doc.data();
-    return data == null ? null : data['currentPartyId'] as String?;
+    final partyId = data == null ? null : data['currentPartyId'] as String?;
+    if (partyId == null || partyId.trim().isEmpty) {
+      return null;
+    }
+
+    final partyDoc = await _db.collection('parties').doc(partyId).get();
+    if (!partyDoc.exists) {
+      await _clearCurrentPartyId(uid);
+      return null;
+    }
+
+    final partyData = partyDoc.data() ?? <String, dynamic>{};
+    if (_isExpiredCreatedAtValue(partyData['createdAt'])) {
+      await _clearCurrentPartyId(uid);
+      unawaited(_requestExpiredPartyCleanup(partyId: partyId));
+      return null;
+    }
+
+    return partyId;
   }
 
   @override
@@ -47,10 +96,12 @@ class FirestorePartyRepository implements PartyRepository {
     Object? cursor,
     int limit = 10,
   }) async {
+    final cutoff = Timestamp.fromDate(_partyCutoff());
     Query<Map<String, dynamic>> query = _basePartyQuery(
       gameId: gameId,
       rankFilter: rankFilter,
       languageFilter: languageFilter,
+      createdAfter: cutoff,
     ).limit(limit);
 
     if (cursor is QueryDocumentSnapshot<Map<String, dynamic>>) {
@@ -81,10 +132,12 @@ class FirestorePartyRepository implements PartyRepository {
     String? languageFilter,
     int limit = 10,
   }) {
+    final cutoff = Timestamp.fromDate(_partyCutoff());
     final query = _basePartyQuery(
       gameId: gameId,
       rankFilter: rankFilter,
       languageFilter: languageFilter,
+      createdAfter: cutoff,
     ).limit(limit);
 
     return query.snapshots().asyncMap((snapshot) async {
@@ -111,10 +164,15 @@ class FirestorePartyRepository implements PartyRepository {
         .collection('parties')
         .where('hostId', isEqualTo: uid)
         .get();
-    final parties = snapshot.docs.map((doc) {
-      final data = doc.data();
-      return _mapPartyDoc(doc.id, data);
-    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final parties =
+        snapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              return _mapPartyDoc(doc.id, data);
+            })
+            .where((party) => !_isPartyExpired(party))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return _enrichHostNames(parties);
   }
 
@@ -139,6 +197,14 @@ class FirestorePartyRepository implements PartyRepository {
     }
 
     final data = partyDoc.data() ?? <String, dynamic>{};
+    if (_isExpiredCreatedAtValue(data['createdAt'])) {
+      final uid = _auth.currentUser?.uid;
+      if (uid != null) {
+        await _clearCurrentPartyId(uid);
+      }
+      unawaited(_requestExpiredPartyCleanup(partyId: partyId));
+      throw StateError('Party not found');
+    }
     final hostId = data['hostId'] as String?;
     final membersSnapshot = await _db
         .collection('parties')
@@ -357,7 +423,12 @@ class FirestorePartyRepository implements PartyRepository {
       if (!partyDoc.exists) {
         return null;
       }
-      return _mapPartyDoc(partyDoc.id, partyDoc.data() ?? <String, dynamic>{});
+      final partyData = partyDoc.data() ?? <String, dynamic>{};
+      if (_isExpiredCreatedAtValue(partyData['createdAt'])) {
+        unawaited(_requestExpiredPartyCleanup(partyId: partyId));
+        return null;
+      }
+      return _mapPartyDoc(partyDoc.id, partyData);
     }).toList();
 
     final results = await Future.wait(futures);
@@ -442,10 +513,12 @@ class FirestorePartyRepository implements PartyRepository {
     required String gameId,
     String? rankFilter,
     String? languageFilter,
+    required Timestamp createdAfter,
   }) {
     Query<Map<String, dynamic>> query = _db
         .collection('parties')
         .where('gameId', isEqualTo: gameId)
+        .where('createdAt', isGreaterThanOrEqualTo: createdAfter)
         .orderBy('createdAt', descending: true)
         .orderBy(FieldPath.documentId, descending: true);
 
@@ -460,6 +533,10 @@ class FirestorePartyRepository implements PartyRepository {
     }
 
     return query;
+  }
+
+  bool _isPartyExpired(PartyModel party) {
+    return party.createdAt.isBefore(_partyCutoff());
   }
 
   List<PartyPlayerModel> _placeholderPlayers(int count) {

@@ -155,10 +155,9 @@ class PushNotificationService {
   Future<void> _claimToken(String uid, String token) async {
     debugPrint('[Push] claiming token for $uid');
     try {
-      final result = await _functions.httpsCallable('claimFcmToken').call(<String, dynamic>{
-        'token': token,
-        'platform': Platform.operatingSystem,
-      });
+      final result = await _functions.httpsCallable('claimFcmToken').call(
+        <String, dynamic>{'token': token, 'platform': Platform.operatingSystem},
+      );
       debugPrint('[Push] token claim result for $uid: ${result.data}');
     } catch (error, stack) {
       debugPrint('[Push] token claim failed for $uid: $error');
@@ -170,26 +169,37 @@ class PushNotificationService {
 
   Future<void> _saveToken(String uid, String token) async {
     debugPrint('[Push] saving token for $uid');
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('fcmTokens')
-        .doc(token)
-        .set(<String, dynamic>{
-          'token': token,
-          'platform': Platform.operatingSystem,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+    final userRef = _db.collection('users').doc(uid);
+    final batch = _db.batch();
+    batch.set(userRef.collection('fcmTokens').doc(token), <String, dynamic>{
+      'token': token,
+      'platform': Platform.operatingSystem,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    batch.set(userRef, <String, dynamic>{
+      'primaryFcmToken': token,
+      'primaryFcmPlatform': Platform.operatingSystem,
+      'primaryFcmUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   Future<void> _deleteToken(String uid, String token) async {
     debugPrint('[Push] deleting token for $uid');
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('fcmTokens')
-        .doc(token)
-        .delete();
+    final userRef = _db.collection('users').doc(uid);
+    final userSnap = await userRef.get();
+    final batch = _db.batch();
+    batch.delete(userRef.collection('fcmTokens').doc(token));
+    final primaryToken =
+        (userSnap.data()?['primaryFcmToken'] as String?)?.trim() ?? '';
+    if (primaryToken == token) {
+      batch.set(userRef, <String, dynamic>{
+        'primaryFcmToken': FieldValue.delete(),
+        'primaryFcmPlatform': FieldValue.delete(),
+        'primaryFcmUpdatedAt': FieldValue.delete(),
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
   Future<void> removeCurrentUserToken() async {
