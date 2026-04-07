@@ -45,6 +45,7 @@ import '../../features/settings/viewmodel/profile_view_model.dart';
 import '../network/network_status_cubit.dart';
 import '../navigation/bloc/main_tab_bloc.dart';
 import '../navigation/app_router.dart';
+import '../services/app_update_service.dart';
 import '../services/activity_pulse_service.dart';
 import '../services/direct_chat_monitor_service.dart';
 
@@ -89,6 +90,7 @@ void _registerRepositories() {
     FirestoreMatchmakingRepository.new,
   );
   sl.registerLazySingleton<ActivityPulseService>(ActivityPulseService.new);
+  sl.registerLazySingleton<AppUpdateService>(AppUpdateService.new);
   sl.registerLazySingleton<Connectivity>(Connectivity.new);
 }
 

@@ -8,6 +8,7 @@ import 'core/network/network_status_cubit.dart';
 import 'core/navigation/bloc/main_tab_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/availability_lifecycle_handler.dart';
+import 'core/widgets/app_update_prompt_gate.dart';
 import 'core/widgets/network_status_snack_listener.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/bloc/registration_bloc.dart';
@@ -56,8 +57,10 @@ class QueueUpApp extends StatelessWidget {
               theme: AppTheme.darkTheme,
               routerConfig: sl<GoRouter>(),
               builder: (context, child) {
-                return NetworkStatusSnackListener(
-                  child: child ?? const SizedBox.shrink(),
+                return AppUpdatePromptGate(
+                  child: NetworkStatusSnackListener(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 );
               },
             ),

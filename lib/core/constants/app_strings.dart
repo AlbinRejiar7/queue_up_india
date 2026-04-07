@@ -395,6 +395,17 @@ abstract final class AppStrings {
   static const String accountSection = 'Account';
   static const String appVersionTitle = 'App Version';
   static const String legalLinksTitle = 'Legal Links';
+  static const String updateAvailableTitle = 'Update Available';
+  static const String updateReadyTitle = 'Finish Update';
+  static const String updateAvailableMessage =
+      'A newer version of QueueUp India is available on Google Play. Update now for the latest fixes and improvements.';
+  static const String updateReadyMessage =
+      'The latest version is ready to install. Finish the update to keep using the newest build.';
+  static const String updateStartedMessage =
+      'Update download started. Keep the app open while Google Play prepares the install.';
+  static const String updateFailedMessage =
+      'Unable to start the update right now.';
+  static const String laterAction = 'Later';
   static const String loadingLabel = 'Loading...';
   static const String reportBug = 'Report Bug';
   static const String reportBugTitle = 'Report a bug';
