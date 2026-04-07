@@ -13,6 +13,44 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (message.isSystem) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.h),
+        child: Column(
+          children: <Widget>[
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(999.r),
+                border: Border.all(
+                  color: AppColors.textSecondary.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Text(
+                message.message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              formatChatListTime(context, message.timestamp),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+                fontSize: 11.sp,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final align = message.isMe
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;

@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../constants/app_routes.dart';
 import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/bloc/registration_bloc.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
@@ -53,8 +54,15 @@ void setupDependencies() {
   _registerRepositories();
   _registerViewModels();
   _registerBlocs();
+}
 
-  sl.registerLazySingleton<GoRouter>(AppRouter.createRouter);
+void registerRouter({String initialLocation = AppRoutes.splash}) {
+  if (sl.isRegistered<GoRouter>()) {
+    sl.unregister<GoRouter>();
+  }
+  sl.registerLazySingleton<GoRouter>(
+    () => AppRouter.createRouter(initialLocation: initialLocation),
+  );
 }
 
 void _registerRepositories() {

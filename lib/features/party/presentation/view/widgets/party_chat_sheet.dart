@@ -111,9 +111,12 @@ class _PartyChatSheetState extends State<PartyChatSheet> {
                           final bool showUnreadDot =
                               isCompact &&
                               lastMessage != null &&
-                              !lastMessage.isMe;
+                              !lastMessage.isMe &&
+                              !lastMessage.isSystem;
                           final previewText = lastMessage == null
                               ? AppStrings.chatTapToOpen
+                              : lastMessage.isSystem
+                              ? lastMessage.message
                               : '${lastMessage.senderName}: ${lastMessage.message}';
                           final previewTime = lastMessage == null
                               ? null

@@ -139,6 +139,7 @@ class DirectChatCacheStore {
       'message': message.message,
       'isMe': message.isMe,
       'timestampMs': message.timestamp.millisecondsSinceEpoch,
+      'type': message.type.name,
     };
   }
 
@@ -148,6 +149,7 @@ class DirectChatCacheStore {
     final message = raw['message'];
     final isMe = raw['isMe'];
     final timestampMs = raw['timestampMs'];
+    final rawType = raw['type'];
     if (id is! String ||
         senderName is! String ||
         message is! String ||
@@ -162,6 +164,9 @@ class DirectChatCacheStore {
       message: message,
       isMe: isMe,
       timestamp: DateTime.fromMillisecondsSinceEpoch(timestampMs),
+      type: rawType == ChatMessageType.system.name
+          ? ChatMessageType.system
+          : ChatMessageType.user,
     );
   }
 

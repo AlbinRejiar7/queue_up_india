@@ -22,12 +22,12 @@ import 'main_tab_shell_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 abstract final class AppRouter {
-  static GoRouter createRouter() {
+  static GoRouter createRouter({String initialLocation = AppRoutes.splash}) {
     return GoRouter(
-      initialLocation: AppRoutes.splash,
+      initialLocation: initialLocation,
       redirect: (context, state) async {
         if (state.matchedLocation == '/') {
-          return AppRoutes.splash;
+          return initialLocation;
         }
         return null;
       },

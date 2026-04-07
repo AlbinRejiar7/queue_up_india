@@ -588,12 +588,16 @@ class FirestoreChatRepository implements ChatRepository {
       final data = doc.data();
       final createdAt = data['createdAt'];
       final senderId = data['senderId'] as String?;
+      final messageType = (data['messageType'] as String?) == 'system'
+          ? ChatMessageType.system
+          : ChatMessageType.user;
       return ChatMessage(
         id: doc.id,
         senderName: (data['senderName'] as String?) ?? 'Player',
         message: (data['text'] as String?) ?? '',
         isMe: senderId != null && senderId == uid,
         timestamp: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+        type: messageType,
       );
     }).toList();
   }

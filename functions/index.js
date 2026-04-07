@@ -1,6 +1,7 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -16,6 +17,658 @@ const PARTY_TTL_HOURS = 3;
 const NOTIFICATION_CHANNEL_ID = "queueup_alerts_default_v1";
 const SOLO_MATCH_REQUIRED_PLAYERS = 4;
 const SOLO_MATCH_READY_SECONDS = 20;
+const DUMMY_ADMIN_KEY = defineSecret("DUMMY_ADMIN_KEY");
+const DUMMY_SEED_VERSION = "v1";
+const DUMMY_GAMES = ["valorant", "pubg", "freefire"];
+const DUMMY_AVAILABILITY_TARGET_PER_GAME = 16;
+const DUMMY_PARTY_REFRESH_MINUTES = 90;
+const DUMMY_LANGUAGE_POOL = [
+  "Hindi",
+  "Malayalam",
+  "Tamil",
+  "Telugu",
+  "Kannada",
+  "Marathi",
+  "Bengali",
+  "Punjabi",
+  "Gujarati",
+  "Urdu",
+  "English",
+];
+const DUMMY_RANKS = {
+  valorant: ["Silver 3", "Gold 2", "Platinum 1", "Diamond 1", "Ascendant 1"],
+  pubg: ["Gold", "Platinum", "Diamond", "Crown", "Ace"],
+  freefire: ["Gold", "Platinum", "Diamond", "Heroic", "Grandmaster"],
+};
+const DUMMY_PROFILE_SEEDS = [
+  { username: "delhi_dynamo", displayName: "DelhiDynamo", languageId: "Hindi" },
+  { username: "kochi_clutch", displayName: "KochiClutch", languageId: "Malayalam" },
+  { username: "chennai_check", displayName: "ChennaiCheck", languageId: "Tamil" },
+  { username: "hyd_havoc", displayName: "HydHavoc", languageId: "Telugu" },
+  { username: "blr_blitz", displayName: "BlrBlitz", languageId: "Kannada" },
+  { username: "mumbai_mech", displayName: "MumbaiMech", languageId: "Marathi" },
+  { username: "kolkata_kraken", displayName: "KolkataKraken", languageId: "Bengali" },
+  { username: "punjab_peek", displayName: "PunjabPeek", languageId: "Punjabi" },
+  { username: "surat_sniper", displayName: "SuratSniper", languageId: "Gujarati" },
+  { username: "lucknow_lagx", displayName: "LucknowLagX", languageId: "Urdu" },
+  { username: "goa_glitch", displayName: "GoaGlitch", languageId: "English" },
+  { username: "vizag_vortex", displayName: "VizagVortex", languageId: "Telugu" },
+  { username: "madurai_monk", displayName: "MaduraiMonk", languageId: "Tamil" },
+  { username: "thrissur_tap", displayName: "ThrissurTap", languageId: "Malayalam" },
+  { username: "pune_pusher", displayName: "PunePusher", languageId: "Marathi" },
+  { username: "patna_ping", displayName: "PatnaPing", languageId: "Hindi" },
+  { username: "rajkot_rush", displayName: "RajkotRush", languageId: "Gujarati" },
+  { username: "amritsar_ace", displayName: "AmritsarAce", languageId: "Punjabi" },
+  { username: "mysore_matrix", displayName: "MysoreMatrix", languageId: "Kannada" },
+  { username: "siliguri_storm", displayName: "SiliguriStorm", languageId: "Bengali" },
+  { username: "nagpur_nova", displayName: "NagpurNova", languageId: "Marathi" },
+  { username: "jaipur_jett", displayName: "JaipurJett", languageId: "Hindi" },
+  { username: "noida_nexus", displayName: "NoidaNexus", languageId: "English" },
+  { username: "guwahati_ghost", displayName: "GuwahatiGhost", languageId: "English" },
+  ...buildAdditionalDummyProfileSeeds(),
+];
+const DUMMY_PROFILES = DUMMY_PROFILE_SEEDS.map((seed, index) => ({
+  uid: `dummy_v1_${String(index + 1).padStart(3, "0")}`,
+  ...seed,
+  avatarUrl: buildDummyAvatarUrl(seed.displayName),
+}));
+const DUMMY_PARTY_BLUEPRINTS = [
+  {
+    partyId: "dummy_party_v1_hindi",
+    languageId: "Hindi",
+    gameId: "pubg",
+    rankId: "Crown",
+    name: "Hindi Rank Rush",
+    partyCode: "HIN123",
+    maxPlayers: 4,
+    extraMembers: 2,
+  },
+  {
+    partyId: "dummy_party_v1_malayalam",
+    languageId: "Malayalam",
+    gameId: "valorant",
+    rankId: "Platinum 1",
+    name: "Malayalam Night Stack",
+    partyCode: "MAL456",
+    maxPlayers: 5,
+    extraMembers: 1,
+  },
+  {
+    partyId: "dummy_party_v1_tamil",
+    languageId: "Tamil",
+    gameId: "freefire",
+    rankId: "Heroic",
+    name: "Tamil Push Squad",
+    partyCode: "TAM789",
+    maxPlayers: 4,
+    extraMembers: 2,
+  },
+  {
+    partyId: "dummy_party_v1_telugu",
+    languageId: "Telugu",
+    gameId: "pubg",
+    rankId: "Ace",
+    name: "Telugu Late Night Room",
+    partyCode: "TEL234",
+    maxPlayers: 4,
+    extraMembers: 1,
+  },
+  {
+    partyId: "dummy_party_v1_kannada",
+    languageId: "Kannada",
+    gameId: "valorant",
+    rankId: "Gold 2",
+    name: "Kannada Chill Queue",
+    partyCode: "KAN567",
+    maxPlayers: 5,
+    extraMembers: 2,
+  },
+  {
+    partyId: "dummy_party_v1_marathi",
+    languageId: "Marathi",
+    gameId: "freefire",
+    rankId: "Diamond",
+    name: "Marathi Grind Room",
+    partyCode: "MAR890",
+    maxPlayers: 4,
+    extraMembers: 1,
+  },
+  {
+    partyId: "dummy_party_v1_bengali",
+    languageId: "Bengali",
+    gameId: "pubg",
+    rankId: "Diamond",
+    name: "Bengali Duo to Squad",
+    partyCode: "BEN321",
+    maxPlayers: 4,
+    extraMembers: 2,
+  },
+  {
+    partyId: "dummy_party_v1_punjabi",
+    languageId: "Punjabi",
+    gameId: "valorant",
+    rankId: "Ascendant 1",
+    name: "Punjabi Rank Push",
+    partyCode: "PUN654",
+    maxPlayers: 5,
+    extraMembers: 1,
+  },
+  {
+    partyId: "dummy_party_v1_gujarati",
+    languageId: "Gujarati",
+    gameId: "freefire",
+    rankId: "Grandmaster",
+    name: "Gujarati Clash Room",
+    partyCode: "GUJ987",
+    maxPlayers: 4,
+    extraMembers: 1,
+  },
+  {
+    partyId: "dummy_party_v1_urdu",
+    languageId: "Urdu",
+    gameId: "pubg",
+    rankId: "Platinum",
+    name: "Urdu Evening Squad",
+    partyCode: "URD741",
+    maxPlayers: 4,
+    extraMembers: 1,
+  },
+];
+const DUMMY_REPLY_MESSAGES = [
+  "I am in. Send the party code.",
+  "Yes bro, I can play now.",
+  "Queue in 2 minutes?",
+  "I am ready. What server are you on?",
+  "Let us run one match first.",
+  "I can join. Send your ID.",
+  "Sounds good. Invite me.",
+  "I am online now, let us play.",
+  "Okay, I am up for it.",
+  "Yes, we can queue now.",
+];
+
+function buildDummyAvatarUrl(seed) {
+  return `https://api.dicebear.com/9.x/adventurer-neutral/png?seed=${encodeURIComponent(seed)}`;
+}
+
+function buildAdditionalDummyProfileSeeds() {
+  const groups = [
+    {
+      languageId: "Hindi",
+      cities: ["Kanpur", "Varanasi", "Ranchi", "Prayagraj"],
+    },
+    {
+      languageId: "Malayalam",
+      cities: ["Kozhikode", "Kannur", "Kottayam", "Palakkad"],
+    },
+    {
+      languageId: "Tamil",
+      cities: ["Coimbatore", "Trichy", "Salem", "Tirunelveli"],
+    },
+    {
+      languageId: "Telugu",
+      cities: ["Vijayawada", "Guntur", "Warangal", "Nellore"],
+    },
+    {
+      languageId: "Kannada",
+      cities: ["Mysuru", "Hubli", "Mangaluru", "Belagavi"],
+    },
+    {
+      languageId: "Marathi",
+      cities: ["Nashik", "Kolhapur", "Aurangabad", "Solapur"],
+    },
+    {
+      languageId: "Bengali",
+      cities: ["Howrah", "Durgapur", "SiliguriX", "Kharagpur"],
+    },
+    {
+      languageId: "Punjabi",
+      cities: ["Ludhiana", "Jalandhar", "Mohali", "Bathinda"],
+    },
+    {
+      languageId: "Gujarati",
+      cities: ["Ahmedabad", "Vadodara", "Bhavnagar", "Jamnagar"],
+    },
+    {
+      languageId: "Urdu",
+      cities: ["Aligarh", "BhopalX", "HyderUr", "Rampur"],
+    },
+    {
+      languageId: "English",
+      cities: ["Shillong", "Aizawl", "Imphal", "Chandigarh"],
+    },
+  ];
+  const suffixes = [
+    "Pulse",
+    "Nova",
+    "Rush",
+    "Scope",
+    "Strike",
+    "Flick",
+    "Quest",
+    "Phantom",
+  ];
+  const seeds = [];
+  let suffixIndex = 0;
+
+  groups.forEach((group) => {
+    group.cities.forEach((city) => {
+      const suffix = suffixes[suffixIndex % suffixes.length];
+      suffixIndex += 1;
+      const rawName = `${city}${suffix}`;
+      const username = slugify(rawName).replace(/_/g, "").slice(0, 18);
+      seeds.push({
+        username,
+        displayName: rawName,
+        languageId: group.languageId,
+      });
+    });
+  });
+  return seeds;
+}
+
+function randomFrom(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle(items) {
+  const values = [...items];
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const temp = values[index];
+    values[index] = values[swapIndex];
+    values[swapIndex] = temp;
+  }
+  return values;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isDummyData(data) {
+  return data?.isDummy === true && data?.dummySeed === DUMMY_SEED_VERSION;
+}
+
+function pickDummyGameId() {
+  return randomFrom(["valorant", "pubg", "freefire"]);
+}
+
+function pickDummyRankId(gameId) {
+  return randomFrom(DUMMY_RANKS[gameId] || DUMMY_RANKS.valorant);
+}
+
+function dummyUserIds() {
+  return DUMMY_PROFILES.map((profile) => profile.uid);
+}
+
+function findDummyProfile(uid) {
+  return DUMMY_PROFILES.find((profile) => profile.uid === uid) || null;
+}
+
+function isDummyUid(uid) {
+  return String(uid || "").startsWith("dummy_v1_");
+}
+
+async function ensureDummyUsers() {
+  const writer = db.bulkWriter();
+  DUMMY_PROFILES.forEach((profile) => {
+    writer.set(
+      db.collection("users").doc(profile.uid),
+      {
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        preferredLanguageId: profile.languageId,
+        isDummy: true,
+        dummySeed: DUMMY_SEED_VERSION,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+  await writer.close();
+  return { users: DUMMY_PROFILES.length };
+}
+
+async function fetchDummyUserDocs() {
+  return db.collection("users").where("dummySeed", "==", DUMMY_SEED_VERSION).get();
+}
+
+async function syncDummyAvailability() {
+  const activeAssignments = new Map();
+  const shuffled = shuffle(DUMMY_PROFILES);
+  let cursor = 0;
+
+  DUMMY_GAMES.forEach((gameId) => {
+    const perGameProfiles = shuffled.slice(
+      cursor,
+      cursor + DUMMY_AVAILABILITY_TARGET_PER_GAME
+    );
+    cursor += DUMMY_AVAILABILITY_TARGET_PER_GAME;
+    perGameProfiles.forEach((profile) => {
+      activeAssignments.set(profile.uid, {
+        gameId,
+        rankId: pickDummyRankId(gameId),
+        languageId:
+          Math.random() < 0.8 ? profile.languageId : randomFrom(DUMMY_LANGUAGE_POOL),
+        updatedAt: Timestamp.fromMillis(
+          Date.now() - randomInt(1, 8) * 60 * 1000
+        ),
+      });
+    });
+  });
+  const writer = db.bulkWriter();
+  DUMMY_PROFILES.forEach((profile) => {
+    const docRef = db.collection("availability").doc(profile.uid);
+    const assignment = activeAssignments.get(profile.uid);
+    if (!assignment) {
+      writer.delete(docRef);
+      return;
+    }
+    writer.set(
+      docRef,
+      {
+        uid: profile.uid,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        gameId: assignment.gameId,
+        rankId: assignment.rankId,
+        languageId: assignment.languageId,
+        isAvailable: true,
+        isDummy: true,
+        dummySeed: DUMMY_SEED_VERSION,
+        availableSince: assignment.updatedAt,
+        updatedAt: assignment.updatedAt,
+      },
+      { merge: true }
+    );
+  });
+  await writer.close();
+  return {
+    available: activeAssignments.size,
+    perGame: DUMMY_GAMES.reduce((acc, gameId) => {
+      acc[gameId] = DUMMY_AVAILABILITY_TARGET_PER_GAME;
+      return acc;
+    }, {}),
+  };
+}
+
+async function clearDummyUserPartyState() {
+  const dummyUsersSnapshot = await fetchDummyUserDocs();
+  const writer = db.bulkWriter();
+  await Promise.all(
+    dummyUsersSnapshot.docs.map(async (userDoc) => {
+      const roomsSnapshot = await db
+        .collection("users")
+        .doc(userDoc.id)
+        .collection("rooms")
+        .get();
+      roomsSnapshot.docs.forEach((doc) => writer.delete(doc.ref));
+      writer.set(
+        db.collection("users").doc(userDoc.id),
+        {
+          currentPartyId: null,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    })
+  );
+  await writer.close();
+}
+
+function shouldRefreshDummyParties(snapshot) {
+  if (snapshot.size !== DUMMY_PARTY_BLUEPRINTS.length) {
+    return true;
+  }
+  const cutoff = Date.now() - DUMMY_PARTY_REFRESH_MINUTES * 60 * 1000;
+  return snapshot.docs.some((doc) => {
+    const createdAt = doc.data()?.createdAt;
+    return !createdAt || typeof createdAt.toMillis !== "function" || createdAt.toMillis() < cutoff;
+  });
+}
+
+async function syncDummyParties({ forceRefresh = false } = {}) {
+  const snapshot = await db
+    .collection("parties")
+    .where("dummySeed", "==", DUMMY_SEED_VERSION)
+    .get();
+
+  if (!forceRefresh && !shouldRefreshDummyParties(snapshot)) {
+    return { parties: snapshot.size, refreshed: false };
+  }
+
+  await clearDummyUserPartyState();
+  for (const doc of snapshot.docs) {
+    await db.recursiveDelete(doc.ref);
+  }
+
+  const memberPool = [...DUMMY_PROFILES.slice(DUMMY_PARTY_BLUEPRINTS.length)];
+  let memberCursor = 0;
+  const writer = db.bulkWriter();
+
+  DUMMY_PARTY_BLUEPRINTS.forEach((blueprint, index) => {
+    const host = DUMMY_PROFILES[index];
+    const extraMembers = memberPool.slice(
+      memberCursor,
+      memberCursor + blueprint.extraMembers
+    );
+    memberCursor += blueprint.extraMembers;
+    const participants = [host, ...extraMembers];
+    const createdAt = Timestamp.fromMillis(
+      Date.now() - randomInt(12, 96) * 60 * 1000
+    );
+    const currentPlayers = participants.length;
+    const partyStatus = currentPlayers >= blueprint.maxPlayers ? "full" : "open";
+    const partyRef = db.collection("parties").doc(blueprint.partyId);
+
+    writer.set(partyRef, {
+      name: blueprint.name,
+      hostId: host.uid,
+      hostDisplayName: host.displayName,
+      gameId: blueprint.gameId,
+      rankId: blueprint.rankId,
+      languageId: blueprint.languageId,
+      maxPlayers: blueprint.maxPlayers,
+      neededPlayers: blueprint.maxPlayers,
+      currentPlayers,
+      partyCode: blueprint.partyCode,
+      status: partyStatus,
+      createdAt,
+      updatedAt: createdAt,
+      isDummy: true,
+      dummySeed: DUMMY_SEED_VERSION,
+    });
+
+    participants.forEach((participant) => {
+      const isHost = participant.uid === host.uid;
+      writer.set(partyRef.collection("members").doc(participant.uid), {
+        uid: participant.uid,
+        displayName: participant.displayName,
+        avatarUrl: participant.avatarUrl,
+        role: isHost ? "host" : "member",
+        status: "active",
+        joinedAt: createdAt,
+        isDummy: true,
+        dummySeed: DUMMY_SEED_VERSION,
+      });
+      writer.set(
+        db.collection("users").doc(participant.uid).collection("rooms").doc(blueprint.partyId),
+        {
+          partyId: blueprint.partyId,
+          role: isHost ? "host" : "member",
+          gameId: blueprint.gameId,
+          rankId: blueprint.rankId,
+          languageId: blueprint.languageId,
+          status: "active",
+          lastMessageAt: null,
+          isDummy: true,
+          dummySeed: DUMMY_SEED_VERSION,
+        },
+        { merge: true }
+      );
+      writer.set(
+        db.collection("users").doc(participant.uid),
+        {
+          currentPartyId: blueprint.partyId,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+  });
+
+  await writer.close();
+  return { parties: DUMMY_PARTY_BLUEPRINTS.length, refreshed: true };
+}
+
+async function countDummyDirectChats() {
+  const refs = new Set();
+  await Promise.all(
+    dummyUserIds().map(async (uid) => {
+      const snapshot = await db
+        .collection("direct_chats")
+        .where("participants", "array-contains", uid)
+        .get();
+      snapshot.docs.forEach((doc) => refs.add(doc.ref.path));
+    })
+  );
+  return refs.size;
+}
+
+async function fetchDummyDataStatus() {
+  const [usersSnapshot, availabilitySnapshot, partiesSnapshot, directChats] =
+    await Promise.all([
+      db.collection("users").where("dummySeed", "==", DUMMY_SEED_VERSION).get(),
+      db.collection("availability").where("dummySeed", "==", DUMMY_SEED_VERSION).get(),
+      db.collection("parties").where("dummySeed", "==", DUMMY_SEED_VERSION).get(),
+      countDummyDirectChats(),
+    ]);
+
+  return {
+    users: usersSnapshot.size,
+    availability: availabilitySnapshot.size,
+    parties: partiesSnapshot.size,
+    directChats,
+  };
+}
+
+async function seedDummyData({
+  forcePartyRefresh = true,
+  includeStatus = true,
+} = {}) {
+  const users = await ensureDummyUsers();
+  const availability = await syncDummyAvailability();
+  const parties = await syncDummyParties({ forceRefresh: forcePartyRefresh });
+  if (!includeStatus) {
+    return { ...users, ...availability, ...parties };
+  }
+  const status = await fetchDummyDataStatus();
+  return { ...users, ...availability, ...parties, status };
+}
+
+async function cleanupDummyDirectChats() {
+  const refs = new Map();
+  await Promise.all(
+    dummyUserIds().map(async (uid) => {
+      const snapshot = await db
+        .collection("direct_chats")
+        .where("participants", "array-contains", uid)
+        .get();
+      snapshot.docs.forEach((doc) => {
+        refs.set(doc.ref.path, doc.ref);
+      });
+    })
+  );
+
+  for (const ref of refs.values()) {
+    await db.recursiveDelete(ref);
+  }
+  return refs.size;
+}
+
+async function cleanupDummyData() {
+  const dummyUsersSnapshot = await fetchDummyUserDocs();
+  const availabilityWriter = db.bulkWriter();
+  dummyUsersSnapshot.docs.forEach((userDoc) => {
+    availabilityWriter.delete(db.collection("availability").doc(userDoc.id));
+  });
+  await availabilityWriter.close();
+
+  await clearDummyUserPartyState();
+
+  const partySnapshot = await db
+    .collection("parties")
+    .where("dummySeed", "==", DUMMY_SEED_VERSION)
+    .get();
+  for (const doc of partySnapshot.docs) {
+    await db.recursiveDelete(doc.ref);
+  }
+
+  const directChatsDeleted = await cleanupDummyDirectChats();
+
+  for (const userDoc of dummyUsersSnapshot.docs) {
+    await db.recursiveDelete(userDoc.ref);
+  }
+
+  return {
+    usersDeleted: dummyUsersSnapshot.size,
+    partiesDeleted: partySnapshot.size,
+    directChatsDeleted,
+  };
+}
+
+async function maybeSendDummyDirectReply({
+  chatRef,
+  chatId,
+  senderId,
+  recipientIds,
+  messageData,
+}) {
+  const messageText = String(messageData?.text || "").trim();
+  if (!senderId || !recipientIds.length || !messageText) {
+    return;
+  }
+  if (messageData?.isDummyAutoReply === true || isDummyUid(senderId)) {
+    return;
+  }
+
+  const dummyRecipientId = recipientIds.find((uid) => isDummyUid(uid));
+  if (!dummyRecipientId) {
+    return;
+  }
+
+  const dummyProfile = findDummyProfile(dummyRecipientId);
+  if (!dummyProfile) {
+    return;
+  }
+
+  const dummyUserSnap = await db.collection("users").doc(dummyRecipientId).get();
+  if (!isDummyData(dummyUserSnap.data())) {
+    return;
+  }
+
+  await sleep(randomInt(4, 10) * 1000);
+
+  await chatRef.collection("messages").add({
+    senderId: dummyRecipientId,
+    senderName: dummyProfile.displayName,
+    text: randomFrom(DUMMY_REPLY_MESSAGES),
+    createdAt: FieldValue.serverTimestamp(),
+    isDummyAutoReply: true,
+    dummySeed: DUMMY_SEED_VERSION,
+  });
+
+  console.log("[dummy] replied to direct chat", {
+    chatId,
+    senderId,
+    dummyRecipientId,
+  });
+}
 
 function slugify(value) {
   return String(value || "")
@@ -245,6 +898,17 @@ function buildPushPayload({ title, body, data }) {
       }
     }
   };
+}
+
+function queuePartySystemMessage(tx, partyRef, { actorId, actorName, text }) {
+  const messageRef = partyRef.collection("messages").doc();
+  tx.set(messageRef, {
+    senderId: actorId || "",
+    senderName: actorName || "System",
+    text,
+    messageType: "system",
+    createdAt: FieldValue.serverTimestamp()
+  });
 }
 
 function normalizePushPayload(payload) {
@@ -621,6 +1285,7 @@ exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
   if (!partyId) {
     throw new HttpsError("invalid-argument", "Party ID is required.");
   }
+  const actorName = String(displayName || "QueuePlayer").trim() || "QueuePlayer";
 
   let partyData = null;
   await db.runTransaction(async (tx) => {
@@ -681,23 +1346,27 @@ exports.joinParty = onCall({ region, invoker: "public" }, async (request) => {
       },
       { merge: true }
     );
+    queuePartySystemMessage(tx, partyRef, {
+      actorId: uid,
+      actorName,
+      text: `${actorName} joined the party.`,
+    });
   });
 
   if (partyData && partyData.hostId && partyData.hostId !== uid) {
-    const senderName = displayName || "QueuePlayer";
     console.log("[push] party join -> host", {
       partyId,
       hostId: partyData.hostId,
       senderId: uid
     });
     await sendPushToUser(
-      partyData.hostId,
-      buildPushPayload({
-        title: "Party update",
-        body: `${senderName} joined your party.`,
-        data: {
-          type: "party_joined",
-          partyId,
+        partyData.hostId,
+        buildPushPayload({
+          title: "Party update",
+          body: `${actorName} joined your party.`,
+          data: {
+            type: "party_joined",
+            partyId,
           senderId: uid
         }
       })
@@ -1115,6 +1784,9 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
     }
 
     const party = partySnap.data();
+    const actorName =
+      String(memberSnap.data().displayName || "QueuePlayer").trim() ||
+      "QueuePlayer";
     const membersSnap = await tx.get(
       partyRef.collection("members").where("status", "==", "active")
     );
@@ -1168,6 +1840,11 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
         status: "left",
         leftAt: FieldValue.serverTimestamp()
       });
+      queuePartySystemMessage(tx, partyRef, {
+        actorId: uid,
+        actorName,
+        text: `${actorName} left the party.`,
+      });
       tx.set(roomRef, { status: "left" }, { merge: true });
       tx.set(
         userRef,
@@ -1180,6 +1857,11 @@ exports.leaveParty = onCall({ region, invoker: "public" }, async (request) => {
     tx.update(memberRef, {
       status: "left",
       leftAt: FieldValue.serverTimestamp()
+    });
+    queuePartySystemMessage(tx, partyRef, {
+      actorId: uid,
+      actorName,
+      text: `${actorName} left the party.`,
     });
     tx.update(partyRef, {
       currentPlayers: nextCount,
@@ -1450,6 +2132,66 @@ exports.cleanupExpiredPartiesOnOpen = onCall(
   }
 );
 
+exports.manageDummyData = onRequest(
+  { region, secrets: [DUMMY_ADMIN_KEY] },
+  async (request, response) => {
+    if (request.method !== "POST") {
+      response.status(405).json({ error: "Use POST." });
+      return;
+    }
+
+    const providedKey = String(request.get("x-dummy-admin-key") || "").trim();
+    const expectedKey = String(DUMMY_ADMIN_KEY.value() || "").trim();
+    if (!providedKey || !expectedKey || providedKey !== expectedKey) {
+      response.status(403).json({ error: "Forbidden." });
+      return;
+    }
+
+    const action = String(request.body?.action || "").trim().toLowerCase();
+    try {
+      if (action === "cleanup") {
+        const result = await cleanupDummyData();
+        const status = await fetchDummyDataStatus();
+        response.json({ ok: true, action, result, status });
+        return;
+      }
+      if (action === "status") {
+        const status = await fetchDummyDataStatus();
+        response.json({ ok: true, action, status });
+        return;
+      }
+
+      const result = await seedDummyData({
+        forcePartyRefresh: true,
+        includeStatus: true,
+      });
+      response.json({ ok: true, action: action || "seed", result });
+    } catch (error) {
+      console.error("[dummy] manageDummyData failed", error);
+      response.status(500).json({
+        ok: false,
+        action,
+        error: error?.message || "Unknown error",
+      });
+    }
+  }
+);
+
+exports.maintainDummyPresence = onSchedule(
+  {
+    schedule: "every 10 minutes",
+    region,
+    timeZone: "Asia/Kolkata",
+  },
+  async () => {
+    const result = await seedDummyData({
+      forcePartyRefresh: false,
+      includeStatus: false,
+    });
+    console.log("[dummy] maintenance", result);
+  }
+);
+
 exports.onPartyMessageCreate = onDocumentCreated(
   { document: "parties/{partyId}/messages/{messageId}", region },
   async (event) => {
@@ -1461,10 +2203,15 @@ exports.onPartyMessageCreate = onDocumentCreated(
     const data = snapshot.data();
     const partyId = event.params.partyId;
     const partyRef = db.collection("parties").doc(partyId);
+    const isSystemMessage = data.messageType === "system";
     await partyRef.update({
       lastMessage: data.text || "",
       lastMessageAt: FieldValue.serverTimestamp()
     });
+
+    if (isSystemMessage) {
+      return;
+    }
 
     const partyName = String(data.partyName || "").trim() || "Party";
     const senderId = data.senderId || null;
@@ -1571,6 +2318,14 @@ exports.onDirectMessageCreate = onDocumentCreated(
         )
       )
     );
+
+    await maybeSendDummyDirectReply({
+      chatRef,
+      chatId,
+      senderId,
+      recipientIds,
+      messageData: data,
+    });
   }
 );
 

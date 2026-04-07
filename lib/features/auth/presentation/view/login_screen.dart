@@ -3,12 +3,14 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -24,6 +26,19 @@ import 'widgets/registration_username_field.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
+
+  Future<void> _handleBackPressed(BuildContext context) async {
+    final shouldExit = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.confirmExitTitle,
+      message: AppStrings.confirmExitMessage,
+      confirmLabel: AppStrings.confirmAction,
+      cancelLabel: AppStrings.cancelAction,
+    );
+    if (shouldExit) {
+      await SystemNavigator.pop();
+    }
+  }
 
   Future<void> _showForgotPasswordDialog(BuildContext context) async {
     context.read<RegistrationBloc>().add(
@@ -57,140 +72,149 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GlowBackground(
-        child: MultiBlocListener(
-          listeners: <BlocListener<RegistrationBloc, RegistrationState>>[
-            BlocListener<RegistrationBloc, RegistrationState>(
-              listenWhen: (previous, current) =>
-                  previous.data.didCompleteRegistration !=
-                      current.data.didCompleteRegistration ||
-                  (current is RegistrationError &&
-                      previous != current &&
-                      current.data.passwordResetUsername.trim().isEmpty),
-              listener: (BuildContext context, RegistrationState state) {
-                if (state is RegistrationError) {
-                  developer.log(
-                    'Login error shown: ${state.message}',
-                    name: 'LoginScreen',
-                  );
-                  AppSnackBar.showError(context, state.message);
-                }
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) {
+          return;
+        }
+        await _handleBackPressed(context);
+      },
+      child: Scaffold(
+        body: GlowBackground(
+          child: MultiBlocListener(
+            listeners: <BlocListener<RegistrationBloc, RegistrationState>>[
+              BlocListener<RegistrationBloc, RegistrationState>(
+                listenWhen: (previous, current) =>
+                    previous.data.didCompleteRegistration !=
+                        current.data.didCompleteRegistration ||
+                    (current is RegistrationError &&
+                        previous != current &&
+                        current.data.passwordResetUsername.trim().isEmpty),
+                listener: (BuildContext context, RegistrationState state) {
+                  if (state is RegistrationError) {
+                    developer.log(
+                      'Login error shown: ${state.message}',
+                      name: 'LoginScreen',
+                    );
+                    AppSnackBar.showError(context, state.message);
+                  }
 
-                if (state is RegistrationSuccess &&
-                    state.data.didCompleteRegistration) {
-                  developer.log(
-                    'Login completed -> navigate home',
-                    name: 'LoginScreen',
-                  );
-                  context.go(AppRoutes.home);
-                  context.read<RegistrationBloc>().add(
-                    const RegistrationResetRequested(),
-                  );
-                }
-              },
-            ),
-          ],
-          child: SafeArea(
-            child: ResponsiveLayoutBuilder(
-              builder:
-                  (
-                    BuildContext context,
-                    BoxConstraints constraints,
-                    EdgeInsets contentPadding,
-                  ) {
-                    final mode = context
-                        .read<RegistrationBloc>()
-                        .state
-                        .data
-                        .mode;
-                    if (mode != RegistrationMode.login) {
-                      context.read<RegistrationBloc>().add(
-                        const RegistrationModeChanged(
-                          mode: RegistrationMode.login,
-                        ),
-                      );
-                    }
-                    return SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: Padding(
-                          padding: contentPadding,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              SizedBox(height: 8.h),
-                              Row(
-                                children: <Widget>[
-                                  SizedBox(width: 48.w),
-                                  Expanded(
-                                    child: Text(
-                                      AppStrings.appName,
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.pageTitle,
-                                    ),
-                                  ),
-                                  SizedBox(width: 48.w),
-                                ],
-                              ),
-                              SizedBox(height: 16.h),
-                              const RegistrationHeader(
-                                title: AppStrings.loginTitle,
-                                subtitle: AppStrings.loginSubtitle,
-                              ),
-                              SizedBox(height: 20.h),
-                              GlassContainer(
-                                borderRadius: 28.r,
-                                padding: EdgeInsets.all(16.r),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
+                  if (state is RegistrationSuccess &&
+                      state.data.didCompleteRegistration) {
+                    developer.log(
+                      'Login completed -> navigate home',
+                      name: 'LoginScreen',
+                    );
+                    context.go(AppRoutes.home);
+                    context.read<RegistrationBloc>().add(
+                      const RegistrationResetRequested(),
+                    );
+                  }
+                },
+              ),
+            ],
+            child: SafeArea(
+              child: ResponsiveLayoutBuilder(
+                builder:
+                    (
+                      BuildContext context,
+                      BoxConstraints constraints,
+                      EdgeInsets contentPadding,
+                    ) {
+                      final mode = context
+                          .read<RegistrationBloc>()
+                          .state
+                          .data
+                          .mode;
+                      if (mode != RegistrationMode.login) {
+                        context.read<RegistrationBloc>().add(
+                          const RegistrationModeChanged(
+                            mode: RegistrationMode.login,
+                          ),
+                        );
+                      }
+                      return SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Padding(
+                            padding: contentPadding,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                SizedBox(height: 8.h),
+                                Row(
                                   children: <Widget>[
-                                    const RegistrationUsernameField(
-                                      hintText: AppStrings.username,
+                                    SizedBox(width: 48.w),
+                                    Expanded(
+                                      child: Text(
+                                        AppStrings.appName,
+                                        textAlign: TextAlign.center,
+                                        style: AppTextStyles.pageTitle,
+                                      ),
                                     ),
-                                    SizedBox(height: 16.h),
-                                    PasswordCredentialsCard(
-                                      wrapInContainer: false,
-                                      onForgotPasswordPressed: () {
-                                        _showForgotPasswordDialog(context);
-                                      },
-                                    ),
+                                    SizedBox(width: 48.w),
                                   ],
                                 ),
-                              ),
-                              SizedBox(height: 18.h),
-                              const LoginGoogleSection(),
-                              SizedBox(height: 10.h),
-                              TextButton(
-                                onPressed: () {
-                                  context.go(AppRoutes.registration);
-                                },
-                                child: Text.rich(
-                                  TextSpan(
-                                    text: '${AppStrings.dontHaveAccount} ',
-                                    children: <InlineSpan>[
-                                      TextSpan(
-                                        text: AppStrings.registerAction,
-                                        style: TextStyle(
-                                          color: AppColors.electricBlue,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                SizedBox(height: 16.h),
+                                const RegistrationHeader(
+                                  title: AppStrings.loginTitle,
+                                  subtitle: AppStrings.loginSubtitle,
+                                ),
+                                SizedBox(height: 20.h),
+                                GlassContainer(
+                                  borderRadius: 28.r,
+                                  padding: EdgeInsets.all(16.r),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: <Widget>[
+                                      const RegistrationUsernameField(
+                                        hintText: AppStrings.username,
+                                      ),
+                                      SizedBox(height: 16.h),
+                                      PasswordCredentialsCard(
+                                        wrapInContainer: false,
+                                        onForgotPasswordPressed: () {
+                                          _showForgotPasswordDialog(context);
+                                        },
                                       ),
                                     ],
                                   ),
-                                  style: AppTextStyles.bodyMedium,
                                 ),
-                              ),
-                              SizedBox(height: 14.h),
-                            ],
+                                SizedBox(height: 18.h),
+                                const LoginGoogleSection(),
+                                SizedBox(height: 10.h),
+                                TextButton(
+                                  onPressed: () {
+                                    context.push(AppRoutes.registration);
+                                  },
+                                  child: Text.rich(
+                                    TextSpan(
+                                      text: '${AppStrings.dontHaveAccount} ',
+                                      children: <InlineSpan>[
+                                        TextSpan(
+                                          text: AppStrings.registerAction,
+                                          style: TextStyle(
+                                            color: AppColors.electricBlue,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                ),
+                                SizedBox(height: 14.h),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+              ),
             ),
           ),
         ),
