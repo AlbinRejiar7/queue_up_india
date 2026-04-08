@@ -11,7 +11,6 @@ import 'core/widgets/availability_lifecycle_handler.dart';
 import 'core/widgets/app_update_prompt_gate.dart';
 import 'core/widgets/network_status_snack_listener.dart';
 import 'features/auth/bloc/auth_bloc.dart';
-import 'features/auth/bloc/registration_bloc.dart';
 import 'features/chat/bloc/chat_badge_bloc.dart';
 import 'features/game_selection/bloc/game_bloc.dart';
 import 'features/home/bloc/available_players_bloc.dart';
@@ -29,7 +28,6 @@ class QueueUpApp extends StatelessWidget {
       providers: <BlocProvider<dynamic>>[
         BlocProvider<MainTabBloc>(create: (_) => sl<MainTabBloc>()),
         BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
-        BlocProvider<RegistrationBloc>(create: (_) => sl<RegistrationBloc>()),
         BlocProvider<LanguageBloc>(create: (_) => sl<LanguageBloc>()),
         BlocProvider<ProfileBloc>(create: (_) => sl<ProfileBloc>()),
         BlocProvider<GameBloc>(create: (_) => sl<GameBloc>()),

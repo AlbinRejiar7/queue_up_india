@@ -15,8 +15,6 @@ import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/glow_background.dart';
 import '../../../../core/widgets/responsive_layout_builder.dart';
 import '../../../../core/widgets/safe_back_button.dart';
-import '../../../auth/bloc/registration_bloc.dart';
-import '../../../auth/bloc/registration_event.dart';
 import '../../bloc/profile_bloc.dart';
 import '../../bloc/profile_event.dart';
 import '../../bloc/profile_state.dart';
@@ -333,9 +331,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       }
 
                       if (state is ProfileSuccess && state.data.didLogout) {
-                        context.read<RegistrationBloc>().add(
-                          const RegistrationResetRequested(),
-                        );
                         context.go(AppRoutes.login);
                         context.read<ProfileBloc>().add(
                           const ProfileLogoutConsumed(),
@@ -347,9 +342,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                         AppSnackBar.showSuccess(
                           context,
                           AppStrings.deleteAccountSuccess,
-                        );
-                        context.read<RegistrationBloc>().add(
-                          const RegistrationResetRequested(),
                         );
                         context.read<ProfileBloc>().add(
                           const ProfileDeleteConsumed(),

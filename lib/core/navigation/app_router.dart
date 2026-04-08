@@ -1,5 +1,8 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/bloc/registration_bloc.dart';
+import '../../features/auth/bloc/registration_event.dart';
+import '../../features/auth/bloc/registration_state.dart';
 import '../../features/auth/presentation/view/login_screen.dart';
 import '../../features/auth/presentation/view/registration_screen.dart';
 import '../../features/auth/presentation/view/splash_screen.dart';
@@ -43,11 +46,23 @@ abstract final class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.registration,
-          builder: (_, state) => const RegistrationScreen(),
+          builder: (_, state) => BlocProvider<RegistrationBloc>(
+            create: (_) => sl<RegistrationBloc>()
+              ..add(
+                const RegistrationModeChanged(mode: RegistrationMode.register),
+              ),
+            child: const RegistrationScreen(),
+          ),
         ),
         GoRoute(
           path: AppRoutes.login,
-          builder: (_, state) => const LoginScreen(),
+          builder: (_, state) => BlocProvider<RegistrationBloc>(
+            create: (_) => sl<RegistrationBloc>()
+              ..add(
+                const RegistrationModeChanged(mode: RegistrationMode.login),
+              ),
+            child: const LoginScreen(),
+          ),
         ),
         GoRoute(
           path: AppRoutes.gameSelection,

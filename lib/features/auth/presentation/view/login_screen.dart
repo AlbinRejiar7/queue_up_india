@@ -122,18 +122,6 @@ class LoginScreen extends StatelessWidget {
                       BoxConstraints constraints,
                       EdgeInsets contentPadding,
                     ) {
-                      final mode = context
-                          .read<RegistrationBloc>()
-                          .state
-                          .data
-                          .mode;
-                      if (mode != RegistrationMode.login) {
-                        context.read<RegistrationBloc>().add(
-                          const RegistrationModeChanged(
-                            mode: RegistrationMode.login,
-                          ),
-                        );
-                      }
                       return SingleChildScrollView(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(

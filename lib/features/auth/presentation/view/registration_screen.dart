@@ -26,9 +26,6 @@ class RegistrationScreen extends StatelessWidget {
   const RegistrationScreen({super.key});
 
   void _returnToLogin(BuildContext context) {
-    context.read<RegistrationBloc>().add(
-      const RegistrationModeChanged(mode: RegistrationMode.login),
-    );
     if (context.canPop()) {
       context.pop();
       return;
@@ -86,18 +83,6 @@ class RegistrationScreen extends StatelessWidget {
                       BoxConstraints constraints,
                       EdgeInsets contentPadding,
                     ) {
-                      final mode = context
-                          .read<RegistrationBloc>()
-                          .state
-                          .data
-                          .mode;
-                      if (mode != RegistrationMode.register) {
-                        context.read<RegistrationBloc>().add(
-                          const RegistrationModeChanged(
-                            mode: RegistrationMode.register,
-                          ),
-                        );
-                      }
                       return SingleChildScrollView(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
