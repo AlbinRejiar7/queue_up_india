@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:in_app_update/in_app_update.dart';
 
 import '../../app.dart';
 import '../../firebase_options.dart';
@@ -24,6 +25,7 @@ import '../../features/settings/viewmodel/profile_view_model.dart';
 import '../services/availability_session_manager.dart';
 import '../services/push_notification_service.dart';
 import '../ads/ad_helper.dart';
+import '../services/play_core_update_service.dart';
 import '../ads/app_open_ad_manager.dart';
 import '../ads/interstitial_ad_manager.dart';
 import '../ads/rewarded_ad_manager.dart';
@@ -52,12 +54,42 @@ class _AppBootstrapState extends State<AppBootstrap>
     AppStartupController.begin();
     _minimumDisplay = Future<void>.delayed(_minimumStartupDisplay);
     unawaited(_bootstrap());
+
+    // Listen for flexible update download completion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      sl<PlayCoreUpdateService>().updateInfo.addListener(_onUpdateStatusChanged);
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    sl<PlayCoreUpdateService>().updateInfo.removeListener(_onUpdateStatusChanged);
     super.dispose();
+  }
+
+  void _onUpdateStatusChanged() {
+    final info = sl<PlayCoreUpdateService>().updateInfo.value;
+    if (info != null && info.installStatus == InstallStatus.downloaded && mounted) {
+      _showRestartSnackbar();
+    }
+  }
+
+  void _showRestartSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Update ready to install!'),
+        duration: const Duration(days: 1), // Persistent
+        backgroundColor: AppColors.electricBlue,
+        action: SnackBarAction(
+          label: 'Restart',
+          textColor: Colors.white,
+          onPressed: () {
+            sl<PlayCoreUpdateService>().completeFlexibleUpdate();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -98,6 +130,9 @@ class _AppBootstrapState extends State<AppBootstrap>
       AppOpenAdManager.instance.loadAd();
       InterstitialAdManager.instance.loadAd();
       RewardedAdManager.instance.loadAd();
+      
+      // Handle in-app updates
+      unawaited(sl<PlayCoreUpdateService>().handleUpdateFlow());
 
       final bool hasAuthSession = FirebaseAuth.instance.currentUser != null;
       registerRouter(
