@@ -21,6 +21,7 @@ import '../../bloc/matchmaking_bloc.dart';
 import '../../bloc/matchmaking_event.dart';
 import '../../bloc/matchmaking_state.dart';
 import '../../models/solo_squad_model.dart';
+import '../../../../core/ads/interstitial_ad_manager.dart';
 
 class SoloMatchmakingScreen extends StatefulWidget {
   const SoloMatchmakingScreen({
@@ -79,7 +80,18 @@ class _SoloMatchmakingScreenState extends State<SoloMatchmakingScreen> {
                       } else {
                         AppSnackBar.showInfo(context, message);
                         if (message == AppStrings.matchmakingCancelled) {
-                          context.go(AppRoutes.home);
+                          InterstitialAdManager.instance.showAd(
+                            onAdDismissed: () {
+                              if (!context.mounted) {
+                                return;
+                              }
+                              context.go(AppRoutes.home);
+                            },
+                          );
+                          context.read<MatchmakingBloc>().add(
+                            const MatchmakingFeedbackConsumed(),
+                          );
+                          return;
                         }
                       }
                       context.read<MatchmakingBloc>().add(

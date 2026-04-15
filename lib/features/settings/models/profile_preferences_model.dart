@@ -9,6 +9,7 @@ class ProfilePreferencesModel extends Equatable {
     this.authEmail = '',
     this.pendingAuthEmail = '',
     this.hasLinkedEmail = false,
+    this.lastUsernameChangedAt,
   });
 
   final String queueName;
@@ -18,6 +19,7 @@ class ProfilePreferencesModel extends Equatable {
   final String authEmail;
   final String pendingAuthEmail;
   final bool hasLinkedEmail;
+  final DateTime? lastUsernameChangedAt;
 
   ProfilePreferencesModel copyWith({
     String? queueName,
@@ -27,6 +29,7 @@ class ProfilePreferencesModel extends Equatable {
     String? authEmail,
     String? pendingAuthEmail,
     bool? hasLinkedEmail,
+    DateTime? lastUsernameChangedAt,
   }) {
     return ProfilePreferencesModel(
       queueName: queueName ?? this.queueName,
@@ -37,6 +40,8 @@ class ProfilePreferencesModel extends Equatable {
       authEmail: authEmail ?? this.authEmail,
       pendingAuthEmail: pendingAuthEmail ?? this.pendingAuthEmail,
       hasLinkedEmail: hasLinkedEmail ?? this.hasLinkedEmail,
+      lastUsernameChangedAt:
+          lastUsernameChangedAt ?? this.lastUsernameChangedAt,
     );
   }
 
@@ -49,5 +54,6 @@ class ProfilePreferencesModel extends Equatable {
     authEmail,
     pendingAuthEmail,
     hasLinkedEmail,
+    lastUsernameChangedAt,
   ];
 }

@@ -19,6 +19,7 @@ import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/party_bloc.dart';
 import '../../bloc/party_event.dart';
 import '../../bloc/party_state.dart';
+import '../../../../core/ads/interstitial_ad_manager.dart';
 import 'widgets/party_card.dart';
 
 class PartyListScreen extends StatefulWidget {
@@ -72,13 +73,19 @@ class _PartyListScreenState extends State<PartyListScreen> {
       _pendingJoinIds.add(partyId);
     });
     context.read<PartyBloc>().add(PartyJoinRequested(partyId: partyId));
-    await context.push(AppRoutes.partyDetailsPath(partyId));
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _pendingJoinIds.remove(partyId);
-    });
+    
+    InterstitialAdManager.instance.showAd(
+      onAdDismissed: () {
+        if (!mounted) return;
+        context.push(AppRoutes.partyDetailsPath(partyId)).then((_) {
+          if (mounted) {
+            setState(() {
+              _pendingJoinIds.remove(partyId);
+            });
+          }
+        });
+      },
+    );
   }
 
   Future<void> _showRankFilterSheet({
@@ -209,7 +216,9 @@ class _PartyListScreenState extends State<PartyListScreen> {
                     listener: (BuildContext context, PartyState state) {
                       if (state is PartyError) {
                         AppSnackBar.showError(context, state.message);
-                        _pendingJoinIds.clear();
+                        setState(() {
+                          _pendingJoinIds.clear();
+                        });
                       }
                     },
                     builder: (BuildContext context, PartyState state) {

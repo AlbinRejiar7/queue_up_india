@@ -28,6 +28,7 @@ import '../navigation/bloc/main_tab_event.dart';
 import '../navigation/bloc/main_tab_state.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_dialog.dart';
+import '../ads/banner_ad_widget.dart';
 
 class MainTabShellScreen extends StatefulWidget {
   const MainTabShellScreen({
@@ -254,42 +255,49 @@ class _MainTabShellScreenState extends State<MainTabShellScreen>
             return BlocBuilder<MainTabBloc, MainTabState>(
               builder: (BuildContext context, MainTabState tabState) {
                 final activeIndex = tabState.activeIndex;
-                return PageView.builder(
-                  controller: _pageController,
-                  itemCount: 5,
-                  onPageChanged: (int pageIndex) {
-                    context.read<MainTabBloc>().add(
-                      MainTabIndexChanged(index: pageIndex),
-                    );
-                  },
-                  itemBuilder: (BuildContext context, int index) {
-                    if (index == 0) {
-                      return HomeScreen(
-                        key: ValueKey<String>('home-tab-$selectedGameId'),
-                        selectedGameId: selectedGameId,
-                        showBackButton: false,
-                        isActive: activeIndex == 0,
-                      );
-                    }
+                return Column(
+                  children: [
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: 5,
+                        onPageChanged: (int pageIndex) {
+                          context.read<MainTabBloc>().add(
+                            MainTabIndexChanged(index: pageIndex),
+                          );
+                        },
+                        itemBuilder: (BuildContext context, int index) {
+                          if (index == 0) {
+                            return HomeScreen(
+                              key: ValueKey<String>('home-tab-$selectedGameId'),
+                              selectedGameId: selectedGameId,
+                              showBackButton: false,
+                              isActive: activeIndex == 0,
+                            );
+                          }
 
-                    if (index == 1) {
-                      return const GameSelectionScreen(showBackButton: false);
-                    }
+                          if (index == 1) {
+                            return const GameSelectionScreen(showBackButton: false);
+                          }
 
-                    if (index == 2) {
-                      return CreatePartyScreen(
-                        key: ValueKey<String>('create-tab-$selectedGameId'),
-                        gameId: selectedGameId,
-                        showBackButton: false,
-                      );
-                    }
+                          if (index == 2) {
+                            return CreatePartyScreen(
+                              key: ValueKey<String>('create-tab-$selectedGameId'),
+                              gameId: selectedGameId,
+                              showBackButton: false,
+                            );
+                          }
 
-                    if (index == 3) {
-                      return const MyRoomsScreen(showBackButton: false);
-                    }
+                          if (index == 3) {
+                            return const MyRoomsScreen(showBackButton: false);
+                          }
 
-                    return const ProfileScreen(showBackButton: false);
-                  },
+                          return const ProfileScreen(showBackButton: false);
+                        },
+                      ),
+                    ),
+                    const BannerAdWidget(),
+                  ],
                 );
               },
             );

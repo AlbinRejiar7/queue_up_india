@@ -20,6 +20,7 @@ import '../../bloc/notifications_bloc.dart';
 import '../../bloc/notifications_event.dart';
 import '../../bloc/notifications_state.dart';
 import '../../models/notification_item.dart';
+import '../../../../core/ads/banner_ad_widget.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -331,6 +332,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                       textAlign: TextAlign.center,
                                       style: AppTextStyles.bodyMedium,
                                     ),
+                                    SizedBox(height: 8.h),
+                                    const BannerAdWidget(),
                                   ],
                                 ),
                               ),

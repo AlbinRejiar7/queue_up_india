@@ -18,6 +18,7 @@ import '../../../../core/widgets/safe_back_button.dart';
 import '../../bloc/party_bloc.dart';
 import '../../bloc/party_event.dart';
 import '../../bloc/party_state.dart';
+import '../../../../core/ads/interstitial_ad_manager.dart';
 
 class CreatePartyScreen extends StatefulWidget {
   const CreatePartyScreen({
@@ -84,13 +85,19 @@ class _CreatePartyScreenState extends State<CreatePartyScreen> {
                       if (state is PartySuccess &&
                           state.data.isCreateCompleted &&
                           state.data.navigationPartyId != null) {
-                        context.push(
-                          AppRoutes.partyDetailsPath(
-                            state.data.navigationPartyId!,
-                          ),
-                        );
-                        context.read<PartyBloc>().add(
-                          const PartyNavigationConsumed(),
+                        final partyId = state.data.navigationPartyId!;
+                        InterstitialAdManager.instance.showAd(
+                          onAdDismissed: () {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            context.push(
+                              AppRoutes.partyDetailsPath(partyId),
+                            );
+                            context.read<PartyBloc>().add(
+                              const PartyNavigationConsumed(),
+                            );
+                          },
                         );
                       }
 

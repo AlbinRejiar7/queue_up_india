@@ -36,6 +36,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileDeleteConsumed>(_onProfileDeleteConsumed);
     on<ProfileBugReportRequested>(_onProfileBugReportRequested);
     on<ProfileBugReportNoticeConsumed>(_onProfileBugReportNoticeConsumed);
+    on<ProfileSaveWithBypassRequested>(_onProfileSaveWithBypassRequested);
+    on<ProfileGeneralSavePressed>(_onProfileGeneralSavePressed);
+    on<ProfileUsernameSavePressed>(_onProfileUsernameSavePressed);
   }
 
   final ProfileViewModel _profileViewModel;
@@ -77,6 +80,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             isSubmittingEmailUpdate: false,
             didLogout: false,
             didDeleteAccount: false,
+            lastUsernameChangedAt: prefs.lastUsernameChangedAt,
           ),
         ),
       );
@@ -254,7 +258,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       return;
     }
 
-    emit(ProfileLoading(data: state.data));
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(isSubmittingUsername: true),
+      ),
+    );
     try {
       await _profileViewModel.savePreferences(
         ProfilePreferencesModel(
@@ -275,16 +283,118 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             showEmailUpdateNotice: false,
             showBugReportNotice: false,
             didDeleteAccount: false,
+            lastUsernameChangedAt: DateTime.now(),
+            isSubmittingUsername: false,
           ),
         ),
       );
     } on StateError catch (error) {
       emit(
-        ProfileError(message: _mapProfileSaveError(error), data: state.data),
+        ProfileError(
+          message: _mapProfileSaveError(error),
+          data: state.data.copyWith(isSubmittingUsername: false),
+        ),
       );
     } catch (_) {
       emit(
-        ProfileError(message: AppStrings.profileSaveFailed, data: state.data),
+        ProfileError(
+          message: AppStrings.profileSaveFailed,
+          data: state.data.copyWith(isSubmittingUsername: false),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onProfileGeneralSavePressed(
+    ProfileGeneralSavePressed event,
+    Emitter<ProfileState> emit,
+  ) async {
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(isSubmittingGeneral: true),
+      ),
+    );
+    try {
+      await _profileViewModel.savePreferences(
+        ProfilePreferencesModel(
+          // Use savedQueueName to ensure the username is NOT updated
+          queueName: state.data.savedQueueName,
+          preferredLanguageCode: state.data.preferredLanguageCode,
+          avatarUrl: state.data.avatarUrl,
+          recoveryEmail: state.data.recoveryEmail.trim(),
+        ),
+      );
+      emit(
+        ProfileSuccess(
+          data: state.data.copyWith(
+            showSavedNotice: true,
+            showPasswordNotice: false,
+            showEmailUpdateNotice: false,
+            showBugReportNotice: false,
+            didDeleteAccount: false,
+            isSubmittingGeneral: false,
+          ),
+        ),
+      );
+    } catch (_) {
+      emit(
+        ProfileError(
+          message: AppStrings.profileSaveFailed,
+          data: state.data.copyWith(isSubmittingGeneral: false),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onProfileUsernameSavePressed(
+    ProfileUsernameSavePressed event,
+    Emitter<ProfileState> emit,
+  ) async {
+    // This is basically ProfileSavePressed but logically separated for clarity
+    add(const ProfileSavePressed());
+  }
+
+  Future<void> _onProfileSaveWithBypassRequested(
+    ProfileSaveWithBypassRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    // This assumes the ad was already watched in the UI.
+    emit(
+      ProfileSuccess(
+        data: state.data.copyWith(isSubmittingUsername: true),
+      ),
+    );
+    try {
+      await _profileViewModel.savePreferences(
+        ProfilePreferencesModel(
+          queueName: state.data.queueName.trim(),
+          preferredLanguageCode: state.data.preferredLanguageCode,
+          avatarUrl: state.data.avatarUrl,
+          recoveryEmail: state.data.recoveryEmail.trim(),
+        ),
+      );
+      emit(
+        ProfileSuccess(
+          data: state.data.copyWith(
+            savedQueueName: state.data.queueName.trim(),
+            usernameStatus: ProfileUsernameCheckStatus.available,
+            isUsernameChecking: false,
+            showSavedNotice: true,
+            showPasswordNotice: false,
+            showEmailUpdateNotice: false,
+            showBugReportNotice: false,
+            didDeleteAccount: false,
+            lastUsernameChangedAt: DateTime.now(),
+            isSubmittingUsername: false,
+          ),
+        ),
+      );
+    } catch (_) {
+      emit(
+        ProfileError(
+          message: AppStrings.profileSaveFailed,
+          data: state.data.copyWith(isSubmittingUsername: false),
+        ),
       );
     }
   }

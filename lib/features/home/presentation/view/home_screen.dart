@@ -32,6 +32,7 @@ import '../../bloc/home_availability_event.dart';
 import '../../bloc/home_availability_state.dart';
 import 'widgets/availability_filters_card.dart';
 import 'widgets/availability_wave_button.dart';
+import '../../../../core/ads/interstitial_ad_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -407,22 +408,32 @@ class _HomeScreenState extends State<HomeScreen> {
                                           );
                                           return;
                                         }
-                                        context
-                                            .read<HomeAvailabilityBloc>()
-                                            .add(
-                                              const HomeAvailabilityToggled(),
-                                            );
+                                        InterstitialAdManager.instance.showAd(
+                                          onAdDismissed: () {
+                                            if (!context.mounted) return;
+                                            context
+                                                .read<HomeAvailabilityBloc>()
+                                                .add(
+                                                  const HomeAvailabilityToggled(),
+                                                );
+                                          },
+                                        );
                                       },
                                       child: AvailabilityWaveButton(
                                         isAvailable: state.isAvailable,
                                         enabled: state.canToggleAvailability,
                                         diameter: diameter,
                                         onPressed: () {
-                                          context
-                                              .read<HomeAvailabilityBloc>()
-                                              .add(
-                                                const HomeAvailabilityToggled(),
-                                              );
+                                          InterstitialAdManager.instance.showAd(
+                                            onAdDismissed: () {
+                                              if (!context.mounted) return;
+                                              context
+                                                  .read<HomeAvailabilityBloc>()
+                                                  .add(
+                                                    const HomeAvailabilityToggled(),
+                                                  );
+                                            },
+                                          );
                                         },
                                       ),
                                     ),

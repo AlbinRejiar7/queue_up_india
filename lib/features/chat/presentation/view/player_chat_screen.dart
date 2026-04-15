@@ -29,6 +29,7 @@ import '../../bloc/chat_state.dart';
 import '../../utils/direct_chat_firebase_debug.dart';
 import '../../viewmodel/chat_view_model.dart';
 import '../widgets/chat_bubble.dart';
+import '../../../../core/ads/banner_ad_widget.dart';
 
 class PlayerChatScreen extends StatefulWidget {
   const PlayerChatScreen({required this.player, super.key});
@@ -953,6 +954,8 @@ class _PlayerChatScreenState extends State<PlayerChatScreen> {
                           padding: contentPadding,
                           child: Column(
                             children: <Widget>[
+                              SizedBox(height: 6.h),
+                              const BannerAdWidget(),
                               SizedBox(height: 6.h),
                               Row(
                                 children: <Widget>[

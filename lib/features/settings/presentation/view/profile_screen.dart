@@ -19,7 +19,7 @@ import '../../bloc/profile_bloc.dart';
 import '../../bloc/profile_event.dart';
 import '../../bloc/profile_state.dart';
 import '../../../../core/widgets/avatar_selection_grid.dart';
-
+import '../../../../core/ads/rewarded_ad_manager.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.showBackButton = true});
 
@@ -170,7 +170,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ProfileAvatarChanged(avatarUrl: avatarUrl),
               );
             },
-            onSavePressed: () => _handleProfileSave(data, isLoading),
+            onSavePressed: () => _handleGeneralSave(data, isLoading),
+            onUsernameSavePressed: () => _handleUsernameUpdate(data, isLoading),
           );
         },
       ),
@@ -208,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _handleProfileSave(ProfileViewData data, bool isLoading) {
+  void _handleGeneralSave(ProfileViewData data, bool isLoading) {
     if (isLoading) {
       return;
     }
@@ -216,11 +217,59 @@ class _ProfileScreenState extends State<ProfileScreen>
       AppSnackBar.showError(context, AppStrings.invalidRecoveryEmail);
       return;
     }
-    if (!data.canSave) {
-      AppSnackBar.showInfo(context, AppStrings.noChangesToSave);
+
+    context.read<ProfileBloc>().add(const ProfileGeneralSavePressed());
+  }
+
+  void _handleUsernameUpdate(ProfileViewData data, bool isLoading) {
+    if (isLoading) {
       return;
     }
-    context.read<ProfileBloc>().add(const ProfileSavePressed());
+    if (!data.isUsernameReadyToSave) {
+      return;
+    }
+
+    if (data.daysSinceLastUsernameChange < 15) {
+      _showUsernameRestrictionDialog();
+      return;
+    }
+
+    context.read<ProfileBloc>().add(const ProfileUsernameSavePressed());
+  }
+
+  Future<void> _showUsernameRestrictionDialog() async {
+    final confirmed = await AppDialog.showConfirm(
+      context,
+      title: AppStrings.usernameChangeRestrictedTitle,
+      message:
+          '${AppStrings.usernameChangeRestrictedMessage}\n\n${AppStrings.usernameChangeBypassDescription}',
+      confirmLabel: AppStrings.usernameChangeBypassAction,
+      cancelLabel: AppStrings.cancelAction,
+    );
+
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    RewardedAdManager.instance.showAd(
+      onRewarded: (reward) {
+        if (!mounted) {
+          return;
+        }
+        // Verify the reward item name set in AdMob console is "name"
+        if (reward.type == 'name') {
+          context.read<ProfileBloc>().add(const ProfileSaveWithBypassRequested());
+        } else {
+          AppSnackBar.showError(
+            context,
+            'Incorrect reward item: ${reward.type}. Expected "name".',
+          );
+        }
+      },
+      onAdDismissed: () {
+        // Optional: show snackbar if they didn't get reward
+      },
+    );
   }
 
   Future<void> _confirmLogout() async {
@@ -684,6 +733,7 @@ class _EditProfileSheet extends StatelessWidget {
     required this.onLanguageChanged,
     required this.onAvatarSelected,
     required this.onSavePressed,
+    required this.onUsernameSavePressed,
   });
 
   final TextEditingController queueNameController;
@@ -696,6 +746,7 @@ class _EditProfileSheet extends StatelessWidget {
   final ValueChanged<String> onLanguageChanged;
   final ValueChanged<String> onAvatarSelected;
   final VoidCallback onSavePressed;
+  final VoidCallback onUsernameSavePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -742,40 +793,91 @@ class _EditProfileSheet extends StatelessWidget {
               SizedBox(height: 14.h),
               Text(AppStrings.queueName, style: AppTextStyles.bodyMedium),
               SizedBox(height: 8.h),
-              TextField(
-                controller: queueNameController,
-                textInputAction: TextInputAction.next,
-                onChanged: onQueueNameChanged,
-                decoration: const InputDecoration(
-                  hintText: AppStrings.queueNameHint,
-                ),
-              ),
-              if (usernameStatusText != null) ...<Widget>[
-                SizedBox(height: 6.h),
-                Row(
-                  children: <Widget>[
-                    if (isUsernameChecking)
-                      SizedBox(
-                        width: 14.w,
-                        height: 14.w,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.textSecondary,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        TextField(
+                          controller: queueNameController,
+                          textInputAction: TextInputAction.next,
+                          onChanged: onQueueNameChanged,
+                          decoration: const InputDecoration(
+                            hintText: AppStrings.queueNameHint,
+                          ),
                         ),
-                      ),
-                    if (isUsernameChecking) SizedBox(width: 6.w),
-                    Expanded(
-                      child: Text(
-                        usernameStatusText!,
-                        style: AppTextStyles.caption.copyWith(
-                          color: usernameStatusColor ?? AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        if (usernameStatusText != null) ...<Widget>[
+                          SizedBox(height: 6.h),
+                          Row(
+                            children: <Widget>[
+                              if (isUsernameChecking)
+                                SizedBox(
+                                  width: 14.w,
+                                  height: 14.w,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              if (isUsernameChecking) SizedBox(width: 6.w),
+                              Expanded(
+                                child: Text(
+                                  usernameStatusText!,
+                                  style: AppTextStyles.caption.copyWith(
+                                    color:
+                                        usernameStatusColor ??
+                                        AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  SizedBox(width: 8.w),
+                  SizedBox(
+                    height: 52.h,
+                    child: ElevatedButton(
+                      onPressed:
+                          data.isSubmittingUsername ||
+                                  !data.isUsernameChanged ||
+                                  !data.isUsernameReadyToSave
+                              ? null
+                              : onUsernameSavePressed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.electricBlue,
+                        foregroundColor: AppColors.textPrimary,
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child:
+                          data.isSubmittingUsername
+                              ? SizedBox(
+                                width: 16.w,
+                                height: 16.w,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : Text(
+                                AppStrings.updateAction,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                    ),
+                  ),
+                ],
+              ),
               SizedBox(height: 16.h),
               Text(
                 AppStrings.preferredQueueLanguage,
@@ -821,12 +923,12 @@ class _EditProfileSheet extends StatelessWidget {
                   SizedBox(width: 10.w),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : onSavePressed,
+                      onPressed: data.isSubmittingGeneral ? null : onSavePressed,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.electricBlueBright,
                         foregroundColor: AppColors.textPrimary,
                       ),
-                      child: isLoading
+                      child: data.isSubmittingGeneral
                           ? SizedBox(
                               width: 18.w,
                               height: 18.w,

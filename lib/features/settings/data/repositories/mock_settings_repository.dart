@@ -205,7 +205,13 @@ class MockSettingsRepository implements SettingsRepository {
     ProfilePreferencesModel preferences,
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 180));
-    _preferences = preferences;
+    if (_preferences.queueName != preferences.queueName) {
+      _preferences = preferences.copyWith(
+        lastUsernameChangedAt: DateTime.now(),
+      );
+    } else {
+      _preferences = preferences;
+    }
   }
 
   @override

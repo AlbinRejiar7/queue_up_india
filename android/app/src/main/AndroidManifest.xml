@@ -11,6 +11,10 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="queueup_alerts_default_v1" />
+        <!-- AdMob App ID (synced with .env) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8346673690584058~4628117123" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

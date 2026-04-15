@@ -23,9 +23,12 @@ class ProfileViewData extends Equatable {
     this.showBugReportNotice = false,
     this.isSubmittingBugReport = false,
     this.isSubmittingPassword = false,
-    this.isSubmittingEmailUpdate = false,
+    required this.isSubmittingEmailUpdate,
+    this.isSubmittingUsername = false,
+    this.isSubmittingGeneral = false,
     this.didLogout = false,
     this.didDeleteAccount = false,
+    this.lastUsernameChangedAt,
   });
 
   const ProfileViewData.initial()
@@ -47,8 +50,11 @@ class ProfileViewData extends Equatable {
       isSubmittingBugReport = false,
       isSubmittingPassword = false,
       isSubmittingEmailUpdate = false,
+      isSubmittingUsername = false,
+      isSubmittingGeneral = false,
       didLogout = false,
-      didDeleteAccount = false;
+      didDeleteAccount = false,
+      lastUsernameChangedAt = null;
 
   final List<LanguageModel> languages;
   final String queueName;
@@ -68,8 +74,11 @@ class ProfileViewData extends Equatable {
   final bool isSubmittingBugReport;
   final bool isSubmittingPassword;
   final bool isSubmittingEmailUpdate;
+  final bool isSubmittingUsername;
+  final bool isSubmittingGeneral;
   final bool didLogout;
   final bool didDeleteAccount;
+  final DateTime? lastUsernameChangedAt;
 
   bool get hasPendingAuthEmail => pendingAuthEmail.trim().isNotEmpty;
 
@@ -102,6 +111,13 @@ class ProfileViewData extends Equatable {
       isRecoveryEmailValid &&
       isUsernameReadyToSave;
 
+  int get daysSinceLastUsernameChange {
+    if (lastUsernameChangedAt == null) {
+      return 100; // Large number if never changed
+    }
+    return DateTime.now().difference(lastUsernameChangedAt!).inDays;
+  }
+
   ProfileViewData copyWith({
     List<LanguageModel>? languages,
     String? queueName,
@@ -121,8 +137,11 @@ class ProfileViewData extends Equatable {
     bool? isSubmittingBugReport,
     bool? isSubmittingPassword,
     bool? isSubmittingEmailUpdate,
+    bool? isSubmittingUsername,
+    bool? isSubmittingGeneral,
     bool? didLogout,
     bool? didDeleteAccount,
+    DateTime? lastUsernameChangedAt,
   }) {
     return ProfileViewData(
       languages: languages ?? this.languages,
@@ -147,8 +166,12 @@ class ProfileViewData extends Equatable {
       isSubmittingPassword: isSubmittingPassword ?? this.isSubmittingPassword,
       isSubmittingEmailUpdate:
           isSubmittingEmailUpdate ?? this.isSubmittingEmailUpdate,
+      isSubmittingUsername: isSubmittingUsername ?? this.isSubmittingUsername,
+      isSubmittingGeneral: isSubmittingGeneral ?? this.isSubmittingGeneral,
       didLogout: didLogout ?? this.didLogout,
       didDeleteAccount: didDeleteAccount ?? this.didDeleteAccount,
+      lastUsernameChangedAt:
+          lastUsernameChangedAt ?? this.lastUsernameChangedAt,
     );
   }
 
@@ -172,8 +195,11 @@ class ProfileViewData extends Equatable {
     isSubmittingBugReport,
     isSubmittingPassword,
     isSubmittingEmailUpdate,
+    isSubmittingUsername,
+    isSubmittingGeneral,
     didLogout,
     didDeleteAccount,
+    lastUsernameChangedAt,
   ];
 
   String _normalizeUsername(String username) {

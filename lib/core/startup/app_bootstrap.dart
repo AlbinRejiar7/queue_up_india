@@ -23,6 +23,10 @@ import '../../features/party/viewmodel/party_view_model.dart';
 import '../../features/settings/viewmodel/profile_view_model.dart';
 import '../services/availability_session_manager.dart';
 import '../services/push_notification_service.dart';
+import '../ads/ad_helper.dart';
+import '../ads/app_open_ad_manager.dart';
+import '../ads/interstitial_ad_manager.dart';
+import '../ads/rewarded_ad_manager.dart';
 import 'app_startup_controller.dart';
 
 class AppBootstrap extends StatefulWidget {
@@ -32,19 +36,38 @@ class AppBootstrap extends StatefulWidget {
   State<AppBootstrap> createState() => _AppBootstrapState();
 }
 
-class _AppBootstrapState extends State<AppBootstrap> {
+class _AppBootstrapState extends State<AppBootstrap>
+    with WidgetsBindingObserver {
   static const Duration _minimumStartupDisplay = Duration(milliseconds: 2600);
 
   bool _showApp = false;
   Object? _bootError;
+  bool _hasShownColdStartAd = false;
   late final Future<void> _minimumDisplay;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AppStartupController.begin();
     _minimumDisplay = Future<void>.delayed(_minimumStartupDisplay);
     unawaited(_bootstrap());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      AppOpenAdManager.instance.onAppBackgrounded();
+    }
+    if (state == AppLifecycleState.resumed) {
+      AppOpenAdManager.instance.tryShowOnResume();
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -70,6 +93,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
         return true;
       };
 
+      // Initialise ads SDK and pre-load ads.
+      await AdHelper.initialise();
+      AppOpenAdManager.instance.loadAd();
+      InterstitialAdManager.instance.loadAd();
+      RewardedAdManager.instance.loadAd();
+
       final bool hasAuthSession = FirebaseAuth.instance.currentUser != null;
       registerRouter(
         initialLocation: hasAuthSession ? AppRoutes.home : AppRoutes.login,
@@ -94,6 +123,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
         _showApp = true;
         _bootError = null;
       });
+
+      // Show App Open ad on cold start (once).
+      if (!_hasShownColdStartAd) {
+        _hasShownColdStartAd = true;
+        AppOpenAdManager.instance.showAdIfAvailable();
+      }
     } catch (error, stack) {
       debugPrint('[Startup] bootstrap failed: $error');
       debugPrintStack(stackTrace: stack);

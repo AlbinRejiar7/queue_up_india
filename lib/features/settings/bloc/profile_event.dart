@@ -51,6 +51,18 @@ class ProfileSavePressed extends ProfileEvent {
   const ProfileSavePressed();
 }
 
+class ProfileUsernameSavePressed extends ProfileEvent {
+  const ProfileUsernameSavePressed();
+}
+
+class ProfileGeneralSavePressed extends ProfileEvent {
+  const ProfileGeneralSavePressed();
+}
+
+class ProfileSaveWithBypassRequested extends ProfileEvent {
+  const ProfileSaveWithBypassRequested();
+}
+
 class ProfileSaveNoticeConsumed extends ProfileEvent {
   const ProfileSaveNoticeConsumed();
 }

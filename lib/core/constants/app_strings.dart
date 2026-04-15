@@ -376,6 +376,12 @@ abstract final class AppStrings {
   static const String changeAvatar = 'Change Profile Avatar';
   static const String saveChanges = 'Save Changes';
   static const String profileSaved = 'Profile preferences saved';
+  static const String usernameChangeRestrictedTitle = 'Change Restricted';
+  static const String usernameChangeRestrictedMessage =
+      'You can only change your username once every 15 days.';
+  static const String usernameChangeBypassAction = 'Watch Ad to Change Now';
+  static const String usernameChangeBypassDescription =
+      'Watch a short video to bypass the 15-day limit.';
   static const String profileMenuHint =
       'Manage your profile, security, and app details from here.';
   static const String editProfile = 'Edit Profile';

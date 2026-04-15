@@ -118,6 +118,8 @@ class FirestoreSettingsRepository implements SettingsRepository {
         (data['hasEmail'] as bool?) ??
         (!_isAliasEmail(authEmail) && authEmail.isNotEmpty);
 
+    final lastUsernameChangedAt = (data['lastUsernameChangedAt'] as Timestamp?)?.toDate();
+
     return ProfilePreferencesModel(
       queueName: queueName,
       preferredLanguageCode: preferredLanguageCode,
@@ -126,6 +128,7 @@ class FirestoreSettingsRepository implements SettingsRepository {
       authEmail: authEmail,
       pendingAuthEmail: pendingAuthEmail,
       hasLinkedEmail: hasLinkedEmail,
+      lastUsernameChangedAt: lastUsernameChangedAt,
     );
   }
 
@@ -228,6 +231,8 @@ class FirestoreSettingsRepository implements SettingsRepository {
       );
     }
 
+    final bool isNameChanging = currentDisplayName != trimmedName;
+
     await userRef.set(<String, dynamic>{
       'displayName': preferences.queueName,
       'preferredLanguageId': preferences.preferredLanguageCode,
@@ -235,6 +240,7 @@ class FirestoreSettingsRepository implements SettingsRepository {
       'authEmail': currentAuthEmail,
       'hasEmail': hasLinkedEmail,
       'updatedAt': FieldValue.serverTimestamp(),
+      if (isNameChanging) 'lastUsernameChangedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     final trimmedRecoveryEmail = preferences.recoveryEmail.trim();
