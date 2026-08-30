@@ -1,5 +1,28 @@
 # QueueUp India
 
+<h2>Screenshots</h2>
+
+<p align="center">
+  <img src="assets/1.png" width="200">
+  <img src="assets/2.png" width="200">
+  <img src="assets/3.png" width="200">
+  <img src="assets/4.png" width="200">
+</p>
+
+<p align="center">
+  <img src="assets/5.png" width="200">
+  <img src="assets/6.png" width="200">
+  <img src="assets/7.png" width="200">
+  <img src="assets/8.png" width="200">
+</p>
+
+<p align="center">
+  <img src="assets/9.png" width="200">
+  <img src="assets/10.png" width="200">
+  <img src="assets/11.png" width="200">
+  <img src="assets/12.png" width="200">
+</p>
+
 QueueUp India is a gaming matchmaking app that helps players go available, find solo players, create/join parties, and chat in real time.
 
 ## App Prompt
